@@ -1,0 +1,91 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import Razorpay from "razorpay";
+
+export async function POST(request: Request) {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    return NextResponse.json(
+      { error: "Razorpay not configured. Use test keys for development." },
+      { status: 503 }
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { amountInr, weekStart, weekEnd, receipt } = body as {
+    amountInr: number;
+    weekStart?: string;
+    weekEnd?: string;
+    receipt?: string;
+  };
+
+  if (!amountInr || amountInr <= 0) {
+    return NextResponse.json(
+      { error: "Invalid amount" },
+      { status: 400 }
+    );
+  }
+
+  if (!weekStart || !weekEnd) {
+    return NextResponse.json(
+      { error: "Week dates required" },
+      { status: 400 }
+    );
+  }
+
+  const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+  const amountPaise = Math.round(amountInr * 100);
+
+  try {
+    const { data: policy, error: policyError } = await supabase
+      .from("weekly_policies")
+      .insert({
+        profile_id: user.id,
+        week_start_date: weekStart,
+        week_end_date: weekEnd,
+        weekly_premium_inr: amountInr,
+        is_active: false,
+      })
+      .select("id")
+      .single();
+
+    if (policyError || !policy) {
+      return NextResponse.json(
+        { error: policyError?.message ?? "Failed to create policy" },
+        { status: 500 }
+      );
+    }
+
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: "INR",
+      receipt: receipt ?? `oasis_${user.id}_${Date.now()}`,
+      notes: { profile_id: user.id, policy_id: policy.id },
+    });
+
+    return NextResponse.json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId,
+      policyId: policy.id,
+    });
+  } catch (err) {
+    console.error("Razorpay order error:", err);
+    return NextResponse.json(
+      { error: "Failed to create order" },
+      { status: 500 }
+    );
+  }
+}
