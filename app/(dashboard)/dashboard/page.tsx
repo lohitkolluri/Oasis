@@ -46,17 +46,23 @@ export default async function DashboardPage() {
     claimsFiltered.reduce((sum, c) => sum + Number(c.payout_amount_inr), 0);
   const activePolicy = policies?.[0] ?? null;
 
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-zinc-900 to-zinc-900/50 border border-zinc-800/60">
-        <Avatar seed={user.id} size={56} className="ring-2 ring-emerald-500/30" />
+    <div className="space-y-5">
+      <div className="flex items-center gap-4">
+        <Avatar
+          seed={user.id}
+          size={52}
+          className="ring-2 ring-emerald-500/25 ring-offset-2 ring-offset-[#0a0a0a]"
+        />
         <div>
-          <h1 className="text-xl font-semibold mb-0.5">
-            Hello, {profile?.full_name || "Partner"}
+          <p className="text-sm text-zinc-500">{greeting}</p>
+          <h1 className="text-lg font-semibold text-zinc-100">
+            {profile?.full_name || "Partner"}
           </h1>
-          <p className="text-zinc-500 text-sm">
-            Your income protection at a glance
-          </p>
         </div>
       </div>
 

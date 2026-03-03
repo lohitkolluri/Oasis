@@ -32,10 +32,13 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <Link href="/" className="text-2xl font-bold block mb-6">
-          Oasis
+        <Link
+          href="/"
+          className="inline-block text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
+        >
+          ← Oasis
         </Link>
         <div className="flex justify-center mb-6">
           <Avatar seed="oasis-rider-signin" size={72} />

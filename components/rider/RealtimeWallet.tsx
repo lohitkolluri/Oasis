@@ -51,26 +51,27 @@ export function RealtimeWallet({
   }, [supabase, policyIds]);
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 shadow-xl shadow-black/20">
+    <div className="rounded-2xl bg-zinc-900/90 border border-emerald-500/20 shadow-xl shadow-black/10 p-6">
       <div className="flex items-center gap-3 mb-4">
-        <Avatar seed={profileId} size={40} />
-        <h2 className="font-semibold">Coverage & Earnings</h2>
-        <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 animate-pulse">
+        <Avatar seed={profileId} size={32} className="ring-1 ring-emerald-500/20" />
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-zinc-100">Coverage & Earnings</h2>
+          <p className="text-xs text-zinc-500">Updates in real time</p>
+        </div>
+        <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live
         </span>
       </div>
-      <div className="space-y-1">
-        <p className="text-3xl font-bold text-zinc-100">
-          ₹{balance.toLocaleString("en-IN")}
-        </p>
-        <p className="text-sm text-zinc-400">
-          Total protected payouts (updates in real time)
-        </p>
-      </div>
-      <div className="mt-4 pt-4 border-t border-zinc-800/80 flex justify-between text-sm text-zinc-500">
-        <span className="capitalize">Platform: {platform}</span>
+      <p className="text-3xl font-bold text-zinc-100 tracking-tight tabular-nums">
+        ₹{balance.toLocaleString("en-IN")}
+      </p>
+      <div className="mt-5 pt-4 border-t border-zinc-800/60 flex justify-between items-center text-sm">
+        <span className="text-zinc-500 capitalize">{platform}</span>
         {claimCount > 0 && (
-          <span>{claimCount} automated claim{claimCount !== 1 ? "s" : ""}</span>
+          <span className="text-emerald-400/90 text-xs font-medium">
+            {claimCount} claim{claimCount !== 1 ? "s" : ""}
+          </span>
         )}
       </div>
     </div>

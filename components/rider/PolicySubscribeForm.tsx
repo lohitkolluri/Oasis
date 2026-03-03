@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { WeeklyPolicy } from "@/lib/types/database";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 interface PolicySubscribeFormProps {
   profileId: string;
@@ -176,7 +177,7 @@ export function PolicySubscribeForm({
 
   if (activePolicy) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 space-y-4 shadow-xl shadow-black/20">
+      <Card variant="elevated" padding="lg">
         <p className="text-zinc-300">
           You have active coverage for{" "}
           <strong>
@@ -186,25 +187,25 @@ export function PolicySubscribeForm({
         <p className="text-sm text-zinc-500">
           Weekly premium: ₹{Number(activePolicy.weekly_premium_inr).toLocaleString()}
         </p>
-      </div>
+      </Card>
     );
   }
 
   return (
     <form onSubmit={handleSubscribe} className="space-y-4">
-      <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 shadow-xl shadow-black/20">
+      <Card variant="elevated" padding="lg">
         <div className="flex items-center gap-3 mb-4">
           <Avatar seed={profileId} size={44} />
           <h2 className="font-semibold">Subscribe for next week</h2>
         </div>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-zinc-400">Coverage period</span>
-            <span>{start} – {end}</span>
+          <div className="flex justify-between py-1.5">
+            <span className="text-zinc-500">Coverage period</span>
+            <span className="text-zinc-300 tabular-nums">{start} – {end}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-400">Weekly premium</span>
-            <span className="font-medium">₹{defaultPremium}</span>
+          <div className="flex justify-between py-1.5">
+            <span className="text-zinc-500">Weekly premium</span>
+            <span className="font-medium tabular-nums">₹{defaultPremium}</span>
           </div>
         </div>
         {message && (
@@ -219,7 +220,7 @@ export function PolicySubscribeForm({
         <Button type="submit" disabled={loading} fullWidth size="lg" className="mt-4">
           {loading ? "Opening payment..." : "Pay & Activate"}
         </Button>
-      </div>
+      </Card>
     </form>
   );
 }
