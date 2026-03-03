@@ -1,0 +1,22 @@
+---
+description: 'Standards for Supabase, PostgreSQL, Edge Functions, and Python ML backend.'
+globs: 'supabase/**/*, *.sql, backend/**/*, *.py, api/**/*'
+alwaysApply: false
+---
+
+# Tech Stack
+
+- Supabase (PostgreSQL, Auth, Realtime, Edge Functions).
+- Python (FastAPI or lightweight scripts for AI/ML).
+- Infrastructure: Dockerized applications optimized for deployment on Dokploy.
+
+# Database & Security Rules
+
+- Always use `snake_case` for PostgreSQL database columns and tables.
+- Always implement Row Level Security (RLS) in Supabase queries. Workers should only see their own policies and claims.
+- Never expose Supabase service role keys on the client side.
+
+# AI & Edge Function Logic
+
+- Edge Functions (Deno) should be used as webhooks to receive third-party API triggers (e.g., Tomorrow.io) and insert records into the `claims` table.
+- Python scripts should handle the dynamic Weekly premium calculations and anomaly/fraud detection models.

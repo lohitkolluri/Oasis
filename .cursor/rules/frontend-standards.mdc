@@ -1,0 +1,22 @@
+---
+description: 'Standards for the Next.js frontend, Tailwind CSS styling, and UI/UX design system.'
+globs: '*.tsx, *.ts, *.jsx, *.js, app/**/*, components/**/*'
+alwaysApply: false
+---
+
+# Tech Stack
+
+- Next.js (App Router), TypeScript, React, Tailwind CSS, Framer Motion.
+
+# Design System & UI/UX
+
+- Aesthetic: Strictly enforce a dark, minimalist, and modern UI aesthetic.
+- The design must be high-contrast and highly legible for delivery riders operating outdoors at night.
+- Avoid unnecessary visual clutter; prioritize speed, typography, and clean spacing.
+
+# Code Style
+
+- Use strict TypeScript typing. Interfaces/Types should be declared clearly for API responses.
+- Use functional components and React Hooks. Keep components modular and single-purpose.
+- Use Tailwind CSS utility classes exclusively. Group classes logically.
+- Utilize Next.js Server Components where possible for performance, and Supabase client-side fetching for real-time UI updates.
