@@ -1,6 +1,7 @@
 import { FileCheck } from "lucide-react";
 import Link from "next/link";
 import type { WeeklyPolicy, ParametricClaim } from "@/lib/types/database";
+import { ButtonLink } from "@/components/ui/Button";
 
 interface PolicyCardProps {
   policy: WeeklyPolicy | null;
@@ -17,29 +18,30 @@ function formatDate(dateStr: string) {
 
 export function PolicyCard({ policy, profileId, claims }: PolicyCardProps) {
   if (!policy) {
-    return (
-      <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
-        <div className="flex items-center gap-2 mb-4">
+  return (
+    <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 shadow-xl shadow-black/20">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="p-2 rounded-xl bg-zinc-800">
           <FileCheck className="h-5 w-5 text-zinc-500" />
+        </div>
           <h2 className="font-semibold">Weekly Policy</h2>
         </div>
         <p className="text-zinc-400 text-sm mb-4">
           No active weekly coverage. Subscribe to protect your income.
         </p>
-        <Link
-          href="/dashboard/policy"
-          className="inline-block px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition-colors"
-        >
+        <ButtonLink href="/dashboard/policy" variant="primary" size="sm">
           Get coverage
-        </Link>
+        </ButtonLink>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
+    <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 shadow-xl shadow-black/20">
       <div className="flex items-center gap-2 mb-4">
-        <FileCheck className="h-5 w-5 text-emerald-400" />
+        <div className="p-2 rounded-xl bg-emerald-500/10">
+          <FileCheck className="h-5 w-5 text-emerald-400" />
+        </div>
         <h2 className="font-semibold">Active Weekly Policy</h2>
       </div>
       <div className="space-y-2 text-sm">
@@ -71,7 +73,7 @@ export function PolicyCard({ policy, profileId, claims }: PolicyCardProps) {
       )}
       <Link
         href="/dashboard/policy"
-        className="mt-4 inline-block text-sm text-emerald-400 hover:underline"
+        className="mt-4 inline-flex items-center text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
       >
         Manage policy →
       </Link>

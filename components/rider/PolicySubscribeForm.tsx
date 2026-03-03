@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { WeeklyPolicy } from "@/lib/types/database";
+import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 
 interface PolicySubscribeFormProps {
   profileId: string;
@@ -169,14 +171,16 @@ export function PolicySubscribeForm({
     window.location.reload();
   }
 
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
   if (activePolicy) {
     return (
-      <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6 space-y-4">
+      <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 space-y-4 shadow-xl shadow-black/20">
         <p className="text-zinc-300">
           You have active coverage for{" "}
           <strong>
-            {new Date(activePolicy.week_start_date).toLocaleDateString()} –{" "}
-            {new Date(activePolicy.week_end_date).toLocaleDateString()}
+            {formatDate(activePolicy.week_start_date)} – {formatDate(activePolicy.week_end_date)}
           </strong>
         </p>
         <p className="text-sm text-zinc-500">
@@ -188,8 +192,11 @@ export function PolicySubscribeForm({
 
   return (
     <form onSubmit={handleSubscribe} className="space-y-4">
-      <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
-        <h2 className="font-semibold mb-4">Subscribe for next week</h2>
+      <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 shadow-xl shadow-black/20">
+        <div className="flex items-center gap-3 mb-4">
+          <Avatar seed={profileId} size={44} />
+          <h2 className="font-semibold">Subscribe for next week</h2>
+        </div>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-zinc-400">Coverage period</span>
@@ -209,13 +216,9 @@ export function PolicySubscribeForm({
             {message.text}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-4 w-full py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-medium"
-        >
+        <Button type="submit" disabled={loading} fullWidth size="lg" className="mt-4">
           {loading ? "Opening payment..." : "Pay & Activate"}
-        </button>
+        </Button>
       </div>
     </form>
   );

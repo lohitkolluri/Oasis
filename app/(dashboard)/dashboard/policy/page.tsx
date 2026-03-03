@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
+import { FileText } from "lucide-react";
 import { calculateWeeklyPremium } from "@/lib/ml/premium-calc";
 
 export default async function PolicyPage() {
@@ -49,7 +50,16 @@ export default async function PolicyPage() {
       >
         ← Back to dashboard
       </Link>
-      <h1 className="text-xl font-semibold">Weekly Policy</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold">Weekly Policy</h1>
+        <Link
+          href="/dashboard/policy/docs"
+          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          <FileText className="h-4 w-4" />
+          Policy docs
+        </Link>
+      </div>
       <PolicySubscribeForm
         profileId={user.id}
         activePolicy={activePolicy}

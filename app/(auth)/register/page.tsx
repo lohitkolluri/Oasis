@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -38,12 +40,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
       <div className="w-full max-w-sm">
-        <Link href="/" className="text-2xl font-bold block mb-8">
+        <Link href="/" className="text-2xl font-bold block mb-6">
           Oasis
         </Link>
-        <h1 className="text-xl font-semibold mb-6">Get started</h1>
+        <div className="flex justify-center mb-6">
+          <Avatar seed={fullName || "oasis-new-rider"} size={72} />
+        </div>
+        <h1 className="text-xl font-semibold mb-6 text-center">Get started</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="fullName" className="block text-sm text-zinc-400 mb-1">
@@ -97,13 +102,9 @@ export default function RegisterPage() {
               {message.text}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors font-medium"
-          >
+          <Button type="submit" disabled={loading} fullWidth size="lg">
             {loading ? "Creating account..." : "Create account"}
-          </button>
+          </Button>
         </form>
         <p className="mt-6 text-sm text-zinc-400 text-center">
           Already have an account?{" "}

@@ -63,10 +63,13 @@ All triggers target **loss of income only**. No coverage for health, life, accid
 
 ## Platform Choice: Web (PWA)
 
-We use a **mobile-first web app** that can be installed as a PWA:
+We use a **mobile-first web app** that can be installed as a PWA for both riders and admins:
 
 - **Reach:** No app store delay; works across devices.
 - **Updates:** Instant deploys without user updates.
+- **Install prompts:** Android/Chrome show an install banner; iOS users can use Share → Add to Home Screen.
+- **Shortcuts:** Installed PWA offers quick shortcuts to Rider Dashboard and Admin Dashboard.
+- **Offline fallback:** Service worker caches assets and shows an offline page when connectivity is lost.
 - **Dark mode:** High contrast for outdoor/night use and battery savings.
 - **Speed:** Next.js + Turbopack for fast iteration during the hackathon.
 

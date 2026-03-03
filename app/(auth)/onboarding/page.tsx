@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { PlatformType } from "@/lib/types/database";
+import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 
 export default function OnboardingPage() {
   const [platform, setPlatform] = useState<PlatformType | null>(null);
@@ -14,6 +16,15 @@ export default function OnboardingPage() {
 
   const router = useRouter();
   const supabase = createClient();
+  const [avatarSeed, setAvatarSeed] = useState("onboarding-rider");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setAvatarSeed(user.id ?? user.email ?? "onboarding-rider");
+      }
+    });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,10 +68,13 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-2">Complete your profile</h1>
-        <p className="text-zinc-400 mb-8">
+        <div className="flex justify-center mb-6">
+          <Avatar seed={avatarSeed} size={80} />
+        </div>
+        <h1 className="text-2xl font-bold mb-2 text-center">Complete your profile</h1>
+        <p className="text-zinc-400 mb-8 text-center">
           Q-commerce delivery partner setup for Zepto / Blinkit
         </p>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -120,13 +134,14 @@ export default function OnboardingPage() {
             />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <button
+          <Button
             type="submit"
             disabled={!platform || loading}
-            className="w-full py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors font-medium"
+            fullWidth
+            size="lg"
           >
             {loading ? "Saving..." : "Continue"}
-          </button>
+          </Button>
         </form>
       </div>
     </main>

@@ -68,9 +68,11 @@ export function RiskRadar() {
   }
 
   return (
-    <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
+    <div className="rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/80 border border-zinc-700/50 p-6 shadow-xl shadow-black/20">
       <div className="flex items-center gap-2 mb-4">
-        <MapPin className="h-5 w-5 text-amber-400" />
+        <div className="p-2 rounded-xl bg-amber-500/10">
+          <MapPin className="h-5 w-5 text-amber-400" />
+        </div>
         <h2 className="font-semibold">Risk Radar</h2>
         <span className="ml-auto text-xs text-amber-400/80">Live</span>
       </div>
@@ -97,7 +99,7 @@ export function RiskRadar() {
                 Severity {e.severity_score}/10
               </span>
               <span className="text-zinc-500 text-xs">
-                {new Date(e.created_at).toLocaleTimeString()}
+                {new Date(e.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
               </span>
             </li>
           ))}

@@ -11,7 +11,7 @@
 ### 0:00 – 0:30 — Intro
 - Show landing page: "Oasis — AI-powered parametric wage protection"
 - Click "Get started" → Register → Onboarding (select Blinkit, enter zone)
-- Land on dashboard with Scope Disclaimer, Wallet, Risk Radar
+- Land on dashboard with Policy documents link, Wallet, Risk Radar
 
 ### 0:30 – 1:30 — Policy & Payment
 - Click "Get coverage" or "Manage policy"

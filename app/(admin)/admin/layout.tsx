@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { AdminNav } from "@/components/admin/AdminNav";
 
 export default async function AdminLayout({
   children,
@@ -22,20 +23,7 @@ export default async function AdminLayout({
         <Link href="/admin" className="text-xl font-bold">
           Oasis Admin
         </Link>
-        <div className="flex gap-4">
-          <Link href="/admin" className="text-sm text-zinc-400 hover:text-zinc-200">
-            Dashboard
-          </Link>
-          <Link href="/admin/triggers" className="text-sm text-zinc-400 hover:text-zinc-200">
-            Triggers
-          </Link>
-          <Link href="/admin/fraud" className="text-sm text-zinc-400 hover:text-zinc-200">
-            Fraud
-          </Link>
-          <Link href="/dashboard" className="text-sm text-emerald-400 hover:underline">
-            Rider app
-          </Link>
-        </div>
+        <AdminNav />
       </header>
       <main className="p-4 md:p-6 max-w-6xl mx-auto">{children}</main>
     </div>

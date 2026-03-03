@@ -59,7 +59,7 @@ export function PredictiveAlert() {
   if (!alert) return null;
 
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 flex gap-3">
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex gap-3">
       <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
       <p className="text-sm text-amber-200">{alert}</p>
     </div>

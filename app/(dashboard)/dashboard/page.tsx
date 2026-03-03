@@ -2,9 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { WalletCard } from "@/components/rider/WalletCard";
 import { RealtimeWallet } from "@/components/rider/RealtimeWallet";
 import { PolicyCard } from "@/components/rider/PolicyCard";
-import { ScopeDisclaimer } from "@/components/rider/ScopeDisclaimer";
+import { PolicyDocumentsLink } from "@/components/rider/PolicyDocumentsLink";
 import { RiskRadar } from "@/components/rider/RiskRadar";
 import { PredictiveAlert } from "@/components/rider/PredictiveAlert";
+import { Avatar } from "@/components/ui/Avatar";
 import type { ParametricClaim } from "@/lib/types/database";
 
 export default async function DashboardPage() {
@@ -47,16 +48,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold mb-1">
-          Hello, {profile?.full_name || "Partner"}
-        </h1>
-        <p className="text-zinc-400 text-sm">
-          Your income protection at a glance
-        </p>
+      <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-zinc-900 to-zinc-900/50 border border-zinc-800/60">
+        <Avatar seed={user.id} size={56} className="ring-2 ring-emerald-500/30" />
+        <div>
+          <h1 className="text-xl font-semibold mb-0.5">
+            Hello, {profile?.full_name || "Partner"}
+          </h1>
+          <p className="text-zinc-500 text-sm">
+            Your income protection at a glance
+          </p>
+        </div>
       </div>
 
-      <ScopeDisclaimer />
+      <PolicyDocumentsLink />
 
       <PredictiveAlert />
 
@@ -72,6 +76,7 @@ export default async function DashboardPage() {
           balance={totalPayouts}
           platform={profile?.platform ?? "zepto"}
           claimCount={claimsFiltered.length}
+          profileId={user.id}
         />
       )}
 

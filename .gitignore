@@ -10,6 +10,11 @@
 /.next/
 /out/
 
+# PWA (generated at build time)
+/public/sw.js
+/public/workbox-*.js
+/public/fallback-*.js
+
 # Production
 /build
 
