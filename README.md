@@ -55,7 +55,7 @@ Gig workers are paid weekly. Oasis uses a **strictly weekly pricing model**:
 | Heavy rain / flooding  | Tomorrow.io               | Rain >15mm/hr, waterlogging signals       |
 | Severe AQI             | Ambee                     | AQI above lockout threshold               |
 | Zone curfew / strike   | NewsData.io + LLM         | LLM verifies local news / social impact   |
-| Traffic gridlock       | Google Maps (or mock)     | Severe congestion / road closures        |
+| Traffic gridlock       | Google Maps               | Severe congestion / road closures        |
 
 All triggers target **loss of income only**. No coverage for health, life, accidents, or vehicle repairs.
 
@@ -108,9 +108,9 @@ We use a **mobile-first web app** that can be installed as a PWA for both riders
 
 ## Development Plan
 
-- **Phase 1 (Mar 4–20):** Foundation, Idea doc, DB schema, auth, minimal dashboard.
-- **Phase 2 (Mar 21–Apr 4):** Policy subscription, payment sandbox, parametric adjudicator Edge Function, 3–5 triggers, Realtime UI.
-- **Phase 3 (Apr 5–17):** Fraud detection, admin dashboard, instant payout demo, final polish.
+- **Phase 1 ✓:** Foundation, Idea doc, DB schema, auth, minimal dashboard.
+- **Phase 2 ✓:** Policy subscription, payment sandbox, parametric adjudicator, 3–5 triggers, Realtime UI.
+- **Phase 3 ✓:** Fraud detection (duplicate, rapid-claims), admin dashboard, instant payout demo, final polish.
 
 ---
 
@@ -123,6 +123,7 @@ npm install
 # Copy env
 cp .env.local.example .env.local
 # Add Supabase URL and anon key (required for auth)
+# For payments: set Razorpay test keys, or PAYMENT_DEMO_MODE=true for dev
 
 # Run
 npm run dev

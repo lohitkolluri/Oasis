@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { RunAdjudicatorButton } from "@/components/admin/RunAdjudicatorButton";
+import { Cloud, ShieldAlert } from "lucide-react";
 
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
@@ -27,42 +30,58 @@ export default async function AdminDashboardPage() {
       <h1 className="text-2xl font-bold">Insurer Command Center</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
-          <p className="text-sm text-zinc-400">Weekly Premiums</p>
-          <p className="text-2xl font-bold mt-1">₹{totalPremiums.toLocaleString("en-IN")}</p>
-        </div>
-        <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
-          <p className="text-sm text-zinc-400">Total Payouts</p>
-          <p className="text-2xl font-bold mt-1 text-emerald-400">₹{totalPayouts.toLocaleString("en-IN")}</p>
-        </div>
-        <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
-          <p className="text-sm text-zinc-400">Loss Ratio</p>
-          <p className="text-2xl font-bold mt-1">{lossRatio}%</p>
-        </div>
-        <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-6">
-          <p className="text-sm text-zinc-400">Flagged Claims</p>
-          <p className="text-2xl font-bold mt-1 text-amber-400">{flaggedCount}</p>
-        </div>
+        <Card variant="elevated" padding="lg">
+          <p className="text-sm text-zinc-500">Weekly Premiums</p>
+          <p className="text-2xl font-bold mt-1 tabular-nums">₹{totalPremiums.toLocaleString("en-IN")}</p>
+        </Card>
+        <Card variant="elevated" padding="lg">
+          <p className="text-sm text-zinc-500">Total Payouts</p>
+          <p className="text-2xl font-bold mt-1 text-emerald-400 tabular-nums">₹{totalPayouts.toLocaleString("en-IN")}</p>
+        </Card>
+        <Card variant="elevated" padding="lg">
+          <p className="text-sm text-zinc-500">Loss Ratio</p>
+          <p className="text-2xl font-bold mt-1 tabular-nums">{lossRatio}%</p>
+        </Card>
+        <Card variant="elevated" padding="lg">
+          <p className="text-sm text-zinc-500">Flagged Claims</p>
+          <p className="text-2xl font-bold mt-1 text-amber-400 tabular-nums">{flaggedCount}</p>
+        </Card>
       </div>
 
-      <div className="flex gap-4">
-        <Link
-          href="/admin/triggers"
-          className="rounded-xl bg-zinc-900 border border-zinc-800 p-6 flex-1 hover:border-zinc-600 transition-colors"
-        >
-          <h2 className="font-semibold mb-2">Live Trigger Feed</h2>
-          <p className="text-sm text-zinc-400">
-            Weather, traffic, and social disruption events
-          </p>
+      <RunAdjudicatorButton />
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Link href="/admin/triggers">
+          <Card variant="ghost" padding="lg" className="group h-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+                <Cloud className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-zinc-100">Live Trigger Feed</h2>
+                <p className="text-sm text-zinc-500 mt-0.5">
+                  Weather, traffic, and social disruption events
+                </p>
+              </div>
+              <span className="ml-auto text-zinc-600 group-hover:text-zinc-400">→</span>
+            </div>
+          </Card>
         </Link>
-        <Link
-          href="/admin/fraud"
-          className="rounded-xl bg-zinc-900 border border-zinc-800 p-6 flex-1 hover:border-zinc-600 transition-colors"
-        >
-          <h2 className="font-semibold mb-2">Fraud Queue</h2>
-          <p className="text-sm text-zinc-400">
-            Flagged claims for review
-          </p>
+        <Link href="/admin/fraud">
+          <Card variant="ghost" padding="lg" className="group h-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+                <ShieldAlert className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-zinc-100">Fraud Queue</h2>
+                <p className="text-sm text-zinc-500 mt-0.5">
+                  Flagged claims for review
+                </p>
+              </div>
+              <span className="ml-auto text-zinc-600 group-hover:text-zinc-400">→</span>
+            </div>
+          </Card>
         </Link>
       </div>
     </div>

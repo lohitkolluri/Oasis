@@ -2,13 +2,18 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Razorpay from "razorpay";
 
+/** When true and Razorpay keys not set: activate policy without payment (dev/demo). */
+const PAYMENT_DEMO_MODE = process.env.PAYMENT_DEMO_MODE === "true";
+
 export async function POST(request: Request) {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const razorpayConfigured = !!(keyId && keySecret);
+  const demoModeAllowed = PAYMENT_DEMO_MODE && !razorpayConfigured;
 
-  if (!keyId || !keySecret) {
+  if (!razorpayConfigured && !demoModeAllowed) {
     return NextResponse.json(
-      { error: "Razorpay not configured. Use test keys for development." },
+      { error: "Razorpay not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, or PAYMENT_DEMO_MODE=true for dev." },
       { status: 503 }
     );
   }
@@ -44,9 +49,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
-  const amountPaise = Math.round(amountInr * 100);
-
   try {
     const { data: policy, error: policyError } = await supabase
       .from("weekly_policies")
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
         week_start_date: weekStart,
         week_end_date: weekEnd,
         weekly_premium_inr: amountInr,
-        is_active: false,
+        is_active: !razorpayConfigured,
       })
       .select("id")
       .single();
@@ -66,6 +68,17 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    if (demoModeAllowed) {
+      return NextResponse.json({
+        demoMode: true,
+        policyId: policy.id,
+        message: "Policy activated (demo mode).",
+      });
+    }
+
+    const razorpay = new Razorpay({ key_id: keyId!, key_secret: keySecret! });
+    const amountPaise = Math.round(amountInr * 100);
 
     const order = await razorpay.orders.create({
       amount: amountPaise,
@@ -82,7 +95,7 @@ export async function POST(request: Request) {
       policyId: policy.id,
     });
   } catch (err) {
-    console.error("Razorpay order error:", err);
+    console.error("Payment error:", err);
     return NextResponse.json(
       { error: "Failed to create order" },
       { status: 500 }

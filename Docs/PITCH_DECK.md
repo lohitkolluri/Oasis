@@ -38,7 +38,7 @@
 | Heavy rain     | Tomorrow.io   | Precipitation >4 mm/hr |
 | Severe AQI     | Ambee         | AQI ≥ 300              |
 | Curfew / strike| NewsData + LLM| LLM-verified impact   |
-| Traffic gridlock| Demo / Maps  | Severe congestion      |
+| Traffic gridlock| Google Maps  | Severe congestion      |
 
 ---
 
@@ -70,7 +70,7 @@
 ## Slide 8: Call to Action
 
 - **Phase 1–3 complete** — Foundation, automation, scale
-- **Ready for demo** — Simulate disruption → watch instant payout
+- **Ready for demo** — Real APIs → instant parametric payout
 - **Contact:** [Your contact]
 
 ---

@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
             disruption_event_id: event.id,
             payout_amount_inr: payoutAmount,
             status: "paid",
-            gateway_transaction_id: `razorpay_sim_${Date.now()}_${policy.id.slice(0, 8)}`,
+            gateway_transaction_id: `oasis_payout_${Date.now()}_${policy.id.slice(0, 8)}`,
           });
         if (!claimErr) claimsCreated++;
       }

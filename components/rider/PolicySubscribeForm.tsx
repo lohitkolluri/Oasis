@@ -90,10 +90,17 @@ export function PolicySubscribeForm({
 
       if (!createRes.ok) {
         if (createRes.status === 503) {
-          await subscribeWithoutPayment();
+          setMessage({ type: "error", text: orderData.error ?? "Payment not configured. Ask admin to set Razorpay keys or PAYMENT_DEMO_MODE." });
+          setLoading(false);
           return;
         }
         throw new Error(orderData.error ?? "Failed to create order");
+      }
+
+      if (orderData.demoMode) {
+        setMessage({ type: "success", text: "Policy activated (demo mode)." });
+        window.location.reload();
+        return;
       }
 
       const policyId = orderData.policyId;
@@ -148,29 +155,6 @@ export function PolicySubscribeForm({
     }
   }
 
-  async function subscribeWithoutPayment() {
-    if (activePolicy) return;
-
-    const { error } = await supabase.from("weekly_policies").insert({
-      profile_id: profileId,
-      week_start_date: start,
-      week_end_date: end,
-      weekly_premium_inr: defaultPremium,
-      is_active: true,
-    });
-
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-      setLoading(false);
-      return;
-    }
-
-    setMessage({
-      type: "success",
-      text: "Policy activated (demo mode—add Razorpay keys for payments).",
-    });
-    window.location.reload();
-  }
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });

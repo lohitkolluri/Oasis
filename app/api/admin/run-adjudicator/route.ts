@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { runAdjudicator } from "@/lib/adjudicator/run";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+/**
+ * POST /api/admin/run-adjudicator — Run adjudicator on demand (same as cron).
+ * Uses real weather, AQI, news APIs. Requires authenticated user.
+ */
+export async function POST() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
