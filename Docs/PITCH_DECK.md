@@ -24,9 +24,9 @@
 ## Slide 3: How It Works
 
 1. Rider subscribes weekly (₹79–149 based on zone risk)
-2. APIs monitor: Tomorrow.io (weather), Ambee (AQI), NewsData.io (curfews)
+2. APIs monitor: Tomorrow.io (weather), Open-Meteo (AQI), NewsData.io (curfews, traffic)
 3. When trigger fires → automatic claim → instant payout to wallet
-4. LLM verifies social disruptions for accuracy
+4. LLM verifies social and traffic disruptions for accuracy
 
 ---
 
@@ -36,9 +36,9 @@
 |----------------|---------------|------------------------|
 | Extreme heat   | Tomorrow.io   | >43°C for 3+ hours     |
 | Heavy rain     | Tomorrow.io   | Precipitation >4 mm/hr |
-| Severe AQI     | Ambee         | AQI ≥ 300              |
+| Severe AQI     | Open-Meteo    | AQI ≥ 300              |
 | Curfew / strike| NewsData + LLM| LLM-verified impact   |
-| Traffic gridlock| Google Maps  | Severe congestion      |
+| Traffic gridlock| NewsData + LLM| LLM verifies headlines|
 
 ---
 
@@ -46,7 +46,7 @@
 
 - **Dynamic premium:** Zone risk + historical events → weekly price
 - **Duplicate detection:** Same policy + same event = blocked
-- **Anomaly pipeline:** Weather mismatch, GPS spoofing (future)
+- **Anomaly pipeline:** Weather mismatch, location/geofence validation
 
 ---
 

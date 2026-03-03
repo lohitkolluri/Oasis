@@ -52,10 +52,10 @@ Gig workers are paid weekly. Oasis uses a **strictly weekly pricing model**:
 | Trigger                | Source                   | Threshold / Logic                          |
 | ---------------------- | ------------------------- | ----------------------------------------- |
 | Extreme heat           | Tomorrow.io               | >43°C for 3+ hours                        |
-| Heavy rain / flooding  | Tomorrow.io               | Rain >15mm/hr, waterlogging signals       |
-| Severe AQI             | Ambee                     | AQI above lockout threshold               |
+| Heavy rain / flooding  | Tomorrow.io               | Rain >4 mm/hr                              |
+| Severe AQI             | Open-Meteo (free)         | US AQI ≥ 300                               |
 | Zone curfew / strike   | NewsData.io + LLM         | LLM verifies local news / social impact   |
-| Traffic gridlock       | Google Maps               | Severe congestion / road closures        |
+| Traffic gridlock       | NewsData.io + LLM         | LLM verifies traffic/congestion headlines |
 
 All triggers target **loss of income only**. No coverage for health, life, accidents, or vehicle repairs.
 
@@ -83,9 +83,10 @@ We use a **mobile-first web app** that can be installed as a PWA for both riders
    - Output: Per-rider weekly premium for the next week.
 
 2. **Fraud detection**
-   - GPS spoofing: Flag erratic location jumps.
-   - Weather mismatch: Compare claim timestamps with historical weather.
-   - Duplicate claims: Same device, overlapping time windows.
+   - Location validation: Geofence-based payout—only riders in affected zone.
+   - Weather mismatch: Verify raw_api_data matches trigger thresholds.
+   - Duplicate claims: Same policy + same event blocked.
+   - Rapid claims: Too many claims in 24h flagged.
 
 3. **LLM verification**
    - OpenRouter (`openrouter/free`) analyzes news/traffic data to determine if an event qualifies as a zone-closure disruption.
@@ -100,7 +101,7 @@ We use a **mobile-first web app** that can be installed as a PWA for both riders
 | Frontend     | Next.js 15 (App Router), TypeScript, Tailwind CSS, Zustand, Framer Motion |
 | Backend      | Supabase (PostgreSQL, Auth, Realtime, Edge Functions)     |
 | AI/LLM       | OpenRouter API                                           |
-| APIs         | Tomorrow.io, Ambee, NewsData.io, Google Maps              |
+| APIs         | Tomorrow.io, Open-Meteo (AQI), NewsData.io               |
 | Payments     | Razorpay / Stripe (test mode)                             |
 | Deployment   | Vercel / Dokploy                                         |
 

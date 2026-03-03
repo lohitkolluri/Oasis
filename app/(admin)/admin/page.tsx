@@ -2,7 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { RunAdjudicatorButton } from "@/components/admin/RunAdjudicatorButton";
-import { Cloud, ShieldAlert } from "lucide-react";
+import { getNextWeekPrediction } from "@/lib/ml/next-week-risk";
+import { Cloud, ShieldAlert, TrendingUp } from "lucide-react";
 
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
@@ -24,6 +25,13 @@ export default async function AdminDashboardPage() {
 
   const lossRatio =
     totalPremiums > 0 ? ((totalPayouts / totalPremiums) * 100).toFixed(1) : "0";
+
+  const nextWeekPrediction = await getNextWeekPrediction(supabase);
+  const riskColors = {
+    low: "text-emerald-400",
+    medium: "text-amber-400",
+    high: "text-red-400",
+  };
 
   return (
     <div className="space-y-8">
@@ -49,6 +57,25 @@ export default async function AdminDashboardPage() {
       </div>
 
       <RunAdjudicatorButton />
+
+      <Card variant="elevated" padding="lg">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/10">
+            <TrendingUp className="h-5 w-5 text-violet-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-zinc-100">Next Week Prediction</h2>
+            <p className="text-sm text-zinc-500">{nextWeekPrediction.source === "forecast" ? "From weather forecast" : "From historical claims"}</p>
+          </div>
+        </div>
+        <p className="text-2xl font-bold mt-2">
+          <span className={riskColors[nextWeekPrediction.riskLevel]}>{nextWeekPrediction.expectedClaimsRange}</span>
+          <span className="text-zinc-500 font-normal text-base ml-2">expected claims</span>
+        </p>
+        {nextWeekPrediction.details && (
+          <p className="text-sm text-zinc-500 mt-2">{nextWeekPrediction.details}</p>
+        )}
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
         <Link href="/admin/triggers">

@@ -42,6 +42,25 @@ export default function OnboardingPage() {
       return;
     }
 
+    let zoneLat: number | null = null;
+    let zoneLng: number | null = null;
+    if (zone.trim()) {
+      try {
+        const geoRes = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zone.trim())}&count=1`
+        );
+        if (geoRes.ok) {
+          const geo = (await geoRes.json()) as { results?: Array<{ latitude: number; longitude: number }> };
+          if (geo.results?.[0]) {
+            zoneLat = geo.results[0].latitude;
+            zoneLng = geo.results[0].longitude;
+          }
+        }
+      } catch {
+        // Continue without coords
+      }
+    }
+
     const { error: upsertError } = await supabase
       .from("profiles")
       .upsert(
@@ -51,8 +70,10 @@ export default function OnboardingPage() {
           phone_number: phone || null,
           platform,
           primary_zone_geofence: zone
-            ? { zone_name: zone, coordinates: null }
+            ? { zone_name: zone, coordinates: zoneLat && zoneLng ? [zoneLng, zoneLat] : null }
             : null,
+          zone_latitude: zoneLat,
+          zone_longitude: zoneLng,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" }

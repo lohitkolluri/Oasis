@@ -9,6 +9,8 @@ export interface Profile {
   platform: PlatformType | null;
   payment_routing_id: string | null;
   primary_zone_geofence: Record<string, unknown> | null;
+  zone_latitude?: number | null;
+  zone_longitude?: number | null;
   created_at: string;
   updated_at: string;
 }
