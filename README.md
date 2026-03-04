@@ -130,7 +130,23 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-Apply Supabase migrations from `supabase/migrations/` to your project.
+### Database Setup
+
+Apply migrations to your Supabase project:
+
+**Option A – Supabase Dashboard**
+1. Open your project at [supabase.com/dashboard](https://supabase.com/dashboard)
+2. Go to **SQL Editor** → New query
+3. Run each migration in order: `20240304000001_create_profiles.sql` through `20240304000009_claim_verifications.sql`
+
+**Option B – Supabase CLI** (after `npx supabase link`)
+```bash
+npm run db:migrate
+```
+
+**Required tables:** `profiles`, `weekly_policies`, `live_disruption_events`, `parametric_claims`, `rider_delivery_reports`, `claim_verifications`, `premium_recommendations`
+
+**Storage:** Run `npm run setup-storage` to create the `rider-reports` bucket, or create it manually in Supabase Dashboard → Storage.
 
 ### Cron (Vercel)
 Set `CRON_SECRET` in Vercel env. Cron routes: `/api/cron/adjudicator` (hourly), `/api/cron/weekly-premium` (Sundays).

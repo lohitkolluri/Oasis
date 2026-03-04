@@ -15,9 +15,22 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface PlanPackage {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  weekly_premium_inr: number;
+  payout_per_claim_inr: number;
+  max_claims_per_week: number;
+  is_active: boolean;
+  sort_order: number;
+}
+
 export interface WeeklyPolicy {
   id: string;
   profile_id: string;
+  plan_id: string | null;
   week_start_date: string;
   week_end_date: string;
   weekly_premium_inr: number;
@@ -47,4 +60,15 @@ export interface ParametricClaim {
   flag_reason?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Aggregated wallet view — computed by the rider_wallet DB view. */
+export interface RiderWallet {
+  rider_id: string;
+  total_earned_inr: number;
+  total_claims: number;
+  flagged_claims: number;
+  last_payout_at: string | null;
+  this_week_earned_inr: number;
+  this_week_claims: number;
 }

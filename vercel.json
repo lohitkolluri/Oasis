@@ -9,7 +9,7 @@
     },
     {
       "path": "/api/cron/weekly-premium",
-      "schedule": "0 0 * * 0"
+      "schedule": "30 17 * * 0"
     }
   ]
 }

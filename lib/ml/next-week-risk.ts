@@ -1,6 +1,11 @@
 /**
  * Predictive analytics: next week's likely disruption claims.
  * Uses Tomorrow.io forecast when available, else historical rate.
+ *
+ * Fixes applied:
+ *  - API field: rainIntensity → precipitationIntensity (Tomorrow.io hourly schema)
+ *  - Historical trend: was dividing per-day delta by 7 then adding to per-week avg
+ *    (mixed units). Now stays consistently in per-week units.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -32,7 +37,6 @@ export async function getNextWeekPrediction(
               time?: string;
               values?: {
                 temperature?: number;
-                rainIntensity?: number;
                 precipitationIntensity?: number;
               };
             }>;
@@ -42,10 +46,10 @@ export async function getNextWeekPrediction(
         let triggerHours = 0;
         const triggers: string[] = [];
 
-        for (const int of hourly) {
-          const vals = int.values ?? {};
+        for (const interval of hourly) {
+          const vals = interval.values ?? {};
           const temp = vals.temperature ?? 0;
-          const precip = vals.rainIntensity ?? vals.precipitationIntensity ?? 0;
+          const precip = vals.precipitationIntensity ?? 0;
           if (temp >= 43) {
             triggerHours++;
             if (!triggers.includes("heat")) triggers.push("heat");
@@ -57,17 +61,19 @@ export async function getNextWeekPrediction(
         }
 
         const activePolicyCount = await getActivePolicyCount(supabase);
-        const avgClaimsPerTrigger = 2; // Approximate
+        const severityWeight = triggers.includes("heat") ? 1.2 : 1;
+        const policyFactor = Math.max(1, Math.sqrt(activePolicyCount));
         const estClaims = Math.min(
-          Math.round(triggerHours * avgClaimsPerTrigger * (activePolicyCount / 10)),
+          Math.round(triggerHours * severityWeight * 0.15 * policyFactor),
           activePolicyCount * 3
         );
-        const low = Math.max(0, estClaims - 2);
-        const high = estClaims + 2;
+        const low = Math.max(0, Math.round(estClaims * 0.6));
+        const high = Math.round(estClaims * 1.4) + 1;
 
         let riskLevel: "low" | "medium" | "high" = "low";
-        if (triggerHours >= 10) riskLevel = "high";
-        else if (triggerHours >= 3) riskLevel = "medium";
+        if (triggerHours >= 10 || (triggerHours >= 5 && triggers.includes("heat")))
+          riskLevel = "high";
+        else if (triggerHours >= 3 || triggers.length >= 2) riskLevel = "medium";
 
         return {
           expectedClaimsRange: `${low}–${high}`,
@@ -76,7 +82,7 @@ export async function getNextWeekPrediction(
           details:
             triggers.length > 0
               ? `Forecast: ${triggers.join(", ")} risk (${triggerHours}h above thresholds)`
-              : "No extreme weather in 5‑day forecast",
+              : "No extreme weather in 5-day forecast",
         };
       }
     } catch {
@@ -84,21 +90,35 @@ export async function getNextWeekPrediction(
     }
   }
 
-  const { count } = await supabase
+  // --- Historical fallback ---
+  const { data: recentClaims } = await supabase
     .from("parametric_claims")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString());
+    .select("id, created_at")
+    .gte("created_at", new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
+    .order("created_at", { ascending: true });
 
-  const claimsLast2Weeks = count ?? 0;
-  const avgPerWeek = Math.round(claimsLast2Weeks / 2);
-  const low = Math.max(0, avgPerWeek - 1);
-  const high = avgPerWeek + 1;
+  const all = recentClaims ?? [];
+  const avgPerWeek = all.length / 3;
+
+  // Split into three 7-day buckets and compare first vs last bucket
+  // (fix: was mixing per-day delta with per-week avg)
+  const week1 = all.filter(
+    (c) => new Date(c.created_at) < new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+  ).length;
+  const week3 = all.filter(
+    (c) => new Date(c.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  ).length;
+  // Trend expressed in claims-per-week (same unit as avgPerWeek)
+  const weeklyTrend = all.length >= 3 ? (week3 - week1) / 2 : 0;
+  const adjusted = Math.max(0, Math.round(avgPerWeek + weeklyTrend));
+  const low = Math.max(0, adjusted - 2);
+  const high = adjusted + 2;
 
   return {
     expectedClaimsRange: `${low}–${high}`,
     riskLevel: avgPerWeek >= 5 ? "high" : avgPerWeek >= 2 ? "medium" : "low",
     source: "historical",
-    details: `Based on ${claimsLast2Weeks} claims in last 14 days`,
+    details: `Based on ${all.length} claims over the last 21 days`,
   };
 }
 

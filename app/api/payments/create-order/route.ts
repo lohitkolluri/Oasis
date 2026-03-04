@@ -28,8 +28,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { amountInr, weekStart, weekEnd, receipt } = body as {
+  const { amountInr, planId, weekStart, weekEnd, receipt } = body as {
     amountInr: number;
+    planId?: string;
     weekStart?: string;
     weekEnd?: string;
     receipt?: string;
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       .from("weekly_policies")
       .insert({
         profile_id: user.id,
+        plan_id: planId || null,
         week_start_date: weekStart,
         week_end_date: weekEnd,
         weekly_premium_inr: amountInr,

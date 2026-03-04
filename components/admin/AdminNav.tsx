@@ -2,19 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LayoutDashboard, Zap, ShieldAlert, Users, FileCheck, BarChart2, Activity } from "lucide-react";
 
 const adminNavItems = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/triggers", label: "Triggers" },
-  { href: "/admin/fraud", label: "Fraud" },
+  { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/admin/riders", label: "Riders", icon: Users },
+  { href: "/admin/policies", label: "Policies", icon: FileCheck },
+  { href: "/admin/triggers", label: "Triggers", icon: Zap },
+  { href: "/admin/fraud", label: "Fraud", icon: ShieldAlert },
+  { href: "/admin/health", label: "System Health", icon: Activity },
 ];
 
 export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex items-center gap-2">
-      {adminNavItems.map(({ href, label }) => {
+    <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <p className="px-3 pt-1 pb-2 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
+        Platform
+      </p>
+      {adminNavItems.map(({ href, label, icon: Icon }) => {
         const isActive =
           href === "/admin"
             ? pathname === "/admin" || pathname === "/admin/"
@@ -23,23 +31,21 @@ export function AdminNav() {
           <Link
             key={href}
             href={href}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
               isActive
-                ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent hover:border-zinc-700/50"
+                ? "bg-zinc-800 text-zinc-100 font-medium"
+                : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
             }`}
           >
+            <Icon
+              className={`h-4 w-4 shrink-0 ${
+                isActive ? "text-zinc-300" : "text-zinc-600"
+              }`}
+            />
             {label}
           </Link>
         );
       })}
-      <div className="w-px h-5 bg-zinc-700 mx-1" />
-      <Link
-        href="/dashboard"
-        className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 hover:border-emerald-500/50 transition-all"
-      >
-        Rider app
-      </Link>
     </nav>
   );
 }

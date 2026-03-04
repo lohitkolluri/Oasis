@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 
 export function PolicyDocumentsLink() {
@@ -14,9 +14,7 @@ export function PolicyDocumentsLink() {
             <p className="text-sm font-medium text-zinc-200">Policy documents</p>
             <p className="text-xs text-zinc-500 mt-0.5">Terms, coverage & exclusions</p>
           </div>
-          <span className="ml-auto text-zinc-600 group-hover:text-zinc-400 transition-colors">
-            →
-          </span>
+          <ChevronRight className="ml-auto h-5 w-5 text-zinc-600 group-hover:text-zinc-400 transition-colors shrink-0" />
         </div>
       </Card>
     </Link>

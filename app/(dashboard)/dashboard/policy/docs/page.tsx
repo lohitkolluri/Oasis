@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 
 export default function PolicyDocsPage() {
   return (
@@ -8,7 +8,8 @@ export default function PolicyDocsPage() {
         href="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
       >
-        ← Back to dashboard
+        <ArrowLeft className="h-4 w-4" />
+        Back to dashboard
       </Link>
 
       <div className="space-y-2">
@@ -126,9 +127,10 @@ export default function PolicyDocsPage() {
       <div className="pt-4 border-t border-zinc-800">
         <Link
           href="/dashboard"
-          className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
         >
-          ← Return to dashboard
+          <ArrowLeft className="h-4 w-4" />
+          Return to dashboard
         </Link>
       </div>
     </div>

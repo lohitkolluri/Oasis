@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
-import { Card } from "@/components/ui/Card";
+import { ArrowLeft } from "lucide-react";
+import { FraudList } from "@/components/admin/FraudList";
 
 export default async function FraudPage() {
   const supabase = createAdminClient();
@@ -13,39 +14,38 @@ export default async function FraudPage() {
       is_flagged,
       flag_reason,
       created_at,
+      admin_review_status,
+      reviewed_by,
       weekly_policies(profile_id)
     `)
     .eq("is_flagged", true)
     .order("created_at", { ascending: false });
 
+  const pendingCount = (claims ?? []).filter((c) => !c.admin_review_status).length;
+
   return (
     <div className="space-y-6">
-      <Link href="/admin" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
-        ← Back
+      <Link
+        href="/admin"
+        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to dashboard
       </Link>
-      <h1 className="text-xl font-bold">Fraud Queue</h1>
-      <p className="text-zinc-500 text-sm">
-        Claims flagged by duplicate & rapid-claims detection
-      </p>
-      <ul className="space-y-2">
-        {(claims ?? []).map((c) => (
-          <Card key={c.id} variant="default" padding="md" className="border-amber-500/20">
-            <div className="flex items-center gap-4">
-              <span className="font-mono text-xs text-zinc-500">{c.id.slice(0, 8)}</span>
-              <span className="font-medium tabular-nums">₹{Number(c.payout_amount_inr).toLocaleString()}</span>
-              <span className="text-amber-400 text-sm flex-1 min-w-0 truncate">{c.flag_reason ?? "Flagged"}</span>
-              <span className="text-xs text-zinc-500 tabular-nums shrink-0">
-                {new Date(c.created_at).toLocaleString()}
-              </span>
-            </div>
-          </Card>
-        ))}
-        {(!claims || claims.length === 0) && (
-          <Card variant="default" padding="lg">
-            <p className="text-zinc-500 text-center py-4">No flagged claims</p>
-          </Card>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Fraud Queue</h1>
+          <p className="text-zinc-500 text-sm mt-1">
+            Claims flagged by duplicate, rapid-claims, weather mismatch, or GPS verification
+          </p>
+        </div>
+        {pendingCount > 0 && (
+          <span className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            {pendingCount} pending review
+          </span>
         )}
-      </ul>
+      </div>
+      <FraudList claims={claims ?? []} />
     </div>
   );
 }

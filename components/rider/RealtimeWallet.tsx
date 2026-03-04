@@ -1,26 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Activity } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar } from "@/components/ui/Avatar";
 
 interface RealtimeWalletProps {
   profileId: string;
   initialBalance: number;
+  initialClaimCount: number;
   policyIds: string[];
   platform: string;
 }
 
 export function RealtimeWallet({
-  profileId,
+  profileId: _profileId,
   initialBalance,
+  initialClaimCount,
   policyIds,
   platform,
 }: RealtimeWalletProps) {
   const [balance, setBalance] = useState(initialBalance);
-  const [claimCount, setClaimCount] = useState(
-    Math.round(initialBalance / 400)
-  );
+  const [claimCount, setClaimCount] = useState(initialClaimCount);
+  const [justUpdated, setJustUpdated] = useState(false);
 
   const supabase = createClient();
 
@@ -41,6 +42,8 @@ export function RealtimeWallet({
           const newClaim = payload.new as { payout_amount_inr: number };
           setBalance((b) => b + Number(newClaim.payout_amount_inr));
           setClaimCount((c) => c + 1);
+          setJustUpdated(true);
+          setTimeout(() => setJustUpdated(false), 2500);
         }
       )
       .subscribe();
@@ -51,28 +54,32 @@ export function RealtimeWallet({
   }, [supabase, policyIds]);
 
   return (
-    <div className="rounded-2xl bg-zinc-900/90 border border-emerald-500/20 shadow-xl shadow-black/10 p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <Avatar seed={profileId} size={32} className="ring-1 ring-emerald-500/20" />
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-zinc-100">Coverage & Earnings</h2>
-          <p className="text-xs text-zinc-500">Updates in real time</p>
-        </div>
-        <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">
+          Total Payouts Received
+        </span>
+        <span className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/15">
+          <Activity className="h-3 w-3" />
           Live
         </span>
       </div>
-      <p className="text-3xl font-bold text-zinc-100 tracking-tight tabular-nums">
-        ₹{balance.toLocaleString("en-IN")}
-      </p>
-      <div className="mt-5 pt-4 border-t border-zinc-800/60 flex justify-between items-center text-sm">
-        <span className="text-zinc-500 capitalize">{platform}</span>
-        {claimCount > 0 && (
-          <span className="text-emerald-400/90 text-xs font-medium">
-            {claimCount} claim{claimCount !== 1 ? "s" : ""}
-          </span>
-        )}
+      <div className="px-5 py-5">
+        <p
+          className={`text-[38px] font-bold tracking-tight tabular-nums leading-none transition-colors duration-500 ${
+            justUpdated ? "text-emerald-400" : "text-zinc-100"
+          }`}
+        >
+          ₹{balance.toLocaleString("en-IN")}
+        </p>
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-xs text-zinc-600 capitalize">{platform}</span>
+          {claimCount > 0 && (
+            <span className="text-xs text-zinc-500 tabular-nums">
+              {claimCount} parametric {claimCount === 1 ? "trigger" : "triggers"}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

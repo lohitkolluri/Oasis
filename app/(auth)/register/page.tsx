@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -44,9 +45,10 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         <Link
           href="/"
-          className="inline-block text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
         >
-          ← Oasis
+          <ArrowLeft className="h-4 w-4" />
+          Oasis
         </Link>
         <div className="flex justify-center mb-6">
           <Avatar seed={fullName || "oasis-new-rider"} size={72} />

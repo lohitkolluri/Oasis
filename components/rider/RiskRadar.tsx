@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { MapPin, Cloud, Car, Megaphone } from "lucide-react";
+import { Activity, MapPin, Cloud, Car, Megaphone } from "lucide-react";
 
 interface DisruptionEvent {
   id: string;
@@ -68,53 +68,50 @@ export function RiskRadar() {
   }
 
   return (
-    <div className="rounded-2xl bg-zinc-900/90 border border-zinc-700/40 shadow-xl shadow-black/10 p-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10">
-          <MapPin className="h-5 w-5 text-amber-400" />
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">
+            Risk Radar
+          </span>
+          <span className="text-[11px] text-zinc-700">· payouts auto-trigger</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-zinc-100">Risk Radar</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Active disruptions · Payouts auto-trigger when affected
-          </p>
-        </div>
-        <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 font-medium shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        <span className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/15">
+          <Activity className="h-3 w-3" />
           Live
         </span>
       </div>
       {events.length === 0 ? (
-        <div className="mt-4 py-8 text-center">
-          <p className="text-sm text-zinc-500">No active disruptions</p>
-          <p className="text-xs text-zinc-600 mt-1">You're all clear</p>
+        <div className="px-5 py-8 text-center">
+          <p className="text-sm text-zinc-600">No active disruptions</p>
+          <p className="text-xs text-zinc-700 mt-1">You&apos;re all clear</p>
         </div>
       ) : (
-        <ul className="mt-4 space-y-2">
+        <div className="divide-y divide-zinc-800/80">
           {events.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-center gap-3 rounded-xl bg-zinc-800/50 px-4 py-3 text-sm"
-            >
-              <span className="text-amber-400">
-                {typeIcons[e.event_type] ?? <MapPin className="h-4 w-4" />}
+            <div key={e.id} className="flex items-center gap-3 px-5 py-3">
+              <span className="text-zinc-600 shrink-0">
+                {typeIcons[e.event_type] ?? <MapPin className="h-3.5 w-3.5" />}
               </span>
-              <span className="capitalize text-zinc-300 font-medium">
+              <span className="text-sm text-zinc-300 capitalize flex-1">
                 {typeLabels[e.event_type] ?? e.event_type}
               </span>
               <span
-                className={`ml-auto font-medium tabular-nums ${
+                className={`text-sm font-semibold tabular-nums ${
                   e.severity_score >= 8 ? "text-red-400" : "text-amber-400"
                 }`}
               >
                 {e.severity_score}/10
               </span>
-              <span className="text-zinc-500 text-xs tabular-nums">
-                {new Date(e.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+              <span className="text-xs text-zinc-600 tabular-nums w-12 text-right">
+                {new Date(e.created_at).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </span>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
