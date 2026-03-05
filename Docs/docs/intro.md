@@ -43,7 +43,7 @@ flowchart TD
     E -->|No| D
 ```
 
-1. **Onboarding** — Rider signs up, selects their platform (Zepto/Blinkit), and sets their delivery zone.
+1. **Onboarding** — Rider signs up, selects platform (Zepto/Blinkit), sets delivery zone, then completes KYC: government ID (Aadhaar) and face liveness verification.
 2. **Weekly policy** — Rider subscribes to coverage for the coming week. Premium is calculated dynamically based on zone risk.
 3. **Parametric monitoring** — APIs (weather, AQI, news) are polled every hour by a Vercel cron job.
 4. **Trigger & payout** — When a disruption meets a threshold, the adjudicator identifies affected riders and creates paid claims automatically.

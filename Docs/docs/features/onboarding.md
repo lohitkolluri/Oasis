@@ -6,7 +6,7 @@ sidebar_position: 1
 
 # Onboarding
 
-The onboarding flow collects the information needed to personalize a rider's weekly premium and connect them to the parametric monitoring system.
+The onboarding flow collects the information needed to personalize a rider's weekly premium and connect them to the parametric monitoring system. It uses a **two-step verification** flow: first basic profile and zone, then KYC (government ID + face liveness).
 
 ---
 
@@ -18,7 +18,9 @@ The onboarding flow collects the information needed to personalize a rider's wee
 
 1. **Register** (`/register`) — Email + password signup via Supabase Auth.
 2. **Login** (`/login`) — Email + password sign-in.
-3. **Onboarding** (`/onboarding`) — Collect platform, name, phone, zone, and government ID (all required).
+3. **Onboarding** (`/onboarding`) — Two-step form:
+   - **Step 1:** Platform, full name, phone, delivery zone.
+   - **Step 2:** Government ID upload + face liveness verification. Both must pass before profile save.
 4. **Dashboard** (`/dashboard`) — Rider's home screen.
 
 The root `/` page checks for an active session and active policy:
@@ -28,33 +30,69 @@ The root `/` page checks for an active session and active policy:
 
 ---
 
-## Registration
+## Step 1: Basic Profile
 
-Standard Supabase email/password authentication. On successful registration, Supabase creates an `auth.users` row. The `profiles` row is **not** created at registration — it is created during the onboarding step.
+The rider fills in:
+
+| Field | Stored As | Notes |
+|-------|-----------|------|
+| Delivery platform | `profiles.platform` | `zepto` or `blinkit` |
+| Full name | `profiles.full_name` | As on government ID |
+| Phone number | `profiles.phone_number` | For UPI payout routing |
+| Delivery zone | `profiles.zone_latitude`, `profiles.zone_longitude` | Pinned on MapLibre map |
+
+Pressing **Next** advances to Step 2. Data is validated but not yet saved.
 
 ---
 
-## Onboarding Step
+## Step 2: KYC Verification
 
-The onboarding page at `/onboarding` renders a form that collects (all required):
+Both government ID and face verification are required before profile save.
 
-1. **Delivery platform** — `zepto` or `blinkit` (persisted to `profiles.platform`)
-2. **Full name** — As on government ID (persisted to `profiles.full_name`)
-3. **Phone number** — For payout routing to UPI (`profiles.phone_number`)
-4. **Delivery zone** — Rider pins their primary area on a MapLibre map. Coordinates stored in `profiles.zone_latitude` and `profiles.zone_longitude`.
-5. **Government ID** — Upload of Aadhaar, PAN, Voter ID, or Driving License. Verified by LLM for authenticity before profile save.
+### Government ID Verification
 
-On submission, the app:
-1. Uploads the government ID to Supabase Storage and runs LLM verification.
-2. If verification passes, upserts the `profiles` row with all data including `government_id_url` and `government_id_verified`.
-3. Fetches a premium recommendation from `lib/ml/premium-calc.ts`.
-4. Redirects to `/dashboard`.
+- Rider uploads an image of Aadhaar (or PAN, Voter ID, Driving License).
+- Image is uploaded to the `government-ids` storage bucket.
+- **LLM vision model** (OpenRouter) verifies document authenticity, legibility, and that it appears to be a valid government ID.
+- On success: `government_id_url` and `government_id_verified` are set on the profile.
+
+### Face Liveness Verification
+
+- Rider is shown a random gesture (e.g. "Close your left eye", "Smile", "Look up").
+- Webcam captures a photo.
+- Photo is checked by an LLM vision model for:
+  1. **Gesture match** — Is the requested gesture visible?
+  2. **Liveness** — Does it appear to be a live person (not a photo/screen)?
+- Photos are stored in the `face-photos` bucket.
+- On success: `face_photo_url` and `face_verified` are set on the profile.
+
+Optional `GOV_ID_ENCRYPTION_KEY` and `FACE_PHOTO_ENCRYPTION_KEY` can be set to encrypt stored images at rest.
+
+### Continue Flow
+
+Only when **both** verifications pass does the rider see the **Continue** button. On submit:
+
+1. Profile is upserted with all data.
+2. Premium recommendation is fetched from `lib/ml/premium-calc.ts`.
+3. Rider is redirected to `/dashboard`.
+
+---
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/onboarding/verify-government-id` | POST | Upload gov ID, run LLM verification, return status |
+| `/api/onboarding/verify-face` | GET | Request random gesture |
+| `/api/onboarding/verify-face` | POST | Submit face photo, LLM checks gesture + liveness |
+
+See [API Reference → Onboarding Endpoints](/api#onboarding-endpoints) for request/response shapes.
 
 ---
 
 ## Zone Selection
 
-The `ZoneMap` component renders an interactive MapLibre map using OpenStreetMap tiles. The rider can drag a marker to their primary delivery area. The coordinates are reverse-geocoded via the Nominatim API (no API key required, 1 req/s policy respected) to show a human-readable locality name.
+The `ZoneMap` component renders an interactive MapLibre map using OpenStreetMap tiles. The rider can drag a marker to their primary delivery area. Coordinates are reverse-geocoded via the Nominatim API (no API key, 1 req/s policy):
 
 ```typescript
 // lib/utils/geo.ts
@@ -88,13 +126,17 @@ The result is shown to the rider before they choose a plan, along with a risk ex
 
 ```typescript
 interface Profile {
-  id: string;                    // matches auth.users.id
+  id: string;                           // matches auth.users.id
   full_name: string | null;
   phone_number: string | null;
   platform: 'zepto' | 'blinkit' | null;
   zone_latitude: number | null;
   zone_longitude: number | null;
   primary_zone_geofence: object | null;
+  government_id_url: string | null;
+  government_id_verified: boolean | null;
+  face_photo_url: string | null;
+  face_verified: boolean | null;
   role: 'rider' | 'admin';
   created_at: string;
   updated_at: string;
@@ -105,7 +147,7 @@ interface Profile {
 
 ## Auth Callback
 
-The Supabase OAuth callback route lives at `/auth/callback` (inside the `(auth)` route group). It exchanges the Supabase authorization code for a session and redirects to `/dashboard` (or the `next` query param if specified):
+The Supabase OAuth callback route lives at `/auth/callback` (inside the `(auth)` route group). It exchanges the authorization code for a session and redirects to `/dashboard` (or the `next` query param):
 
 ```typescript
 // app/(auth)/auth/callback/route.ts
@@ -123,4 +165,4 @@ export async function GET(request: Request) {
 
 ## Admin Onboarding
 
-Admins are not a separate user type — they are regular riders whose email appears in `ADMIN_EMAILS` (env var) or whose `profiles.role` is `'admin'`. An existing admin can promote another user via **Admin → Riders → [Rider] → Update Role**.
+Admins are regular riders whose email is in `ADMIN_EMAILS` or whose `profiles.role` is `'admin'`. An existing admin can promote another user via **Admin → Riders → [Rider] → Update Role**.

@@ -141,11 +141,11 @@ curl -H "Authorization: Bearer your-cron-secret" \
 ## Supabase Production Setup
 
 1. **Create a production project** in the same region (`ap-south-1` / Mumbai).
-2. **Run all 16 migrations** (see [Development Setup → Database Setup](/development-setup#3-database-setup)).
+2. **Run all migrations** in timestamp order (see [Development Setup → Database Setup](/development-setup#3-database-setup)).
 3. **Enable Email Auth** in Supabase Dashboard → Auth → Providers.
 4. **Set Site URL** to your Vercel domain: `https://your-app.vercel.app`
 5. **Set Redirect URLs** to include: `https://your-app.vercel.app/auth/callback`
-6. **Create the storage bucket** `rider-reports` (private).
+6. **Create storage buckets** (or run `yarn setup-storage`): `rider-reports`, `government-ids`, `face-photos` (all private).
 
 ---
 
@@ -180,8 +180,8 @@ docker run -p 3000:3000 --env-file .env.local oasis
 
 ## Post-Deployment Checklist
 
-- [ ] All 16 migrations applied to the production Supabase database
-- [ ] `rider-reports` storage bucket created
+- [ ] All migrations applied to the production Supabase database
+- [ ] Storage buckets created: `rider-reports`, `government-ids`, `face-photos`
 - [ ] Supabase Auth site URL + redirect URL set to production domain
 - [ ] `ADMIN_EMAILS` includes at least one admin email
 - [ ] `CRON_SECRET` is set and matches in Vercel env

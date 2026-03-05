@@ -14,6 +14,7 @@ Full developer documentation is in the [`/docs`](./docs) folder (Docusaurus).
 
 | Section                                                                | Description                             |
 | ---------------------------------------------------------------------- | --------------------------------------- |
+| [Onboarding](./docs/docs/features/onboarding.md)                       | Two-step KYC: gov ID + face verification |
 | [Architecture](./docs/docs/architecture.md)                            | System design, data flow, key modules   |
 | [Development Setup](./docs/docs/development-setup.md)                  | Local setup, env vars, DB migrations    |
 | [Parametric Triggers](./docs/docs/features/parametric-triggers.md)     | How the adjudicator works               |
@@ -47,14 +48,14 @@ cp .env.local.example .env.local
 # 3. Apply database migrations (Supabase Dashboard → SQL Editor, run in order)
 #    or via CLI: npx supabase link && yarn db:migrate
 
-# 4. Create storage bucket
+# 4. Create storage buckets (rider-reports, government-ids, face-photos)
 yarn setup-storage
 
 # 5. Run
 yarn dev
 ```
 
-**For local dev**, add `STRIPE_SECRET_KEY=sk_test_...` to `.env.local` to use Stripe Checkout with test cards.
+**For local dev**, add `STRIPE_SECRET_KEY=sk_test_...` and `STRIPE_WEBHOOK_SECRET=whsec_...` to `.env.local` for Stripe Checkout (use [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks locally).
 
 See [Development Setup](./docs/docs/development-setup.md) for the full guide.
 
@@ -90,7 +91,7 @@ Realtime    NewsData.io
 
 **How it works:**
 
-1. **Rider onboards** → selects platform (Zepto/Blinkit), pins their delivery zone on a map.
+1. **Rider onboards** → Step 1: platform (Zepto/Blinkit), name, phone, zone. Step 2: government ID (Aadhaar) + face liveness verification.
 2. **Subscribes weekly** → pays ₹79–₹149/week via Stripe (3 tiers, dynamic pricing).
 3. **Adjudicator runs every hour** → polls weather, AQI, and news APIs across all active rider zones.
 4. **Disruption detected** → 7-check fraud pipeline → `parametric_claims` inserted with `status='paid'`.
@@ -127,7 +128,7 @@ Realtime    NewsData.io
 
 ## Database Setup
 
-Apply all 16 migrations in the `supabase/migrations/` folder to your Supabase project:
+Apply all migrations in `supabase/migrations/` (run in timestamp order) to your Supabase project:
 
 **Option A — Supabase Dashboard:** SQL Editor → run each file in timestamp order.
 

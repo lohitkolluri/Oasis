@@ -187,6 +187,88 @@ Promote or demote a rider's role.
 
 ---
 
+## Onboarding Endpoints
+
+### `GET /api/onboarding/verify-face`
+
+Returns a random gesture for face liveness verification. Call before POST.
+
+**Response:**
+```json
+{
+  "gesture": "close your left eye (wink with left eye closed)"
+}
+```
+
+Requires `OPENROUTER_API_KEY`.
+
+---
+
+### `POST /api/onboarding/verify-face`
+
+Verifies a face photo against the expected gesture. LLM checks gesture match and liveness (not a photo/screen).
+
+**Body (multipart/form-data):**
+```
+face_photo: <image file>
+expected_gesture: "close your left eye (wink with left eye closed)"
+```
+
+**Response (success):**
+```json
+{
+  "ok": true,
+  "face_photo_url": "face-photos/<userId>/face-verification.jpg",
+  "verified": true
+}
+```
+
+**Response (failure):**
+```json
+{
+  "ok": false,
+  "verified": false,
+  "reason": "Gesture not visible or image appears to be a photo"
+}
+```
+
+Photos are stored in the `face-photos` bucket. Optional `FACE_PHOTO_ENCRYPTION_KEY` encrypts at rest.
+
+---
+
+### `POST /api/onboarding/verify-government-id`
+
+Uploads government ID (Aadhaar, PAN, etc.) and verifies authenticity via LLM vision.
+
+**Body (multipart/form-data):**
+```
+file: <image file>
+full_name: "Rider Name"
+id_type: "aadhaar"
+```
+
+**Response (success):**
+```json
+{
+  "ok": true,
+  "government_id_url": "government-ids/<userId>/gov-id.jpg",
+  "verified": true
+}
+```
+
+**Response (failure):**
+```json
+{
+  "ok": false,
+  "verified": false,
+  "reason": "Document not legible or invalid"
+}
+```
+
+Documents are stored in the `government-ids` bucket. Optional `GOV_ID_ENCRYPTION_KEY` encrypts at rest.
+
+---
+
 ## Payment Endpoints
 
 ### `POST /api/payments/create-checkout`

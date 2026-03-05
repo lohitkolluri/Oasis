@@ -103,7 +103,7 @@ Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
 2. Go to **SQL Editor → New query**
-3. Run migrations in order from `supabase/migrations/`:
+3. Run migrations in timestamp order from `supabase/migrations/`:
 
 ```
 20240304000001_create_profiles.sql
@@ -122,6 +122,11 @@ Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET
 20240307000000_add_profile_role.sql
 20240308000000_add_payment_tracking.sql
 20240308000001_payment_transactions.sql
+20240309000000_comprehensive_fixes.sql
+20240310000000_add_government_id.sql
+20240311000000_supabase_cron_integration.sql
+20240312000000_stripe_payments.sql
+20240313000000_add_face_verification.sql
 ```
 
 ### Option B — Supabase CLI
@@ -136,13 +141,19 @@ yarn db:migrate
 
 ### Storage Bucket Setup
 
-The `rider-reports` storage bucket must be created before riders can upload delivery impact reports:
+Run `yarn setup-storage` to create all required buckets:
+
+| Bucket | Purpose |
+|--------|---------|
+| `rider-reports` | Delivery reports and claim proof photos |
+| `government-ids` | KYC government ID uploads (Aadhaar, PAN, etc.) |
+| `face-photos` | Face liveness verification photos for onboarding |
 
 ```bash
 yarn setup-storage
 ```
 
-Or create it manually: **Supabase Dashboard → Storage → New bucket → `rider-reports`** (public: false).
+Or create them manually via **Supabase Dashboard → Storage → New bucket** (all private, 5MB limit, images only).
 
 ---
 
@@ -158,7 +169,7 @@ The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
 
 1. Navigate to `/register` and create an account.
 2. To access `/admin`, your email must be in `ADMIN_EMAILS`.
-3. Complete the onboarding flow at `/onboarding` to set your platform and delivery zone.
+3. Complete the onboarding flow at `/onboarding` (Step 1: platform, name, phone, zone; Step 2: government ID + face verification).
 
 ---
 
@@ -171,7 +182,7 @@ The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
 | Lint | `yarn lint` | ESLint with Next.js ruleset |
 | Tests | `yarn test` | Vitest unit tests |
 | DB migrate | `yarn db:migrate` | Supabase CLI push |
-| Storage setup | `yarn setup-storage` | Create `rider-reports` bucket |
+| Storage setup | `yarn setup-storage` | Create `rider-reports`, `government-ids`, `face-photos` buckets |
 
 ---
 
