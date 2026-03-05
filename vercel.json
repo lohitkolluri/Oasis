@@ -1,15 +1,5 @@
 {
   "buildCommand": "npm run build",
   "framework": "nextjs",
-  "regions": ["bom1"],
-  "crons": [
-    {
-      "path": "/api/cron/adjudicator",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/weekly-premium",
-      "schedule": "30 17 * * 0"
-    }
-  ]
+  "regions": ["bom1"]
 }

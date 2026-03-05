@@ -46,11 +46,17 @@ In the Vercel project settings, add all variables from `.env.local.example`:
 
 ```json
 {
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
   "regions": ["bom1"]
 }
 ```
 
 This co-locates the serverless functions with the Supabase project (which should also be in the `ap-south-1` region for best latency).
+
+:::note Vercel Hobby and cron
+Vercel Hobby plans allow only **daily** cron jobs. Hourly crons require Pro. Use GitHub Actions (Option A) or Supabase Cron (Option C) for free hourly triggers.
+:::
 
 ---
 
@@ -63,9 +69,9 @@ Two scheduled jobs keep Oasis running: the adjudicator (hourly) and weekly premi
 | `/api/cron/adjudicator` | Every hour | Every hour | Poll weather/news APIs, create disruption events and claims |
 | `/api/cron/weekly-premium` | Sunday 17:30 UTC | Sunday 23:00 IST | Deactivate expired policies, renew for next week |
 
-### Option A: GitHub Actions (free)
+### Option A: GitHub Actions (recommended for Hobby)
 
-A workflow in `.github/workflows/cron.yml` runs both jobs on GitHub-hosted runners — no paid plan required.
+A workflow in `.github/workflows/cron.yml` runs both jobs on GitHub-hosted runners — works with Vercel Hobby.
 
 **1. Add repository secrets** (Settings → Secrets and variables → Actions):
 
@@ -86,9 +92,9 @@ Go to **Actions → Cron Jobs → Run workflow** and choose `adjudicator` or `we
 GitHub Actions provides 2,000 minutes/month free for private repos; public repos have higher limits. Hourly + weekly crons use well under 1,000 minutes/month.
 :::
 
-### Option B: Vercel Cron (paid)
+### Option B: Vercel Cron (Pro only)
 
-If you're on Vercel Pro, `vercel.json` is already configured:
+Vercel **Pro** plans support hourly crons. Add the following to `vercel.json` if you upgrade:
 
 ```json
 {
