@@ -1,10 +1,7 @@
 ---
-id: development-setup
 title: Development Setup
-sidebar_position: 4
+description: Local setup, env vars, migrations
 ---
-
-# Development Setup
 
 ## Prerequisites
 
@@ -83,17 +80,30 @@ STRIPE_WEBHOOK_SECRET=whsec_...   # From Stripe Dashboard → Developers → Web
 
 ```
 
-:::tip Demo Mode
+:::tip[Demo Mode]{icon="approve-check-circle"}
 Use Stripe test keys (`sk_test_...`) to run the full Checkout flow with test cards (e.g. 4242 4242 4242 4242) without real charges.
+:::
 
-For local Stripe testing with real payments, use the [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks:
+```mermaid
+flowchart TB
+    subgraph Demo["Demo Mode"]
+        D1[sk_test_ keys] --> D2[Test card 4242...]
+        D2 --> D3[Full Checkout flow, no charges]
+    end
+    subgraph Local["Local Webhooks"]
+        L1[Stripe CLI] --> L2[stripe listen --forward-to]
+        L2 --> L3[localhost:3000/api/payments/webhook]
+        L3 --> L4[Copy whsec_ to STRIPE_WEBHOOK_SECRET]
+    end
+```
+
+For local testing with real webhook events, use the [Stripe CLI](https://stripe.com/docs/stripe-cli):
 
 ```bash
 stripe listen --forward-to localhost:3000/api/payments/webhook
 ```
 
 Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET`.
-:::
 
 ---
 
@@ -206,7 +216,7 @@ app/          → pages and API routes (Next.js App Router)
 components/   → React UI components
 lib/          → business logic (no React)
 supabase/     → SQL migrations + Deno edge function
-docs/         → this Docusaurus site
+docs/         → this Starlight docs site
 ```
 
-See [Folder Structure](/folder-structure) for a complete breakdown.
+See [Folder Structure](/folder-structure/) for a complete breakdown.

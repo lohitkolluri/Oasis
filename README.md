@@ -10,26 +10,28 @@ Oasis safeguards gig workers (Zepto, Blinkit) against income loss caused by exte
 
 ## Documentation
 
-Full developer documentation is in the [`/docs`](./docs) folder (Docusaurus).
+Full developer documentation is in the [`/docs`](./docs) folder (Astro Starlight).
 
 | Section                                                                | Description                             |
 | ---------------------------------------------------------------------- | --------------------------------------- |
-| [Onboarding](./docs/docs/features/onboarding.md)                       | Two-step KYC: gov ID + face verification |
-| [Architecture](./docs/docs/architecture.md)                            | System design, data flow, key modules   |
-| [Development Setup](./docs/docs/development-setup.md)                  | Local setup, env vars, DB migrations    |
-| [Parametric Triggers](./docs/docs/features/parametric-triggers.md)     | How the adjudicator works               |
-| [Fraud Detection](./docs/docs/features/fraud-detection.md)             | 7-layer fraud check pipeline            |
-| [Claims Processing](./docs/docs/features/claims-processing.md)         | End-to-end parametric claims            |
-| [Database Schema](./docs/docs/database.md)                             | All tables, RLS, relationships          |
-| [API Reference](./docs/docs/api.md)                                    | Every endpoint, request/response shapes |
-| [Deployment](./docs/docs/deployment.md)                                | Vercel deployment, cron setup           |
-| [Supabase Integrations](./docs/docs/features/supabase-integrations.md) | Cron, Queues, Stripe options            |
+| [Onboarding](./docs/src/content/docs/features/onboarding.md)           | Two-step KYC: gov ID + face verification |
+| [Architecture](./docs/src/content/docs/architecture.md)                | System design, data flow, key modules   |
+| [Development Setup](./docs/src/content/docs/development-setup.md)       | Local setup, env vars, DB migrations    |
+| [Parametric Triggers](./docs/src/content/docs/features/parametric-triggers.md) | How the adjudicator works               |
+| [Fraud Detection](./docs/src/content/docs/features/fraud-detection.md) | 7-layer fraud check pipeline            |
+| [Claims Processing](./docs/src/content/docs/features/claims-processing.md) | End-to-end parametric claims            |
+| [Database Schema](./docs/src/content/docs/database.md)                 | All tables, RLS, relationships         |
+| [API Reference](./docs/src/content/docs/api.md)                        | Every endpoint, request/response shapes  |
+| [Deployment](./docs/src/content/docs/deployment.md)                   | Vercel deployment, cron setup            |
+| [Supabase Integrations](./docs/src/content/docs/features/supabase-integrations.md) | Cron, Queues, Stripe options            |
 
 To run the docs site locally:
 
 ```bash
-cd docs && npm install && npm start
+cd docs && npm install && npm run dev
 ```
+
+The docs include `llms.txt`, `llms-full.txt`, and `llms-small.txt` for AI context (via starlight-llms-txt), plus OpenAPI-generated API reference from `openapi.yaml`.
 
 ---
 
@@ -57,7 +59,7 @@ yarn dev
 
 **For local dev**, add `STRIPE_SECRET_KEY=sk_test_...` and `STRIPE_WEBHOOK_SECRET=whsec_...` to `.env.local` for Stripe Checkout (use [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks locally).
 
-See [Development Setup](./docs/docs/development-setup.md) for the full guide.
+See [Development Setup](./docs/src/content/docs/development-setup.md) for the full guide.
 
 ---
 

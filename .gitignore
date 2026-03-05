@@ -40,9 +40,7 @@ supabase/.temp/
 *.tsbuildinfo
 next-env.d.ts
 
-# Docusaurus (docs/)
+# Docs (Astro Starlight)
 docs/node_modules/
-docs/build/
-docs/.docusaurus/
-docs/.cache/
-docs/i18n/
+docs/dist/
+docs/.astro/

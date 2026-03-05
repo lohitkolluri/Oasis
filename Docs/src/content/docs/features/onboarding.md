@@ -1,12 +1,9 @@
 ---
-id: onboarding
 title: Onboarding
-sidebar_position: 1
+description: "Two-step KYC: gov ID + face verification"
 ---
 
-# Onboarding
-
-The onboarding flow collects the information needed to personalize a rider's weekly premium and connect them to the parametric monitoring system. It uses a **two-step verification** flow: first basic profile and zone, then KYC (government ID + face liveness).
+Two-step flow: profile + zone first, then KYC (gov ID + face). Both verifications must pass before profile save.
 
 ---
 
@@ -86,7 +83,7 @@ Only when **both** verifications pass does the rider see the **Continue** button
 | `/api/onboarding/verify-face` | GET | Request random gesture |
 | `/api/onboarding/verify-face` | POST | Submit face photo, LLM checks gesture + liveness |
 
-See [API Reference → Onboarding Endpoints](/api#onboarding-endpoints) for request/response shapes.
+See [API Reference → Onboarding Endpoints](/api/#onboarding-endpoints) for request/response shapes.
 
 ---
 

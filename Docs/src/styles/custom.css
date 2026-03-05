@@ -1,0 +1,49 @@
+/* Oasis docs — visual hierarchy and clean aesthetic */
+
+:root {
+  /* Tighter typography */
+  --sl-font: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* Section spacing */
+.sl-markdown-content h2 {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--sl-color-hairline);
+}
+
+.sl-markdown-content h2:first-of-type {
+  margin-top: 1.5rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.sl-markdown-content h3 {
+  margin-top: 2rem;
+}
+
+/* Tables — subtle borders */
+.sl-markdown-content table {
+  font-size: 0.9em;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  padding: 0.6rem 1rem;
+}
+
+/* Code blocks */
+.sl-markdown-content pre {
+  border-radius: 0.5rem;
+}
+
+/* Asides — compact */
+.sl-markdown-content .sl-styled aside {
+  margin: 1rem 0;
+}
+
+/* Text flow blocks */
+.sl-markdown-content pre code {
+  font-size: 0.875em;
+}

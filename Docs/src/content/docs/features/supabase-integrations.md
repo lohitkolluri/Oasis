@@ -1,12 +1,9 @@
 ---
-id: supabase-integrations
 title: Supabase Integrations
-sidebar_position: 11
+description: pg_cron, Stripe, Queues
 ---
 
-# Supabase Integrations
-
-Oasis uses several Supabase integrations to reduce external dependencies and improve reliability.
+Several Supabase integrations reduce external dependencies and improve reliability.
 
 ---
 

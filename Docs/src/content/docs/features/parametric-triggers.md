@@ -1,31 +1,23 @@
 ---
-id: parametric-triggers
 title: Parametric Triggers & Adjudicator
-sidebar_position: 3
+description: Five trigger types, zone discovery, deduplication
 ---
 
-# Parametric Triggers & Adjudicator
-
-The parametric adjudicator is the core engine of Oasis. It runs every hour, polls four external APIs, evaluates five trigger types, and automatically creates claims for eligible riders — with no human intervention.
-
----
+The parametric adjudicator is the core engine. It runs hourly, polls external APIs, evaluates five trigger types, and creates claims for eligible riders.
 
 ## Adjudicator Lifecycle
 
 ```mermaid
-flowchart TD
-    A[runAdjudicator] --> B[getActiveZones]
-    B --> C[checkZoneTriggers × N zones]
-    C --> D[Deduplicate triggers]
-    D --> E[For each candidate]
-    E --> F[INSERT live_disruption_events]
-    F --> G[Find eligible policies]
-    G --> H[runAllFraudChecks]
-    H --> I[INSERT parametric_claims]
-    I --> J[Log to system_logs]
+flowchart LR
+    A[Discover zones] --> B[Check triggers]
+    B --> C[Deduplicate]
+    C --> D[INSERT events]
+    D --> E[Find policies]
+    E --> F[Fraud checks]
+    F --> G[INSERT claims]
 ```
 
-**Step-by-step:**
+**Steps:**
 
 ```
 runAdjudicator()

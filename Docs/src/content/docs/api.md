@@ -1,12 +1,10 @@
+
 ---
-id: api
 title: API Reference
-sidebar_position: 8
+description: Every endpoint, request/response shapes
 ---
 
-# API Reference
-
-All API routes live under `app/api/`. Authentication is enforced via Supabase session cookies (SSR) or `CRON_SECRET` Bearer token for cron endpoints.
+API routes under `app/api/`. Auth: Supabase session cookies (SSR) or `CRON_SECRET` Bearer for cron endpoints.
 
 ---
 

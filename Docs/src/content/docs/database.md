@@ -1,70 +1,23 @@
 ---
-id: database
 title: Database Schema
-sidebar_position: 7
+description: All tables, RLS, relationships
 ---
 
-# Database Schema
-
-Oasis uses **Supabase PostgreSQL** with Row Level Security (RLS) on every table. All business logic accesses the database through one of the four Supabase client factories in `lib/supabase/`.
+Supabase PostgreSQL with Row Level Security (RLS) on every table. Business logic uses the four Supabase client factories in `lib/supabase/`.
 
 ---
 
-## Entity Relationship Overview
+## Entity Relationships
 
-```mermaid
-erDiagram
-    auth_users ||--|| profiles : "1:1"
-    profiles ||--o{ weekly_policies : "1:many"
-    weekly_policies }o--|| plan_packages : "plan_id"
-    weekly_policies ||--o{ parametric_claims : "1:many"
-    parametric_claims }o--|| live_disruption_events : "disruption_event_id"
-    profiles ||--o{ rider_delivery_reports : "1:many"
-    profiles ||--o{ premium_recommendations : "1:many"
-
-    auth_users {
-        uuid id PK
-    }
-
-    profiles {
-        uuid id PK
-        platform platform_type
-        zone_latitude numeric
-        zone_longitude numeric
-        role text
-    }
-
-    weekly_policies {
-        uuid id PK
-        uuid profile_id FK
-        uuid plan_id FK
-        date week_start_date
-        date week_end_date
-        boolean is_active
-    }
-
-    parametric_claims {
-        uuid id PK
-        uuid policy_id FK
-        uuid disruption_event_id FK
-        numeric payout_amount_inr
-        status claim_status
-    }
-
-    live_disruption_events {
-        uuid id PK
-        event_type disruption_event_type
-        severity_score numeric
-        geofence_polygon jsonb
-    }
-
-    plan_packages {
-        uuid id PK
-        slug text
-        weekly_premium_inr numeric
-        payout_per_claim_inr numeric
-    }
-```
+| From | To | Relation |
+|------|-----|----------|
+| auth.users | profiles | 1:1 |
+| profiles | weekly_policies | 1:many |
+| weekly_policies | plan_packages | plan_id |
+| weekly_policies | parametric_claims | 1:many |
+| parametric_claims | live_disruption_events | event_id |
+| profiles | rider_delivery_reports | 1:many |
+| profiles | premium_recommendations | 1:many |
 
 ---
 

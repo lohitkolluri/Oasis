@@ -1,12 +1,9 @@
 ---
-id: folder-structure
 title: Folder Structure
-sidebar_position: 3
+description: Layered architecture - presentation, application, infrastructure
 ---
 
-# Folder Structure
-
-Oasis follows a **layered architecture**: presentation (pages + components), application (API routes + lib), and infrastructure (Supabase migrations + Deno functions).
+Layered architecture: presentation (pages + components), application (API routes + lib), infrastructure (Supabase migrations + Deno functions).
 
 ```
 oasis/
@@ -48,7 +45,7 @@ oasis/
 │   ├── supabase/
 │   │   ├── admin.ts            # Service-role Supabase client
 │   │   ├── client.ts           # Browser Supabase client
-│   │   ├── middleware.ts       # Session refresh helper
+│   │   ├── middleware.ts      # Session refresh helper
 │   │   └── server.ts           # Server-side Supabase client
 │   ├── types/
 │   │   ├── css.d.ts            # CSS module ambient declaration
@@ -60,9 +57,9 @@ oasis/
 ├── supabase/
 │   ├── functions/
 │   │   └── enterprise-adjudicator/   # Deno Edge Function (alternative)
-│   └── migrations/             # 16 sequential SQL migrations
+│   └── migrations/             # SQL migrations (timestamp order)
 │
-├── docs/                       # This Docusaurus site
+├── docs/                       # This Starlight docs site
 │
 ├── scripts/
 │   └── setup-storage.ts        # One-time Supabase storage bucket setup
@@ -137,23 +134,4 @@ Pure business logic. Nothing in `lib/` imports React or Next.js framework code �
 
 ### `supabase/migrations/`
 
-16 sequential migrations. Apply in order — each file name contains a timestamp prefix.
-
-| Migration | What it creates |
-|---|---|
-| `000001` | `profiles` table, RLS policies |
-| `000002` | `weekly_policies` table, date-range constraint |
-| `000003` | `live_disruption_events` table, event type enum |
-| `000004` | `parametric_claims` table, claim status enum |
-| `000005` | Fraud flag columns on claims |
-| `000006` | Zone latitude/longitude on profiles |
-| `000007` | `premium_recommendations` table |
-| `000008` | `rider_delivery_reports` table |
-| `000009` | `claim_verifications` table |
-| `100000` | `plan_packages` table + seed Basic/Standard/Premium plans |
-| `000000_autonomous` | `system_logs` table, autonomy improvements |
-| `000000_system_logs` | Fraud enhancements |
-| `000001_aqi` | AQI baseline tracking |
-| `000000_role` | `role` column on profiles |
-| `000000_payment` | Payment tracking columns |
-| `000001_payment` | `payment_transactions` table |
+Apply migrations in timestamp order. Each file name contains a timestamp prefix.

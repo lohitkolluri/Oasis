@@ -1,14 +1,9 @@
 ---
-id: risk-assessment
 title: Risk Assessment & Premium Calculation
-sidebar_position: 2
+description: Dynamic weekly premium based on zone history and forecast
 ---
 
-# Risk Assessment & Premium Calculation
-
-Oasis calculates a personalized weekly premium for each rider based on their delivery zone's historical disruption frequency and a forward-looking weather forecast. The premium is strictly weekly — it is computed every Sunday and covers Monday through Sunday.
-
----
+Weekly premium is computed per rider from zone history and weather forecast. Strictly weekly — computed every Sunday, covers Monday through Sunday.
 
 ## Premium Formula
 

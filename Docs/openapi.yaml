@@ -1,0 +1,187 @@
+openapi: 3.0.3
+info:
+  title: Oasis API
+  description: API routes for Oasis parametric insurance platform
+  version: 1.0.0
+servers:
+  - url: https://your-app.vercel.app
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+paths:
+  /api/cron/adjudicator:
+    get:
+      summary: Run adjudicator
+      description: Runs the parametric adjudicator. Triggered hourly by Vercel cron.
+      operationId: getCronAdjudicator
+      security:
+        - cronSecret: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  triggered_at: { type: string, format: date-time }
+                  candidates_found: { type: integer }
+                  claims_created: { type: integer }
+                  zones_checked: { type: integer }
+                  message: { type: string }
+  /api/cron/weekly-premium:
+    get:
+      summary: Weekly premium renewal
+      description: Renews weekly policies every Sunday at 17:30 UTC.
+      operationId: getCronWeeklyPremium
+      security:
+        - cronSecret: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  renewed: { type: integer }
+                  skipped: { type: integer }
+  /api/admin/run-adjudicator:
+    post:
+      summary: Manually run adjudicator
+      description: Manually trigger the adjudicator on demand.
+      operationId: postAdminRunAdjudicator
+      responses:
+        '200':
+          description: Success
+  /api/admin/demo-trigger:
+    post:
+      summary: Inject demo disruption
+      description: Inject a synthetic disruption event for demo purposes.
+      operationId: postAdminDemoTrigger
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventSubtype, lat, lng]
+              properties:
+                eventSubtype:
+                  type: string
+                  enum: [extreme_heat, heavy_rain, severe_aqi, traffic_gridlock, zone_curfew]
+                lat: { type: number }
+                lng: { type: number }
+                radiusKm: { type: number, default: 15 }
+                severity: { type: number }
+      responses:
+        '200':
+          description: Success
+  /api/onboarding/verify-face:
+    get:
+      summary: Get face verification gesture
+      description: Returns a random gesture for face liveness verification.
+      operationId: getVerifyFaceGesture
+      responses:
+        '200':
+          description: Random gesture
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gesture: { type: string }
+    post:
+      summary: Verify face photo
+      description: Verifies a face photo against the expected gesture.
+      operationId: postVerifyFace
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [face_photo, expected_gesture]
+              properties:
+                face_photo: { type: string, format: binary }
+                expected_gesture: { type: string }
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  verified: { type: boolean }
+                  face_photo_url: { type: string }
+                  reason: { type: string }
+  /api/onboarding/verify-government-id:
+    post:
+      summary: Verify government ID
+      description: Uploads government ID and verifies authenticity via LLM vision.
+      operationId: postVerifyGovernmentId
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, full_name, id_type]
+              properties:
+                file: { type: string, format: binary }
+                full_name: { type: string }
+                id_type: { type: string, enum: [aadhaar] }
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  verified: { type: boolean }
+                  government_id_url: { type: string }
+                  reason: { type: string }
+  /api/payments/create-checkout:
+    post:
+      summary: Create Stripe Checkout
+      description: Creates a Stripe Checkout Session for weekly premium payment.
+      operationId: postCreateCheckout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planId, weekStart, weekEnd]
+              properties:
+                planId: { type: string, format: uuid }
+                weekStart: { type: string, format: date }
+                weekEnd: { type: string, format: date }
+      responses:
+        '200':
+          description: Redirect URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+                  sessionId: { type: string }
+                  policyId: { type: string }
+  /api/payments/webhook:
+    post:
+      summary: Stripe webhook
+      description: Handles checkout.session.completed from Stripe.
+      operationId: postPaymentsWebhook
+      responses:
+        '200':
+          description: Processed
+components:
+  securitySchemes:
+    cronSecret:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer CRON_SECRET

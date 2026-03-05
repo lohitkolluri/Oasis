@@ -1,49 +1,42 @@
 ---
-id: fraud-detection
 title: Fraud Detection
-sidebar_position: 5
+description: 7-layer fraud pipeline, duplicate claims, weather mismatch
 ---
 
-# Fraud Detection
-
-Oasis runs a multi-layered fraud detection pipeline on every claim before it is inserted. The checks are ordered from cheapest (in-memory) to most expensive (multiple DB queries) to minimize latency and database load.
+Multi-layered fraud checks run on every claim before insert. Ordered from cheapest (in-memory) to most expensive (DB) to minimize latency.
 
 ---
 
 ## Check Pipeline
 
 ```mermaid
-flowchart TD
-    A[runAllFraudChecks] --> B[checkDuplicateClaim]
-    A --> C[checkRapidClaims]
-    B --> D{Flagged?}
-    C --> D
-    D -->|Yes| Z[Skip claim]
-    D -->|No| E[checkWeatherMismatch]
-    E --> F{Flagged?}
-    F -->|Yes| Z
-    F -->|No| G[Proceed to insert]
+flowchart LR
+    subgraph Core["Core (before insert)"]
+        A[runAllFraudChecks] --> B[checkDuplicateClaim]
+        A --> C[checkRapidClaims]
+        A --> D[checkWeatherMismatch]
+    end
+    B --> E{Any Flagged?}
+    C --> E
+    D --> E
+    E -->|Yes| F[Skip Insert]
+    E -->|No| G[Insert Claim]
+    G --> H[Extended Checks]
+    H --> I[Device Fingerprint]
+    H --> J[Cluster Anomaly]
+    H --> K[Historical Baseline]
 ```
 
-**Full sequence:**
+The core `runAllFraudChecks()` runs before each claim insert. If any check returns `isFlagged: true`, the claim is skipped. Extended checks run asynchronously after insertion and can retroactively flag via `flagClaimAsFraud()`.
 
-```
-runAllFraudChecks(supabase, policyId, disruptionEventId, rawApiData?)
-│
-├── [parallel DB calls]
-│   ├── checkDuplicateClaim()   → same policy + same event = instant skip
-│   └── checkRapidClaims()      → ≥ 5 claims in 24h = flag
-│
-└── [synchronous, no DB]
-    └── checkWeatherMismatch()  → raw API data doesn't support trigger = flag
-
-    [Extended checks — run after claim insertion, if device fingerprint available]
-    ├── checkDeviceFingerprint() → same device in 2+ distant zones in 1h
-    ├── checkClusterAnomaly()    → ≥ 10 claims for same event in 10 min
-    └── checkHistoricalBaseline()→ claim rate > 3× 4-week rolling average
-```
-
-The core `runAllFraudChecks()` is called before each claim insert. If any check returns `isFlagged: true`, the claim is skipped. The extended checks run asynchronously after insertion and can retroactively flag a claim via `flagClaimAsFraud()`.
+| Check | When | Threshold |
+|-------|------|-----------|
+| checkDuplicateClaim | Core (parallel) | Same policy + same event → skip |
+| checkRapidClaims | Core (parallel) | ≥ 5 claims in 24h → flag |
+| checkWeatherMismatch | Core (sync) | Raw API data doesn't support trigger → flag |
+| checkDeviceFingerprint | Extended | Same device in 2+ distant zones in 1h |
+| checkClusterAnomaly | Extended | ≥ 10 claims for same event in 10 min |
+| checkHistoricalBaseline | Extended | Claim rate > 3× 4-week rolling average |
 
 ---
 

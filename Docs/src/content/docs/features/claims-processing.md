@@ -1,14 +1,9 @@
 ---
-id: claims-processing
 title: Claims Processing
-sidebar_position: 4
+description: Zero-touch parametric claims, geofence eligibility, real-time wallet
 ---
 
-# Claims Processing
-
-Oasis implements fully automated, zero-touch parametric claims. A rider never fills out a form, uploads a photo, or calls a helpline. When a disruption threshold is crossed, eligible riders receive a payout automatically.
-
----
+Fully automated, zero-touch claims. No forms, photos, or helplines. When a threshold is crossed, eligible riders receive payouts automatically.
 
 ## What Makes It "Parametric"
 
@@ -28,19 +23,16 @@ Parametric insurance replaces all of this with **objective trigger thresholds**:
 ## Claim Lifecycle
 
 ```mermaid
-flowchart TD
-    A[Disruption detected] --> B[INSERT live_disruption_events]
-    B --> C[For each active policy in geofence]
-    C --> D{Weekly cap OK?}
-    D -->|No| C
-    D -->|Yes| E[runAllFraudChecks]
-    E --> F{Fraud checks pass?}
-    F -->|No| C
-    F -->|Yes| G[INSERT parametric_claims]
-    G --> H[Supabase Realtime → wallet update]
+flowchart LR
+    A[Disruption] --> B[INSERT events]
+    B --> C[For each policy]
+    C --> D[Cap OK?]
+    D --> E[Fraud checks]
+    E --> F[INSERT claims]
+    F --> G[Realtime wallet]
 ```
 
-**Sequential flow:**
+**Flow:**
 
 ```
 Disruption event detected by adjudicator

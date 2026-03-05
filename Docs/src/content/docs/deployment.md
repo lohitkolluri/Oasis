@@ -1,12 +1,10 @@
+
 ---
-id: deployment
 title: Deployment
-sidebar_position: 9
+description: Vercel deployment, cron setup
 ---
 
-# Deployment
-
-Oasis is deployed to **Vercel** in the Mumbai region (`bom1`) for low-latency serving to Indian users. The production build is a Next.js standalone output with PWA service worker generation.
+Deployed on **Vercel** in the Mumbai region (`bom1`) for low-latency serving. Next.js standalone output with PWA service worker.
 
 ---
 
@@ -84,7 +82,7 @@ Push the workflow file to your default branch. GitHub will run it on schedule. N
 
 Go to **Actions → Cron Jobs → Run workflow** and choose `adjudicator` or `weekly-premium` from the dropdown.
 
-:::info Free tier
+:::note Free tier
 GitHub Actions provides 2,000 minutes/month free for private repos; public repos have higher limits. Hourly + weekly crons use well under 1,000 minutes/month.
 :::
 
