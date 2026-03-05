@@ -1,124 +1,135 @@
 /**
  * Fraud detection for parametric claims.
  *
- * Checks (in order):
+ * 7-layer pipeline (ALL checks now wired into production flow):
  *  1. Duplicate: same policy + same disruption event → instant skip
- *  2. Rapid claims: policy has ≥ RAPID_CLAIMS_THRESHOLD claims in 24 h
+ *  2. Rapid claims: policy has ≥ threshold claims in 24h
  *  3. Weather mismatch: raw API values don't support the stated trigger
  *  4. Location verification: rider GPS was recorded outside the event geofence
- *  5. Device fingerprint: same device hash across multiple zones in 1h (NEW)
- *  6. Cluster anomaly: ≥80% of zone claims in <10 min (NEW)
- *  7. Historical baseline: zone claim rate >3× 4-week rolling average (NEW)
+ *  5. Device fingerprint: same device hash across multiple zones in 1h
+ *  6. Cluster anomaly: ≥10 claims for same event in <10 min
+ *  7. Historical baseline: zone claim rate >3× 4-week rolling average
+ *
+ * Cross-profile velocity: same phone number across multiple profiles
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClient = any;
+import { FRAUD } from '@/lib/config/constants';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface FraudCheckResult {
   isFlagged: boolean;
   reason?: string;
+  checkName?: string;
 }
 
-const RAPID_CLAIMS_WINDOW_HOURS = 24;
-const RAPID_CLAIMS_THRESHOLD = 5; // raised from 4: 3 legit triggers/day + 1 buffer
+// ── 1. Duplicate Claim ───────────────────────────────────────────────────────
 
 export async function checkDuplicateClaim(
   supabase: SupabaseClient,
   policyId: string,
-  disruptionEventId: string
+  disruptionEventId: string,
 ): Promise<FraudCheckResult> {
   const { data } = await supabase
-    .from("parametric_claims")
-    .select("id")
-    .eq("policy_id", policyId)
-    .eq("disruption_event_id", disruptionEventId)
+    .from('parametric_claims')
+    .select('id')
+    .eq('policy_id', policyId)
+    .eq('disruption_event_id', disruptionEventId)
     .limit(1);
 
   if (data && data.length > 0) {
-    return { isFlagged: true, reason: "Duplicate: same policy + disruption event" };
-  }
-  return { isFlagged: false };
-}
-
-/** Flags if a policy has unusually many claims in a short window. */
-export async function checkRapidClaims(
-  supabase: SupabaseClient,
-  policyId: string
-): Promise<FraudCheckResult> {
-  const windowStart = new Date();
-  windowStart.setHours(windowStart.getHours() - RAPID_CLAIMS_WINDOW_HOURS);
-
-  const { count } = await supabase
-    .from("parametric_claims")
-    .select("id", { count: "exact", head: true })
-    .eq("policy_id", policyId)
-    .gte("created_at", windowStart.toISOString());
-
-  if ((count ?? 0) >= RAPID_CLAIMS_THRESHOLD) {
     return {
       isFlagged: true,
-      reason: `Rapid claims: ${count} in ${RAPID_CLAIMS_WINDOW_HOURS}h (threshold ${RAPID_CLAIMS_THRESHOLD})`,
+      reason: 'Duplicate: same policy + disruption event',
+      checkName: 'duplicate_claim',
     };
   }
   return { isFlagged: false };
 }
 
-/**
- * Weather mismatch: verify raw_api_data supports the stated trigger type.
- * Thresholds are set just below the adjudicator trigger levels to catch
- * edge-cases where data has been altered or spoofed.
- */
+// ── 2. Rapid Claims ──────────────────────────────────────────────────────────
+
+export async function checkRapidClaims(
+  supabase: SupabaseClient,
+  policyId: string,
+): Promise<FraudCheckResult> {
+  const windowStart = new Date();
+  windowStart.setHours(
+    windowStart.getHours() - FRAUD.RAPID_CLAIMS_WINDOW_HOURS,
+  );
+
+  const { count } = await supabase
+    .from('parametric_claims')
+    .select('id', { count: 'exact', head: true })
+    .eq('policy_id', policyId)
+    .gte('created_at', windowStart.toISOString());
+
+  if ((count ?? 0) >= FRAUD.RAPID_CLAIMS_THRESHOLD) {
+    return {
+      isFlagged: true,
+      reason: `Rapid claims: ${count} in ${FRAUD.RAPID_CLAIMS_WINDOW_HOURS}h (threshold ${FRAUD.RAPID_CLAIMS_THRESHOLD})`,
+      checkName: 'rapid_claims',
+    };
+  }
+  return { isFlagged: false };
+}
+
+// ── 3. Weather Mismatch ──────────────────────────────────────────────────────
+
 export function checkWeatherMismatch(
-  rawApiData: Record<string, unknown> | null
+  rawApiData: Record<string, unknown> | null,
 ): FraudCheckResult {
   if (!rawApiData) return { isFlagged: false };
   const trigger = rawApiData.trigger as string | undefined;
   if (!trigger) return { isFlagged: false };
 
-  if (trigger === "extreme_heat") {
-    const data = rawApiData.data as { values?: { temperature?: number } } | undefined;
+  if (trigger === 'extreme_heat') {
+    const data = rawApiData.data as
+      | { values?: { temperature?: number } }
+      | undefined;
     const temp = data?.values?.temperature ?? rawApiData.temperature;
-    if (temp != null && typeof temp === "number" && temp < 40) {
-      return { isFlagged: true, reason: `Weather mismatch: extreme_heat but temp=${temp}°C` };
-    }
-  }
-
-  if (trigger === "heavy_rain") {
-    const data = rawApiData.data as {
-      values?: { precipitationIntensity?: number };
-    } | undefined;
-    // Adjudicator triggers at ≥ 4 mm/h; flag if raw data shows < 3 mm/h
-    const precip = data?.values?.precipitationIntensity ?? rawApiData.precipitationIntensity;
-    if (precip != null && typeof precip === "number" && precip < 3) {
+    if (temp != null && typeof temp === 'number' && temp < 40) {
       return {
         isFlagged: true,
-        reason: `Weather mismatch: heavy_rain but precip=${precip} mm/h`,
+        reason: `Weather mismatch: extreme_heat but temp=${temp}°C`,
+        checkName: 'weather_mismatch',
       };
     }
   }
 
-  if (trigger === "severe_aqi") {
-    // Adaptive AQI: the raw data stores both current_aqi and adaptive_threshold
-    // so the mismatch check validates against the zone's own computed threshold,
-    // not a fixed global number (which would be wrong for Delhi vs Bangalore).
+  if (trigger === 'heavy_rain') {
+    const data = rawApiData.data as
+      | { values?: { precipitationIntensity?: number } }
+      | undefined;
+    const precip =
+      data?.values?.precipitationIntensity ?? rawApiData.precipitationIntensity;
+    if (precip != null && typeof precip === 'number' && precip < 3) {
+      return {
+        isFlagged: true,
+        reason: `Weather mismatch: heavy_rain but precip=${precip} mm/h`,
+        checkName: 'weather_mismatch',
+      };
+    }
+  }
+
+  if (trigger === 'severe_aqi') {
     const currentAqi =
       (rawApiData.current_aqi as number | undefined) ??
-      ((rawApiData.hourly as { us_aqi?: (number | null)[] } | undefined)?.us_aqi ?? []).find(
-        (v) => v != null
-      );
+      (
+        (rawApiData.hourly as { us_aqi?: (number | null)[] } | undefined)
+          ?.us_aqi ?? []
+      ).find((v) => v != null);
     const adaptiveThreshold =
       (rawApiData.adaptive_threshold as number | undefined) ?? 201;
 
-    // Flag if current AQI is more than 20% below the threshold that was claimed
-    // to have been breached — indicates data mismatch or spoofing
     if (
       currentAqi != null &&
-      typeof currentAqi === "number" &&
+      typeof currentAqi === 'number' &&
       currentAqi < adaptiveThreshold * 0.8
     ) {
       return {
         isFlagged: true,
         reason: `Weather mismatch: severe_aqi claimed (threshold=${adaptiveThreshold}) but AQI=${currentAqi}`,
+        checkName: 'weather_mismatch',
       };
     }
   }
@@ -126,95 +137,61 @@ export function checkWeatherMismatch(
   return { isFlagged: false };
 }
 
-/**
- * Location verification: if the rider submitted a GPS check and was recorded
- * outside the event geofence, flag the claim.
- */
+// ── 4. Location Verification ─────────────────────────────────────────────────
+
 export async function checkLocationVerification(
   supabase: SupabaseClient,
-  claimId: string
+  claimId: string,
 ): Promise<FraudCheckResult> {
   const { data } = await supabase
-    .from("claim_verifications")
-    .select("status")
-    .eq("claim_id", claimId)
+    .from('claim_verifications')
+    .select('status')
+    .eq('claim_id', claimId)
     .limit(1);
 
   const v = data?.[0] as { status?: string } | undefined;
-  if (v?.status === "outside_geofence") {
+  if (v?.status === 'outside_geofence') {
     return {
       isFlagged: true,
-      reason: "Location verification: rider GPS outside event geofence",
+      reason: 'Location verification: rider GPS outside event geofence',
+      checkName: 'location_verification',
     };
   }
   return { isFlagged: false };
 }
 
-/**
- * Run all applicable fraud checks.
- * Duplicate + rapid-claims run in parallel to reduce DB round-trips.
- */
-export async function runAllFraudChecks(
-  supabase: SupabaseClient,
-  policyId: string,
-  disruptionEventId: string,
-  rawApiData?: Record<string, unknown> | null
-): Promise<FraudCheckResult> {
-  // Run independent DB checks in parallel
-  const [duplicate, rapid] = await Promise.all([
-    checkDuplicateClaim(supabase, policyId, disruptionEventId),
-    checkRapidClaims(supabase, policyId),
-  ]);
+// ── 5. Device Fingerprint ────────────────────────────────────────────────────
 
-  if (duplicate.isFlagged) return duplicate;
-  if (rapid.isFlagged) return rapid;
-
-  // Synchronous weather-data validation (no DB call)
-  if (rawApiData) {
-    const weather = checkWeatherMismatch(rawApiData);
-    if (weather.isFlagged) return weather;
-  }
-
-  return { isFlagged: false };
-}
-
-export async function flagClaimAsFraud(
-  supabase: SupabaseClient,
-  claimId: string,
-  reason: string
-): Promise<void> {
-  await supabase
-    .from("parametric_claims")
-    .update({ is_flagged: true, flag_reason: reason })
-    .eq("id", claimId);
-}
-
-/**
- * Device fingerprint fraud: flag if the same device hash has been used
- * across claims in more than 1 distinct zone within the last hour.
- */
 export async function checkDeviceFingerprint(
   supabase: SupabaseClient,
-  deviceFingerprint: string
+  deviceFingerprint: string,
 ): Promise<FraudCheckResult> {
   if (!deviceFingerprint) return { isFlagged: false };
 
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const oneHourAgo = new Date(
+    Date.now() - FRAUD.DEVICE_FINGERPRINT_WINDOW_HOURS * 60 * 60 * 1000,
+  ).toISOString();
 
   const { data } = await supabase
-    .from("parametric_claims")
-    .select("disruption_event_id")
-    .eq("device_fingerprint", deviceFingerprint)
-    .gte("created_at", oneHourAgo);
+    .from('parametric_claims')
+    .select('disruption_event_id')
+    .eq('device_fingerprint', deviceFingerprint)
+    .gte('created_at', oneHourAgo);
 
   if (!data || data.length < 2) return { isFlagged: false };
 
-  // Get the geofence centers of those events
-  const eventIds = [...new Set((data as Array<{ disruption_event_id: string }>).map((c) => c.disruption_event_id))];
+  const eventIds = [
+    ...new Set(
+      (data as Array<{ disruption_event_id: string }>).map(
+        (c) => c.disruption_event_id,
+      ),
+    ),
+  ];
+
   const { data: events } = await supabase
-    .from("live_disruption_events")
-    .select("geofence_polygon")
-    .in("id", eventIds);
+    .from('live_disruption_events')
+    .select('geofence_polygon')
+    .in('id', eventIds);
 
   if (!events || events.length < 2) return { isFlagged: false };
 
@@ -225,57 +202,55 @@ export async function checkDeviceFingerprint(
   if (lats.length < 2) return { isFlagged: false };
 
   const latDiff = Math.max(...lats) - Math.min(...lats);
-  // > 0.5 degree lat ≈ >55 km — impossible for a single rider in 1 hour
-  if (latDiff > 0.5) {
+  if (latDiff > FRAUD.DEVICE_FINGERPRINT_MIN_DISTANCE_DEG) {
     return {
       isFlagged: true,
-      reason: `Device fingerprint: same device in ${eventIds.length} distant zones within 1h`,
+      reason: `Device fingerprint: same device in ${eventIds.length} distant zones within ${FRAUD.DEVICE_FINGERPRINT_WINDOW_HOURS}h`,
+      checkName: 'device_fingerprint',
     };
   }
 
   return { isFlagged: false };
 }
 
-/**
- * Cluster anomaly: flag if ≥5 claims for this disruption event were created
- * within a 10-minute window (coordinated/bot-like pattern).
- */
+// ── 6. Cluster Anomaly ───────────────────────────────────────────────────────
+
 export async function checkClusterAnomaly(
   supabase: SupabaseClient,
-  disruptionEventId: string
+  disruptionEventId: string,
 ): Promise<FraudCheckResult> {
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const windowAgo = new Date(
+    Date.now() - FRAUD.CLUSTER_ANOMALY_WINDOW_MIN * 60 * 1000,
+  ).toISOString();
 
   const { count } = await supabase
-    .from("parametric_claims")
-    .select("id", { count: "exact", head: true })
-    .eq("disruption_event_id", disruptionEventId)
-    .gte("created_at", tenMinutesAgo);
+    .from('parametric_claims')
+    .select('id', { count: 'exact', head: true })
+    .eq('disruption_event_id', disruptionEventId)
+    .gte('created_at', windowAgo);
 
-  if ((count ?? 0) >= 10) {
+  if ((count ?? 0) >= FRAUD.CLUSTER_ANOMALY_MIN_CLAIMS) {
     return {
       isFlagged: true,
-      reason: `Cluster anomaly: ${count} claims in <10 min for same event`,
+      reason: `Cluster anomaly: ${count} claims in <${FRAUD.CLUSTER_ANOMALY_WINDOW_MIN} min for same event`,
+      checkName: 'cluster_anomaly',
     };
   }
 
   return { isFlagged: false };
 }
 
-/**
- * Historical baseline anomaly: flag if this event has >3× the rolling
- * 4-week average claim rate for its zone.
- * Uses the zone_baseline_stats DB view when available.
- */
+// ── 7. Historical Baseline ───────────────────────────────────────────────────
+
 export async function checkHistoricalBaseline(
   supabase: SupabaseClient,
-  disruptionEventId: string
+  disruptionEventId: string,
 ): Promise<FraudCheckResult> {
   try {
     const { data } = await supabase
-      .from("zone_baseline_stats")
-      .select("total_claims, rolling_avg_claims")
-      .eq("event_id", disruptionEventId)
+      .from('zone_baseline_stats')
+      .select('total_claims, rolling_avg_claims')
+      .eq('event_id', disruptionEventId)
       .single();
 
     if (!data) return { isFlagged: false };
@@ -283,10 +258,11 @@ export async function checkHistoricalBaseline(
     const avg = Number(data.rolling_avg_claims);
     const current = Number(data.total_claims);
 
-    if (avg > 0 && current > avg * 3) {
+    if (avg > 0 && current > avg * FRAUD.HISTORICAL_BASELINE_MULTIPLIER) {
       return {
         isFlagged: true,
         reason: `Historical baseline: ${current} claims vs. ${avg.toFixed(1)} avg (${((current / avg) * 100).toFixed(0)}% above baseline)`,
+        checkName: 'historical_baseline',
       };
     }
   } catch {
@@ -296,15 +272,116 @@ export async function checkHistoricalBaseline(
   return { isFlagged: false };
 }
 
+// ── Cross-Profile Velocity ───────────────────────────────────────────────────
+
+export async function checkCrossProfileVelocity(
+  supabase: SupabaseClient,
+  profileId: string,
+  disruptionEventId: string,
+): Promise<FraudCheckResult> {
+  try {
+    // Get this profile's phone number
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('phone_number')
+      .eq('id', profileId)
+      .single();
+
+    if (!profile?.phone_number) return { isFlagged: false };
+
+    // Find other profiles with the same phone
+    const { data: samePhoneProfiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone_number', profile.phone_number)
+      .neq('id', profileId);
+
+    if (!samePhoneProfiles || samePhoneProfiles.length === 0) {
+      return { isFlagged: false };
+    }
+
+    // Check if any of those profiles already claimed for this event
+    const otherProfileIds = samePhoneProfiles.map((p) => p.id);
+    const { data: otherPolicies } = await supabase
+      .from('weekly_policies')
+      .select('id')
+      .in('profile_id', otherProfileIds)
+      .eq('is_active', true);
+
+    if (!otherPolicies || otherPolicies.length === 0) {
+      return { isFlagged: false };
+    }
+
+    const otherPolicyIds = otherPolicies.map((p) => p.id);
+    const { count } = await supabase
+      .from('parametric_claims')
+      .select('id', { count: 'exact', head: true })
+      .in('policy_id', otherPolicyIds)
+      .eq('disruption_event_id', disruptionEventId);
+
+    if ((count ?? 0) > 0) {
+      return {
+        isFlagged: true,
+        reason: `Cross-profile velocity: same phone number already claimed for this event`,
+        checkName: 'cross_profile_velocity',
+      };
+    }
+  } catch {
+    // Gracefully degrade
+  }
+
+  return { isFlagged: false };
+}
+
+// ── Composite Check Functions ────────────────────────────────────────────────
+
+export async function flagClaimAsFraud(
+  supabase: SupabaseClient,
+  claimId: string,
+  reason: string,
+): Promise<void> {
+  await supabase
+    .from('parametric_claims')
+    .update({ is_flagged: true, flag_reason: reason })
+    .eq('id', claimId);
+}
+
 /**
- * Extended fraud check that includes device fingerprint + cluster anomaly.
- * Call this after claim insertion when device fingerprint is available.
+ * Run all pre-claim fraud checks (before claim insertion).
+ * Checks: duplicate, rapid claims, weather mismatch.
+ */
+export async function runAllFraudChecks(
+  supabase: SupabaseClient,
+  policyId: string,
+  disruptionEventId: string,
+  rawApiData?: Record<string, unknown> | null,
+): Promise<FraudCheckResult> {
+  const [duplicate, rapid] = await Promise.all([
+    checkDuplicateClaim(supabase, policyId, disruptionEventId),
+    checkRapidClaims(supabase, policyId),
+  ]);
+
+  if (duplicate.isFlagged) return duplicate;
+  if (rapid.isFlagged) return rapid;
+
+  if (rawApiData) {
+    const weather = checkWeatherMismatch(rawApiData);
+    if (weather.isFlagged) return weather;
+  }
+
+  return { isFlagged: false };
+}
+
+/**
+ * Run post-claim extended fraud checks.
+ * Checks: cluster anomaly, historical baseline, device fingerprint.
+ * Called AFTER claim insertion — flags the claim if fraud detected.
  */
 export async function runExtendedFraudChecks(
   supabase: SupabaseClient,
   claimId: string,
   disruptionEventId: string,
-  deviceFingerprint?: string
+  deviceFingerprint?: string,
 ): Promise<FraudCheckResult> {
   const checks: Promise<FraudCheckResult>[] = [
     checkClusterAnomaly(supabase, disruptionEventId),
@@ -319,7 +396,11 @@ export async function runExtendedFraudChecks(
   const flagged = results.find((r) => r.isFlagged);
 
   if (flagged) {
-    await flagClaimAsFraud(supabase, claimId, flagged.reason ?? "Extended fraud check");
+    await flagClaimAsFraud(
+      supabase,
+      claimId,
+      flagged.reason ?? 'Extended fraud check',
+    );
     return flagged;
   }
 

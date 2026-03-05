@@ -23,7 +23,7 @@ export function AdminInsights() {
 
   if (loading) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl p-6 h-full flex items-center gap-3 text-[#666666]">
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl p-6 h-full flex items-center justify-center gap-3 text-[#666666]">
         <Loader2 className="h-4 w-4 animate-spin text-[#7dd3fc] shrink-0" />
         <span className="text-sm">Analyzing platform data…</span>
       </div>

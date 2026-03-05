@@ -11,6 +11,11 @@ export interface Profile {
   primary_zone_geofence: Record<string, unknown> | null;
   zone_latitude?: number | null;
   zone_longitude?: number | null;
+  government_id_url?: string | null;
+  government_id_verified?: boolean | null;
+  government_id_verification_result?: Record<string, unknown> | null;
+  face_photo_url?: string | null;
+  face_verified?: boolean | null;
   created_at: string;
   updated_at: string;
 }

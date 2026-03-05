@@ -80,7 +80,7 @@ function TriggerSubtitle({ raw }: { raw: Record<string, unknown> | null | undefi
   const labels: Record<string, string> = {
     extreme_heat: 'Extreme heat ≥ 43°C sustained 3h',
     heavy_rain: 'Heavy rain ≥ 4 mm/h',
-    severe_aqi: 'AQI spike — adaptive threshold breached',
+    severe_aqi: 'AQI spike. Adaptive threshold breached',
     traffic_gridlock: 'Severe traffic gridlock',
     zone_curfew: 'Zone curfew / strike / lockdown',
   };
@@ -94,7 +94,7 @@ export function TriggersList({ events }: { events: Event[] }) {
       <div className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl px-5 py-14 text-center shadow-[0_0_20px_rgba(255,255,255,0.03)]">
         <Cloud className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
         <p className="text-sm text-[#666666]">
-          No events yet — run the adjudicator or wait for the cron.
+          No events yet. Run the adjudicator or wait for the cron.
         </p>
       </div>
     );

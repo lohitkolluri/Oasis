@@ -15,7 +15,7 @@ export default function PolicyDocsPage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Policy Terms & Conditions</h1>
         <p className="text-zinc-500 text-sm">
-          Oasis Weekly Parametric Income Protection Policy — please read in full before subscribing.
+          Oasis Weekly Parametric Income Protection Policy. Please read in full before subscribing.
         </p>
       </div>
 
@@ -27,20 +27,20 @@ export default function PolicyDocsPage() {
           </h2>
           <ul className="list-disc pl-5 space-y-2 text-zinc-400">
             <li>
-              <strong className="text-zinc-300">Coverage Period</strong> — The seven-day period
+              <strong className="text-zinc-300">Coverage Period.</strong> The seven-day period
               (Monday 00:00 to Sunday 23:59 IST) for which the policy is active.
             </li>
             <li>
-              <strong className="text-zinc-300">Parametric Trigger</strong> — An objective,
+              <strong className="text-zinc-300">Parametric Trigger.</strong> An objective,
               externally verifiable event (e.g., weather threshold, traffic index) used to
               determine payout eligibility.
             </li>
             <li>
-              <strong className="text-zinc-300">Primary Zone</strong> — The delivery zone or
+              <strong className="text-zinc-300">Primary Zone.</strong> The delivery zone or
               geofence you have declared as your primary area of operations.
             </li>
             <li>
-              <strong className="text-zinc-300">External Disruption</strong> — An event outside
+              <strong className="text-zinc-300">External Disruption.</strong> An event outside
               your control that materially affects your ability to complete deliveries, as defined
               under Covered Events.
             </li>

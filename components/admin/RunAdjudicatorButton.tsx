@@ -27,7 +27,7 @@ export function RunAdjudicatorButton() {
       }
       setResult(data);
       gooeyToast.success('Adjudicator complete', {
-        description: `${data.candidates_found} event(s) found — ${data.claims_created} payout(s) created`,
+        description: `${data.candidates_found} event(s) found. ${data.claims_created} payout(s) created`,
       });
     } catch {
       setResult({ candidates_found: 0, claims_created: 0, error: 'Request failed' });
@@ -90,7 +90,7 @@ export function RunAdjudicatorButton() {
           )}
           {result.error
             ? result.error
-            : `${result.candidates_found} event(s) found — ${result.claims_created} payout(s) created`}
+            : `${result.candidates_found} event(s) found. ${result.claims_created} payout(s) created`}
         </motion.div>
       )}
     </motion.div>

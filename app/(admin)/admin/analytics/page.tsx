@@ -17,7 +17,7 @@ export default function AnalyticsPage() {
         <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">Admin Console</p>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Analytics</h1>
         <p className="text-sm text-[#666666] mt-1">
-          Claims, premiums, loss ratio, and trigger distribution — last 30 days
+          Claims, premiums, loss ratio, and trigger distribution. Last 30 days
         </p>
       </div>
 

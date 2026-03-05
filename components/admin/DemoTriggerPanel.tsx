@@ -33,7 +33,7 @@ const PRESETS: Array<{
     label: 'Extreme Heat',
     subtype: 'extreme_heat',
     emoji: '🌡️',
-    desc: '43°C sustained — heat disruption',
+    desc: '43°C sustained heat disruption',
     lat: 12.9716,
     lng: 77.5946,
     color: '#f59e0b',
@@ -42,7 +42,7 @@ const PRESETS: Array<{
     label: 'Heavy Rain',
     subtype: 'heavy_rain',
     emoji: '🌧️',
-    desc: '4 mm/h precipitation — rain disruption',
+    desc: '4 mm/h precipitation rain disruption',
     lat: 12.9716,
     lng: 77.5946,
     color: '#7dd3fc',
@@ -51,7 +51,7 @@ const PRESETS: Array<{
     label: 'Severe AQI',
     subtype: 'severe_aqi',
     emoji: '😷',
-    desc: 'AQI ≥ 201 — outdoor work stopped',
+    desc: 'AQI ≥ 201 outdoor work stopped',
     lat: 28.6139,
     lng: 77.209,
     color: '#a78bfa',
@@ -60,7 +60,7 @@ const PRESETS: Array<{
     label: 'Traffic Gridlock',
     subtype: 'traffic_gridlock',
     emoji: '🚦',
-    desc: 'Severe road closure — delivery halted',
+    desc: 'Severe road closure, delivery halted',
     lat: 19.076,
     lng: 72.8777,
     color: '#ef4444',
@@ -148,7 +148,7 @@ export function DemoTriggerPanel() {
             <span className="truncate flex items-center gap-2">
               <span>{selected.emoji}</span>
               <span className="font-medium text-white">{selected.label}</span>
-              <span className="text-[#666666] hidden sm:inline">— {selected.desc}</span>
+              <span className="text-[#666666] hidden sm:inline"> {selected.desc}</span>
             </span>
             <ChevronDown
               className={`h-4 w-4 text-[#666666] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -227,7 +227,7 @@ export function DemoTriggerPanel() {
             )}
             {result.error
               ? result.error
-              : `Demo completed — ${result.claims_created} payout(s) triggered across ${result.zones_checked} zone(s)`}
+              : `Demo completed. ${result.claims_created} payout(s) triggered across ${result.zones_checked} zone(s)`}
           </motion.div>
         )}
       </AnimatePresence>

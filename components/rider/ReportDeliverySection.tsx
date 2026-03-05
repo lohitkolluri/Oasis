@@ -3,18 +3,21 @@
 import { Flag } from "lucide-react";
 import { ReportDeliveryImpact } from "./ReportDeliveryImpact";
 
-/**
- * Always-visible section so riders can report delivery issues even when platform status is "normal".
- * PlatformStatus only shows when limited/paused, so this ensures the feature is discoverable.
- */
 export function ReportDeliverySection() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-      <p className="flex items-center gap-2 text-xs text-zinc-500 mb-3">
-        <Flag className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-        Having trouble delivering in your zone?
-      </p>
-      <ReportDeliveryImpact />
+    <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 overflow-hidden">
+      <div className="h-0.5 bg-gradient-to-r from-amber-500/30 via-transparent to-transparent" />
+      <div className="p-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-amber-500/10">
+            <Flag className="text-amber-400" style={{ width: 14, height: 14 }} />
+          </div>
+          <p className="text-[13px] font-semibold text-zinc-300">
+            Trouble delivering in your zone?
+          </p>
+        </div>
+        <ReportDeliveryImpact />
+      </div>
     </div>
   );
 }

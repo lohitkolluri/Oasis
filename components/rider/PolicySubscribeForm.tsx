@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { createClient } from '@/lib/supabase/client';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import { Check, Shield } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface PolicySubscribeFormProps {
   profileId: string;
@@ -13,15 +13,8 @@ interface PolicySubscribeFormProps {
   existingPolicies: WeeklyPolicy[];
   plans: PlanPackage[];
   suggestedPremium?: number;
-}
-
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (event: string, handler: (res: Record<string, string>) => void) => void;
-    };
-  }
+  paymentSuccess?: boolean;
+  paymentCanceled?: boolean;
 }
 
 function getNextWeekDates() {
@@ -44,6 +37,8 @@ export function PolicySubscribeForm({
   existingPolicies,
   plans,
   suggestedPremium = 99,
+  paymentSuccess = false,
+  paymentCanceled = false,
 }: PolicySubscribeFormProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -51,26 +46,21 @@ export function PolicySubscribeForm({
     plans.length > 0 ? (plans.find((p) => p.slug === 'standard') ?? plans[0]) : null;
   const [selectedPlan, setSelectedPlan] = useState<PlanPackage | null>(defaultPlan);
 
-  const supabase = createClient();
   const { start, end } = getNextWeekDates();
   const activePlan = selectedPlan ?? defaultPlan;
   const defaultPremium = activePlan?.weekly_premium_inr ?? suggestedPremium ?? 99;
 
   const hasPlans = plans.length > 0;
 
-  const loadRazorpayScript = useCallback(() => {
-    return new Promise<void>((resolve) => {
-      if (typeof window !== 'undefined' && window.Razorpay) {
-        resolve();
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => resolve();
-      document.body.appendChild(script);
-    });
-  }, []);
+  useEffect(() => {
+    if (paymentSuccess) {
+      setMessage({ type: 'success', text: 'Payment successful. Policy activated.' });
+      window.history.replaceState({}, '', '/dashboard/policy');
+    } else if (paymentCanceled) {
+      setMessage({ type: 'error', text: 'Payment was canceled.' });
+      window.history.replaceState({}, '', '/dashboard/policy');
+    }
+  }, [paymentSuccess, paymentCanceled]);
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
@@ -92,88 +82,44 @@ export function PolicySubscribeForm({
     const planIdToUse = activePlan?.id ?? undefined;
 
     try {
-      const createRes = await fetch('/api/payments/create-order', {
+      const createRes = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amountInr: premiumToPay,
           planId: planIdToUse,
           weekStart: start,
           weekEnd: end,
-          receipt: `oasis_${profileId}_${Date.now()}`,
         }),
       });
 
-      const orderData = await createRes.json();
+      const data = await createRes.json();
 
       if (!createRes.ok) {
         if (createRes.status === 503) {
           setMessage({
             type: 'error',
             text:
-              orderData.error ??
-              'Payment not configured. Ask admin to set Razorpay keys or PAYMENT_DEMO_MODE.',
+              data.error ??
+              'Payment not configured. Add STRIPE_SECRET_KEY for Stripe Checkout.',
           });
           setLoading(false);
           return;
         }
-        throw new Error(orderData.error ?? 'Failed to create order');
+        throw new Error(data.error ?? 'Failed to create checkout');
       }
 
-      if (orderData.demoMode) {
-        setMessage({ type: 'success', text: 'Policy activated (demo mode).' });
-        window.location.reload();
+      if (data.url) {
+        window.location.href = data.url;
         return;
       }
 
-      const policyId = orderData.policyId;
-      await loadRazorpayScript();
-
-      const rzp = new window.Razorpay({
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        order_id: orderData.orderId,
-        name: 'Oasis',
-        description: `Weekly coverage ${start} – ${end}`,
-        handler: async (res: Record<string, string>) => {
-          const verifyRes = await fetch('/api/payments/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: res.razorpay_order_id,
-              razorpay_payment_id: res.razorpay_payment_id,
-              razorpay_signature: res.razorpay_signature,
-              policy_id: policyId,
-            }),
-          });
-
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok) {
-            setMessage({ type: 'error', text: verifyData.error ?? 'Payment verification failed' });
-            setLoading(false);
-            return;
-          }
-
-          setMessage({ type: 'success', text: 'Payment successful. Policy activated.' });
-          window.location.reload();
-        },
-        prefill: { email: '' },
-        theme: { color: '#059669' },
-      });
-
-      rzp.on('payment.failed', () => {
-        setMessage({ type: 'error', text: 'Payment failed. Please try again.' });
-        setLoading(false);
-      });
-
-      rzp.open();
-      setLoading(false);
+      setMessage({ type: 'error', text: 'No checkout URL returned.' });
     } catch (err) {
       setMessage({
         type: 'error',
         text: err instanceof Error ? err.message : 'Something went wrong',
       });
+    } finally {
       setLoading(false);
     }
   }
@@ -277,7 +223,7 @@ export function PolicySubscribeForm({
           size="lg"
           className="mt-4"
         >
-          {loading ? 'Opening payment...' : 'Pay & Activate'}
+          {loading ? 'Redirecting to Stripe...' : 'Pay & Activate'}
         </Button>
       </Card>
     </form>

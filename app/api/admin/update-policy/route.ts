@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdmin } from "@/lib/auth";
+import { isAdmin } from "@/lib/utils/auth";
 
 /** Admin-only: update policy (deactivate, change plan). Requires admin auth. */
 export async function POST(request: Request) {

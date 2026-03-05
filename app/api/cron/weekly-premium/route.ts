@@ -1,124 +1,127 @@
-/**
- * Cron handler: compute weekly premium recommendations for all profiles.
- *
- * Fixes applied:
- *  - Deduplicates Tomorrow.io API calls: profiles sharing the same zone
- *    coordinates reuse a single forecast fetch instead of each making its own
- *  - Profile recommendations processed in parallel batches (not serially)
- */
-
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_ZONE, RATE_LIMITS } from '@/lib/config/constants';
 import {
-  calculateWeeklyPremium,
-  getHistoricalEventCount,
-  getForecastRiskFactor,
-} from "@/lib/ml/premium-calc";
+    calculatePremiumWithLlm,
+    getForecastRiskFactor,
+    getHistoricalEventCount,
+} from '@/lib/ml/premium-calc';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { checkRateLimit, errorResponse } from '@/lib/utils/api';
+import { NextResponse } from 'next/server';
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
 
-function getNextMonday(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const daysUntilMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day;
-  d.setDate(d.getDate() + daysUntilMonday);
-  return d.toISOString().split("T")[0];
-}
-
-/** Round coordinate to 2 decimal places (~1 km precision) for deduplication. */
-function zoneKey(lat: number, lng: number): string {
-  return `${lat.toFixed(2)},${lng.toFixed(2)}`;
-}
-
+/**
+ * GET /api/cron/weekly-premium
+ *
+ * Compute premium recommendations for all profiles.
+ * B3 fix: proper handling when zone coords are missing (uses DEFAULT_ZONE).
+ * M1: uses LLM-assisted premium calculation.
+ */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const weekStart = getNextMonday();
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, zone_latitude, zone_longitude");
-
-  const allProfiles = profiles ?? [];
-
-  // Build a map of unique zone keys → forecast risk factor (one API call per zone)
-  const uniqueZones = new Map<string, { lat: number; lng: number }>();
-  for (const p of allProfiles) {
-    const lat = p.zone_latitude ?? 12.9716;
-    const lng = p.zone_longitude ?? 77.5946;
-    const key = zoneKey(lat, lng);
-    if (!uniqueZones.has(key)) uniqueZones.set(key, { lat, lng });
-  }
-
-  // Fetch forecast for every unique zone in parallel
-  const forecastMap = new Map<string, number>();
-  await Promise.all(
-    Array.from(uniqueZones.entries()).map(async ([key, { lat, lng }]) => {
-      const risk = await getForecastRiskFactor(supabase, lat, lng);
-      forecastMap.set(key, risk);
-    })
-  );
-
-  // Process all profiles concurrently (capped at 10 at a time to respect DB limits)
-  const CONCURRENCY = 10;
-  let computed = 0;
-
-  for (let i = 0; i < allProfiles.length; i += CONCURRENCY) {
-    const batch = allProfiles.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      batch.map(async (profile) => {
-        const zoneLat = profile.zone_latitude ?? 12.9716;
-        const zoneLng = profile.zone_longitude ?? 77.5946;
-        const key = zoneKey(zoneLat, zoneLng);
-
-        const [eventCount, forecastRisk] = await Promise.all([
-          getHistoricalEventCount(supabase, zoneLat, zoneLng),
-          Promise.resolve(forecastMap.get(key) ?? 0),
-        ]);
-
-        const premium = calculateWeeklyPremium({
-          historicalEventCount: eventCount,
-          forecastRiskFactor: forecastRisk,
-        });
-
-        const { error } = await supabase.from("premium_recommendations").upsert(
-          {
-            profile_id: profile.id,
-            week_start_date: weekStart,
-            recommended_premium_inr: premium,
-            historical_event_count: eventCount,
-            forecast_risk_factor: forecastRisk,
-          },
-          { onConflict: "profile_id,week_start_date" }
-        );
-
-        if (error) throw error;
-        return true;
-      })
-    );
-
-    computed += results.filter((r) => r.status === "fulfilled").length;
-  }
-
-  return NextResponse.json({
-    message: "Weekly premium recommendations computed",
-    week_start: weekStart,
-    profiles_processed: allProfiles.length,
-    unique_zones: uniqueZones.size,
-    recommendations_upserted: computed,
-    sample_premium_low_risk: calculateWeeklyPremium({ historicalEventCount: 0 }),
-    sample_premium_high_risk: calculateWeeklyPremium({ historicalEventCount: 5 }),
+  const rateLimited = checkRateLimit('cron:weekly-premium', {
+    maxRequests: RATE_LIMITS.CRON_PER_HOUR,
+    windowMs: 60 * 60 * 1000,
   });
+  if (rateLimited) return rateLimited;
+
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
+  try {
+    const admin = createAdminClient();
+
+    const { data: profiles } = await admin
+      .from('profiles')
+      .select('id, zone_latitude, zone_longitude, platform, primary_zone_geofence')
+      .not('platform', 'is', null);
+
+    if (!profiles || profiles.length === 0) {
+      return NextResponse.json({
+        message: 'No profiles to process',
+        processed: 0,
+      });
+    }
+
+    // Deduplicate zones for API calls (same cluster = same forecast)
+    const zoneCache = new Map<string, { historicalEvents: number; forecastRisk: number }>();
+    function clusterKey(lat: number, lng: number): string {
+      return `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
+    }
+
+    let processed = 0;
+    const BATCH_SIZE = 5;
+
+    for (let i = 0; i < profiles.length; i += BATCH_SIZE) {
+      const batch = profiles.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(
+        batch.map(async (profile) => {
+          // B3 fix: use DEFAULT_ZONE when coordinates are missing
+          const lat = profile.zone_latitude ?? DEFAULT_ZONE.lat;
+          const lng = profile.zone_longitude ?? DEFAULT_ZONE.lng;
+          const key = clusterKey(lat, lng);
+
+          let cached = zoneCache.get(key);
+          if (!cached) {
+            const [historicalEvents, forecastRisk] = await Promise.all([
+              getHistoricalEventCount(admin, lat, lng),
+              getForecastRiskFactor(admin, lat, lng),
+            ]);
+            cached = { historicalEvents, forecastRisk };
+            zoneCache.set(key, cached);
+          }
+
+          // M1: use LLM-assisted premium calculation
+          const { premium, reasoning, source } = await calculatePremiumWithLlm({
+            zoneLatitude: lat,
+            zoneLongitude: lng,
+            historicalEventCount: cached.historicalEvents,
+            forecastRiskFactor: cached.forecastRisk,
+            platform: profile.platform,
+          });
+
+          // Compute next Monday as week_start_date
+          const now = new Date();
+          const dayOfWeek = now.getDay();
+          const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+          const nextMonday = new Date(now);
+          nextMonday.setDate(now.getDate() + daysUntilMonday);
+          const weekStartDate = nextMonday.toISOString().split('T')[0];
+
+          await admin.from('premium_recommendations').upsert(
+            {
+              profile_id: profile.id,
+              week_start_date: weekStartDate,
+              recommended_premium_inr: premium,
+              risk_factors: {
+                historical_events: cached.historicalEvents,
+                forecast_risk: cached.forecastRisk,
+                reasoning,
+                source,
+                zone_lat: lat,
+                zone_lng: lng,
+              },
+            },
+            { onConflict: 'profile_id,week_start_date' },
+          );
+
+          processed++;
+        }),
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Weekly premium recommendations computed',
+      processed,
+      zonesDeduped: zoneCache.size,
+    });
+  } catch (err) {
+    return errorResponse(err, 'Weekly premium cron failed');
+  }
 }

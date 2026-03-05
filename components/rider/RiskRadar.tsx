@@ -18,10 +18,33 @@ const typeLabels: Record<string, string> = {
 };
 
 const typeIcons: Record<string, React.ReactNode> = {
-  weather: <Cloud className="h-4 w-4" />,
-  traffic: <Car className="h-4 w-4" />,
-  social: <Megaphone className="h-4 w-4" />,
+  weather: <Cloud style={{ width: 15, height: 15 }} />,
+  traffic: <Car style={{ width: 15, height: 15 }} />,
+  social: <Megaphone style={{ width: 15, height: 15 }} />,
 };
+
+function SeverityBar({ score }: { score: number }) {
+  const pct = (score / 10) * 100;
+  const color =
+    score >= 8 ? "bg-red-400" : score >= 6 ? "bg-amber-400" : "bg-emerald-400";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-16 h-1.5 bg-[#1e2535] rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${color}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span
+        className={`text-[11px] font-bold tabular-nums ${
+          score >= 8 ? "text-red-400" : score >= 6 ? "text-amber-400" : "text-emerald-400"
+        }`}
+      >
+        {score}/10
+      </span>
+    </div>
+  );
+}
 
 export function RiskRadar() {
   const [events, setEvents] = useState<DisruptionEvent[]>([]);
@@ -63,47 +86,47 @@ export function RiskRadar() {
     };
   }, [supabase]);
 
-  if (loading && events.length === 0) {
-    return null;
-  }
+  if (loading && events.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">
-            Risk Radar
-          </span>
-          <span className="text-[11px] text-zinc-700">· payouts auto-trigger</span>
+    <div className="rounded-[24px] bg-[#111820] border border-[#1e2535]/70 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-amber-500/12">
+            <Activity className="text-amber-400" style={{ width: 16, height: 16 }} />
+          </div>
+          <p className="text-[13px] font-semibold text-zinc-200">Risk Radar</p>
         </div>
-        <span className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/15">
-          <Activity className="h-3 w-3" />
+        <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
           Live
         </span>
       </div>
+
       {events.length === 0 ? (
-        <div className="px-5 py-8 text-center">
-          <p className="text-sm text-zinc-600">No active disruptions</p>
-          <p className="text-xs text-zinc-700 mt-1">You&apos;re all clear</p>
+        <div className="px-5 pb-6 pt-2 text-center">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/8 mx-auto mb-3">
+            <Activity className="text-emerald-400/50" style={{ width: 20, height: 20 }} />
+          </div>
+          <p className="text-[13px] font-medium text-zinc-400">All clear</p>
+          <p className="text-[11px] text-[#606880] mt-0.5">No active disruptions in your area</p>
         </div>
       ) : (
-        <div className="divide-y divide-zinc-800/80">
+        <div className="px-4 pb-4 space-y-2">
           {events.map((e) => (
-            <div key={e.id} className="flex items-center gap-3 px-5 py-3">
-              <span className="text-zinc-600 shrink-0">
-                {typeIcons[e.event_type] ?? <MapPin className="h-3.5 w-3.5" />}
-              </span>
-              <span className="text-sm text-zinc-300 capitalize flex-1">
+            <div
+              key={e.id}
+              className="flex items-center gap-3 rounded-[14px] bg-[#0e1520] border border-[#1e2535]/50 px-3.5 py-3"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-zinc-700/40 text-zinc-400 shrink-0">
+                {typeIcons[e.event_type] ?? <MapPin style={{ width: 15, height: 15 }} />}
+              </div>
+              <span className="text-[13px] text-zinc-300 capitalize flex-1 font-medium">
                 {typeLabels[e.event_type] ?? e.event_type}
               </span>
-              <span
-                className={`text-sm font-semibold tabular-nums ${
-                  e.severity_score >= 8 ? "text-red-400" : "text-amber-400"
-                }`}
-              >
-                {e.severity_score}/10
-              </span>
-              <span className="text-xs text-zinc-600 tabular-nums w-12 text-right">
+              <SeverityBar score={e.severity_score} />
+              <span className="text-[10px] text-[#404860] tabular-nums w-10 text-right shrink-0">
                 {new Date(e.created_at).toLocaleTimeString("en-IN", {
                   hour: "2-digit",
                   minute: "2-digit",

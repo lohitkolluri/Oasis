@@ -3,7 +3,7 @@
  * Uses OpenRouter (openrouter/free) to analyze platform stats.
  * Admin-only.
  */
-import { isAdmin } from '@/lib/auth';
+import { isAdmin } from '@/lib/utils/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
@@ -80,7 +80,7 @@ export async function GET() {
     if (fraudCount > 0) actions.push('Review flagged claims in Fraud Queue');
     if (events.length > 0) actions.push('Monitor live disruption events in Triggers');
     if (Number(lossRatio) > 80)
-      actions.push('Review loss ratio — consider premium or payout adjustments');
+      actions.push('Review loss ratio. Consider premium or payout adjustments');
     if (actions.length === 0) actions.push('Platform operating normally');
     return {
       summary: `Platform snapshot: ${parts.join('; ')}.`,
@@ -89,7 +89,7 @@ export async function GET() {
   }
 
   const prompt = `You are an insurance operations analyst. Given this Oasis parametric platform snapshot, write:
-1. A 1–2 sentence executive summary (professional, concise).
+1. A 1-2 sentence executive summary (professional, concise). Use simple language. No em dashes.
 2. Up to 3 recommended actions as bullet points (e.g., "Review fraud queue", "Monitor heat trigger").
 
 Data:
@@ -142,10 +142,12 @@ Respond with JSON only: {"summary": "...", "actions": ["...", "..."]}`;
       parsed = { summary: content.slice(0, 200), actions: [] };
     }
 
-    return NextResponse.json({
-      summary: parsed.summary ?? 'Platform status: operational.',
-      actions: Array.isArray(parsed.actions) ? parsed.actions : [],
-    });
+    const summary = (parsed.summary ?? 'Platform status: operational.').replace(/\s*—\s*/g, '. ');
+    const actions = (Array.isArray(parsed.actions) ? parsed.actions : []).map((a) =>
+      a.replace(/\s*—\s*/g, '. ')
+    );
+
+    return NextResponse.json({ summary, actions });
   } catch (err) {
     console.warn('[admin/insights] LLM fetch failed:', err);
     return NextResponse.json(fallbackInsights());

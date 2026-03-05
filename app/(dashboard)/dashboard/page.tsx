@@ -1,16 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import { WalletCard } from "@/components/rider/WalletCard";
-import { RealtimeWallet } from "@/components/rider/RealtimeWallet";
-import { PolicyCard } from "@/components/rider/PolicyCard";
-import { PolicyDocumentsLink } from "@/components/rider/PolicyDocumentsLink";
-import { PlatformStatus } from "@/components/rider/PlatformStatus";
-import { ReportDeliverySection } from "@/components/rider/ReportDeliverySection";
-import { RiskRadar } from "@/components/rider/RiskRadar";
-import { PredictiveAlert } from "@/components/rider/PredictiveAlert";
-import { RiderInsight } from "@/components/rider/RiderInsight";
 import { DashboardContent } from "@/components/rider/DashboardContent";
-import { Avatar } from "@/components/ui/Avatar";
+import { createClient } from "@/lib/supabase/server";
 import type { ParametricClaim } from "@/lib/types/database";
+import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -18,7 +9,7 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")

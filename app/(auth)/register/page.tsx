@@ -1,11 +1,12 @@
 'use client';
 
-import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { Logo } from '@/components/ui/Logo';
 import { createClient } from '@/lib/supabase/client';
 import { gooeyToast } from 'goey-toast';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function RegisterPage() {
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -33,7 +35,7 @@ export default function RegisterPage() {
       return;
     }
 
-    gooeyToast.success('Account created! Check your email to confirm, then sign in.');
+    router.push('/login?registered=1');
   }
 
   return (
@@ -41,13 +43,14 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
+          <Logo size={24} />
           Oasis
         </Link>
         <div className="flex justify-center mb-6">
-          <Avatar seed={fullName || 'oasis-new-rider'} size={72} />
+          <Logo size={80} />
         </div>
         <h1 className="text-xl font-semibold mb-6 text-center">Get started</h1>
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Oasis — Income protection for delivery partners",
+    name: "Oasis: Income protection for delivery partners",
     short_name: "Oasis",
     description:
       "AI-powered parametric wage protection for India's Q-commerce delivery partners. Rider & Admin app.",
@@ -14,9 +14,9 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     icons: [
       {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/logo.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "any",
       },
       {
@@ -39,14 +39,14 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: "Rider",
         description: "View your wallet, policy & claims",
         url: "/dashboard",
-        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
+        icons: [{ src: "/logo.png", sizes: "512x512", type: "image/png" }],
       },
       {
         name: "Admin Dashboard",
         short_name: "Admin",
         description: "Manage triggers, fraud & policies",
         url: "/admin",
-        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
+        icons: [{ src: "/logo.png", sizes: "512x512", type: "image/png" }],
       },
     ],
   };

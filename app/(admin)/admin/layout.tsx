@@ -1,7 +1,9 @@
 import { AdminNav } from '@/components/admin/AdminNav';
-import { isAdmin } from '@/lib/auth';
+import { AdminSearch } from '@/components/admin/AdminSearch';
+import { Logo } from '@/components/ui/Logo';
+import { isAdmin } from '@/lib/utils/auth';
 import { createClient } from '@/lib/supabase/server';
-import { ShieldCheck, Smartphone } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -28,9 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         {/* Brand */}
         <div className="h-[64px] px-6 flex items-center shrink-0">
           <Link href="/admin" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-xl bg-[#7dd3fc]/10 border border-[#7dd3fc]/20 flex items-center justify-center shrink-0 group-hover:bg-[#7dd3fc]/15 transition-colors">
-              <ShieldCheck className="h-4 w-4 text-[#7dd3fc]" />
-            </div>
+            <Logo size={32} className="shrink-0" />
             <div>
               <p className="text-sm font-semibold text-white leading-tight tracking-tight">Oasis</p>
               <p className="text-[10px] text-[#666666] leading-tight">Admin Console</p>
@@ -62,20 +62,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <header className="sticky top-0 z-10 h-[56px] border-b border-[#2d2d2d] bg-[#0f0f0f]/90 backdrop-blur-xl px-6 lg:px-8 flex items-center justify-between shrink-0">
           {/* Mobile brand */}
           <Link href="/admin" className="md:hidden flex items-center gap-2 text-sm font-semibold text-white">
-            <ShieldCheck className="h-4 w-4 text-[#7dd3fc]" />
+            <Logo size={28} />
             Oasis Admin
           </Link>
 
           {/* Desktop search */}
           <div className="hidden md:flex items-center">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-56 bg-[#1e1e1e] border border-[#2d2d2d] rounded-full px-5 py-2 text-sm text-white placeholder-[#666666] focus:outline-none focus:border-[#7dd3fc]/40 focus:shadow-[0_0_12px_rgba(125,211,252,0.1)] transition-all duration-200"
-                readOnly
-              />
-            </div>
+            <AdminSearch />
           </div>
 
           {/* Right side */}

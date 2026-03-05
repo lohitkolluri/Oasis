@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { AlertTriangle } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 
 export function PredictiveAlert() {
   const [alert, setAlert] = useState<string | null>(null);
@@ -59,11 +59,19 @@ export function PredictiveAlert() {
   if (!alert) return null;
 
   return (
-    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 flex gap-3">
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/15 shrink-0">
-        <AlertTriangle className="h-5 w-5 text-amber-400" />
+    <div className="rounded-[20px] border border-orange-500/20 bg-[#180f06] overflow-hidden">
+      <div className="h-0.5 bg-gradient-to-r from-orange-500/60 via-orange-400/30 to-transparent" />
+      <div className="flex items-start gap-3 p-4">
+        <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-orange-500/12 shrink-0 mt-0.5">
+          <ShieldAlert className="text-orange-400" style={{ width: 16, height: 16 }} />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-orange-400/80 uppercase tracking-[0.12em] mb-1">
+            Risk alert
+          </p>
+          <p className="text-[13px] text-orange-100/80 leading-[1.55]">{alert}</p>
+        </div>
       </div>
-      <p className="text-sm text-amber-100/90 leading-relaxed">{alert}</p>
     </div>
   );
 }

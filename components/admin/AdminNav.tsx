@@ -13,7 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 
-const adminNavItems = [
+export const adminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/admin/riders", label: "Riders", icon: Users },

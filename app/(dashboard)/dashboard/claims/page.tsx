@@ -1,6 +1,35 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+    AlertCircle,
+    ArrowLeft,
+    BarChart3,
+    Car,
+    CheckCircle,
+    Clock,
+    Cloud,
+    MapPin,
+    Megaphone,
+    Shield,
+    TrendingUp,
+} from "lucide-react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle, AlertCircle, Clock } from "lucide-react";
+
+function eventTypeLabel(type: string) {
+  const map: Record<string, string> = {
+    weather: "Weather",
+    traffic: "Traffic",
+    social: "Social",
+  };
+  return map[type] ?? type;
+}
+
+function eventTypeIcon(type: string) {
+  const cls = { width: 14, height: 14 };
+  if (type === "weather") return <Cloud style={cls} />;
+  if (type === "traffic") return <Car style={cls} />;
+  if (type === "social") return <Megaphone style={cls} />;
+  return <MapPin style={cls} />;
+}
 
 export default async function ClaimsHistoryPage() {
   const supabase = await createClient();
@@ -8,9 +37,8 @@ export default async function ClaimsHistoryPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) redirect("/login");
 
-  // Get all policies for this rider
   const { data: policies } = await supabase
     .from("weekly_policies")
     .select("id, week_start_date, week_end_date, plan_packages(name)")
@@ -19,7 +47,6 @@ export default async function ClaimsHistoryPage() {
 
   const policyIds = (policies ?? []).map((p) => p.id);
 
-  // Fetch full claims history with event details
   const { data: claims } = await supabase
     .from("parametric_claims")
     .select(`
@@ -52,71 +79,75 @@ export default async function ClaimsHistoryPage() {
     .filter((c) => !c.is_flagged)
     .reduce((s, c) => s + Number(c.payout_amount_inr), 0);
 
-  function eventTypeLabel(type: string) {
-    const map: Record<string, string> = {
-      weather: "🌦 Weather",
-      traffic: "🚦 Traffic",
-      social: "🚫 Social",
-    };
-    return map[type] ?? type;
-  }
-
   return (
-    <div className="space-y-6 p-4 max-w-2xl mx-auto">
+    <div className="space-y-5">
+      {/* Back */}
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#606880] hover:text-zinc-300 transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
-        Back to dashboard
+        <ArrowLeft style={{ width: 14, height: 14 }} />
+        Dashboard
       </Link>
 
+      {/* Title */}
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Claims History</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">All parametric payouts from your policies</p>
+        <h1 className="text-[20px] font-bold tracking-tight text-white">Claims History</h1>
+        <p className="text-[12px] text-[#606880] mt-0.5">Parametric payouts from your policies</p>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-4">
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">
-            Total Claims
+      {/* KPI cards */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
+          <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-sky-500/12 mb-3">
+            <BarChart3 className="text-sky-400" style={{ width: 15, height: 15 }} />
+          </div>
+          <p className="text-[22px] font-bold text-white tabular-nums leading-none">
+            {claims?.length ?? 0}
           </p>
-          <p className="text-2xl font-bold text-zinc-100 tabular-nums">{claims?.length ?? 0}</p>
+          <p className="text-[10px] text-[#606880] mt-1.5 font-medium">Total</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-4">
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">
-            Total Paid
-          </p>
-          <p className="text-2xl font-bold text-emerald-400 tabular-nums">
+        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
+          <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-emerald-500/12 mb-3">
+            <TrendingUp className="text-emerald-400" style={{ width: 15, height: 15 }} />
+          </div>
+          <p className="text-[20px] font-bold text-emerald-400 tabular-nums leading-none">
             ₹{totalPaid.toLocaleString("en-IN")}
           </p>
+          <p className="text-[10px] text-[#606880] mt-1.5 font-medium">Paid out</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-4">
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">
-            Policies
+        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
+          <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-violet-500/12 mb-3">
+            <Shield className="text-violet-400" style={{ width: 15, height: 15 }} />
+          </div>
+          <p className="text-[22px] font-bold text-white tabular-nums leading-none">
+            {policies?.length ?? 0}
           </p>
-          <p className="text-2xl font-bold text-zinc-100 tabular-nums">{policies?.length ?? 0}</p>
+          <p className="text-[10px] text-[#606880] mt-1.5 font-medium">Policies</p>
         </div>
       </div>
 
       {/* Claims list */}
       {!claims || claims.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-14 text-center">
-          <Clock className="h-8 w-8 text-zinc-700 mx-auto mb-3" />
-          <p className="text-sm text-zinc-600">No claims yet</p>
-          <p className="text-xs text-zinc-700 mt-1">
+        <div className="rounded-[24px] bg-[#111820] border border-[#1e2535]/70 px-5 py-14 text-center">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#1a2030] mx-auto mb-4">
+            <Clock className="text-[#404860]" style={{ width: 24, height: 24 }} />
+          </div>
+          <p className="text-[14px] font-semibold text-zinc-400">No claims yet</p>
+          <p className="text-[12px] text-[#606880] mt-1 max-w-xs mx-auto leading-relaxed">
             Claims appear automatically when a disruption is detected in your zone
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-          <div className="px-5 py-3 border-b border-zinc-800">
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-              {claims.length} claim{claims.length !== 1 ? "s" : ""}
+        <div className="rounded-[24px] bg-[#111820] border border-[#1e2535]/70 overflow-hidden">
+          {/* List header */}
+          <div className="px-5 py-3.5 border-b border-[#1e2535]/50">
+            <p className="text-[11px] font-bold text-[#606880] uppercase tracking-[0.12em]">
+              {claims.length} {claims.length === 1 ? "claim" : "claims"}
             </p>
           </div>
-          <div className="divide-y divide-zinc-800/70">
+
+          <div className="divide-y divide-[#1e2535]/40">
             {claims.map((claim) => {
               const event = claim.live_disruption_events as
                 | { event_type?: string; severity_score?: number; created_at?: string }
@@ -124,20 +155,27 @@ export default async function ClaimsHistoryPage() {
               const policy = policyMap.get(claim.policy_id);
 
               return (
-                <div key={claim.id} className="px-5 py-4 flex items-start gap-4">
-                  <div className="mt-0.5 shrink-0">
+                <div key={claim.id} className="px-5 py-4 flex items-start gap-3.5">
+                  {/* Status icon */}
+                  <div className="shrink-0 mt-0.5">
                     {claim.is_flagged ? (
-                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-amber-500/12">
+                        <AlertCircle className="text-amber-400" style={{ width: 16, height: 16 }} />
+                      </div>
                     ) : (
-                      <CheckCircle className="h-4 w-4 text-emerald-500" />
+                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-emerald-500/12">
+                        <CheckCircle className="text-emerald-400" style={{ width: 16, height: 16 }} />
+                      </div>
                     )}
                   </div>
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-zinc-100 tabular-nums">
-                        ₹{Number(claim.payout_amount_inr).toLocaleString("en-IN")}
+                    {/* Amount + date */}
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[15px] font-bold text-white tabular-nums">
+                        +₹{Number(claim.payout_amount_inr).toLocaleString("en-IN")}
                       </p>
-                      <p className="text-xs text-zinc-600 shrink-0">
+                      <p className="text-[11px] text-[#404860] shrink-0 tabular-nums">
                         {new Date(claim.created_at).toLocaleString("en-IN", {
                           month: "short",
                           day: "numeric",
@@ -146,25 +184,40 @@ export default async function ClaimsHistoryPage() {
                         })}
                       </p>
                     </div>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {event?.event_type ? eventTypeLabel(event.event_type) : "Disruption"}{" "}
-                      {event?.severity_score != null && (
-                        <span className="text-zinc-700">· severity {event.severity_score}/10</span>
-                      )}
-                    </p>
+
+                    {/* Event type */}
+                    {event?.event_type && (
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-zinc-500">
+                          {eventTypeIcon(event.event_type)}
+                        </span>
+                        <span className="text-[12px] text-zinc-400">
+                          {eventTypeLabel(event.event_type)}
+                          {event.severity_score != null && (
+                            <span className="text-[#404860]"> · {event.severity_score}/10</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Policy badge */}
                     {policy && (
-                      <p className="text-[10px] text-zinc-700 mt-1">
-                        {policy.planName} · Week of{" "}
+                      <p className="text-[10px] text-[#404860]">
+                        {policy.planName} ·{" "}
                         {new Date(policy.weekStart).toLocaleDateString("en-IN", {
                           month: "short",
                           day: "numeric",
                         })}
                       </p>
                     )}
+
+                    {/* Flagged notice */}
                     {claim.is_flagged && claim.flag_reason && (
-                      <p className="text-[10px] text-amber-600 mt-1 bg-amber-500/10 rounded px-2 py-0.5 inline-block">
-                        Under review: {claim.flag_reason}
-                      </p>
+                      <div className="mt-2 rounded-[10px] bg-amber-500/8 border border-amber-500/15 px-3 py-2">
+                        <p className="text-[11px] text-amber-400 font-medium">
+                          Under review: {claim.flag_reason}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>

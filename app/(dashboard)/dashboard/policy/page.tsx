@@ -5,7 +5,12 @@ import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
 import { ArrowLeft, FileText } from "lucide-react";
 import { calculateWeeklyPremium, getForecastRiskFactor, getHistoricalEventCount } from "@/lib/ml/premium-calc";
 
-export default async function PolicyPage() {
+export default async function PolicyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ success?: string; canceled?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,16 +78,16 @@ export default async function PolicyPage() {
     <div className="space-y-6">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to dashboard
       </Link>
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold">Weekly Policy</h1>
+        <h1 className="text-xl font-semibold text-white">Weekly Policy</h1>
         <Link
           href="/dashboard/policy/docs"
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors"
         >
           <FileText className="h-4 w-4" />
           Policy docs
@@ -94,6 +99,8 @@ export default async function PolicyPage() {
         existingPolicies={policies ?? []}
         plans={plans ?? []}
         suggestedPremium={premium}
+        paymentSuccess={params.success === "1"}
+        paymentCanceled={params.canceled === "1"}
       />
     </div>
   );

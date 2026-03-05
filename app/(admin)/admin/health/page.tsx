@@ -56,7 +56,7 @@ export default async function HealthPage() {
         {recentLogs.length === 0 ? (
           <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl px-5 py-12 text-center">
             <p className="text-sm text-[#666666]">
-              No events logged yet — run the adjudicator to start
+              No events logged yet. Run the adjudicator to start
             </p>
           </div>
         ) : (

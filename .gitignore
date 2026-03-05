@@ -33,6 +33,16 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# Supabase CLI auto-generated state
+supabase/.temp/
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Docusaurus (docs/)
+docs/node_modules/
+docs/build/
+docs/.docusaurus/
+docs/.cache/
+docs/i18n/

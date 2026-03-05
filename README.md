@@ -2,154 +2,147 @@
 
 **AI-powered parametric wage protection for India's Q-commerce delivery partners.**
 
-Oasis safeguards gig workers (Zepto, Blinkit) against income loss caused by external disruptions—extreme weather, zone lockdowns, curfews—through automated, zero-touch claims and weekly pricing aligned with their earnings cycle.
+Oasis safeguards gig workers (Zepto, Blinkit) against income loss caused by external disruptions — extreme weather, zone lockdowns, and traffic gridlock — through automated, zero-touch payouts and weekly pricing aligned to their earnings cycle.
+
+> Coverage is strictly for **loss of income only** — no health, life, accident, or vehicle repair coverage.
 
 ---
 
-## Persona & Scenarios
+## Documentation
 
-**Target:** Q-commerce delivery partners (Zepto, Blinkit).
+Full developer documentation is in the [`/docs`](./docs) folder (Docusaurus).
 
-Q-commerce relies on strict 10-minute delivery SLAs. Minor external disruptions cause large drops in order completion and earnings. These workers are especially vulnerable to income loss from events they cannot control.
+| Section                                                                | Description                             |
+| ---------------------------------------------------------------------- | --------------------------------------- |
+| [Architecture](./docs/docs/architecture.md)                            | System design, data flow, key modules   |
+| [Development Setup](./docs/docs/development-setup.md)                  | Local setup, env vars, DB migrations    |
+| [Parametric Triggers](./docs/docs/features/parametric-triggers.md)     | How the adjudicator works               |
+| [Fraud Detection](./docs/docs/features/fraud-detection.md)             | 7-layer fraud check pipeline            |
+| [Claims Processing](./docs/docs/features/claims-processing.md)         | End-to-end parametric claims            |
+| [Database Schema](./docs/docs/database.md)                             | All tables, RLS, relationships          |
+| [API Reference](./docs/docs/api.md)                                    | Every endpoint, request/response shapes |
+| [Deployment](./docs/docs/deployment.md)                                | Vercel deployment, cron setup           |
+| [Supabase Integrations](./docs/docs/features/supabase-integrations.md) | Cron, Queues, Stripe options            |
 
-### Scenario 1: Extreme heat
+To run the docs site locally:
 
-Rahul delivers for Blinkit in Bangalore. When temperatures exceed 43°C for 3+ hours, he logs off for safety. Oasis detects the event via the weather API and automatically credits his protected wage to his wallet—no claim form, no waiting.
-
-### Scenario 2: Zone lockdown / curfew
-
-Priya delivers for Zepto in Mumbai. An unplanned curfew or strike blocks her primary zone. News and traffic APIs detect the disruption; the LLM verifies severity. Riders in the affected geofence receive instant parametric payouts for lost hours.
-
-### Scenario 3: Heavy rain / waterlogging
-
-During monsoon, localized flooding halts deliveries in a specific area. Tomorrow.io and traffic data identify the event. Active policyholders in that zone get automated payouts for lost income.
-
----
-
-## Workflow
-
-1. **Onboarding:** Rider signs up, selects platform (Zepto/Blinkit), and optional delivery zone.
-2. **Weekly policy:** Rider subscribes to coverage for the coming week. Premium is calculated dynamically based on zone risk.
-3. **Parametric monitoring:** APIs (weather, traffic, news) continuously monitor for qualifying disruptions.
-4. **Trigger & payout:** When a disruption meets criteria, the system identifies affected riders and initiates payouts automatically. Rider wallet updates in real time via Supabase Realtime.
-5. **Fraud checks:** Anomaly detection flags GPS spoofing, mismatched weather data, and duplicate claims.
+```bash
+cd docs && npm install && npm start
+```
 
 ---
 
-## Weekly Premium Model
+## Quick Start
 
-Gig workers are paid weekly. Oasis uses a **strictly weekly pricing model**:
+```bash
+# 1. Clone and install
+git clone https://github.com/lohitkolluri/oasis.git
+cd oasis && yarn install
 
-- **Policy period:** Monday–Sunday.
-- **Premium:** Calculated each Sunday for the following week.
-- **Dynamic factors:** Zone historical disruption frequency, next-week weather forecast, rider behavior (e.g., heeding risk alerts).
-- **Example:** A rider in a low-waterlogging zone with a clear forecast may get a 10% discount; a high-risk zone may see a higher premium.
+# 2. Set up environment variables
+cp .env.local.example .env.local
+# Fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+# SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS
+
+# 3. Apply database migrations (Supabase Dashboard → SQL Editor, run in order)
+#    or via CLI: npx supabase link && yarn db:migrate
+
+# 4. Create storage bucket
+yarn setup-storage
+
+# 5. Run
+yarn dev
+```
+
+**For local dev**, add `STRIPE_SECRET_KEY=sk_test_...` to `.env.local` to use Stripe Checkout with test cards.
+
+See [Development Setup](./docs/docs/development-setup.md) for the full guide.
+
+---
+
+## Architecture Overview
+
+```
+┌────────────────────────────────────────────┐
+│              Client (PWA)                  │
+│  Rider Dashboard    │   Admin Dashboard    │
+└────────┬────────────────────────┬──────────┘
+         │ HTTP                   │ Supabase Realtime
+         ▼                        ▼
+┌────────────────────────────────────────────┐
+│         Next.js 15 (App Router / Vercel)   │
+│  /(auth)  /(dashboard)  /(admin)           │
+│  /api/cron/*   /api/payments/*             │
+│  ────────────────────────────────────────  │
+│  lib/adjudicator   lib/fraud   lib/ml      │
+│  lib/supabase      lib/utils               │
+└────────────────┬───────────────────────────┘
+                 │
+    ┌────────────┼──────────────┐
+    ▼            ▼              ▼
+Supabase    External APIs   Supabase Cron / GitHub
+PostgreSQL  Tomorrow.io     hourly adjudicator
+Auth        Open-Meteo      weekly premium
+Realtime    NewsData.io
+            OpenRouter LLM
+            Stripe
+```
+
+**How it works:**
+
+1. **Rider onboards** → selects platform (Zepto/Blinkit), pins their delivery zone on a map.
+2. **Subscribes weekly** → pays ₹79–₹149/week via Stripe (3 tiers, dynamic pricing).
+3. **Adjudicator runs every hour** → polls weather, AQI, and news APIs across all active rider zones.
+4. **Disruption detected** → 7-check fraud pipeline → `parametric_claims` inserted with `status='paid'`.
+5. **Rider's wallet updates** in real time via Supabase Realtime — no claim form needed.
 
 ---
 
 ## Parametric Triggers
 
-| Trigger                | Source                   | Threshold / Logic                          |
-| ---------------------- | ------------------------- | ----------------------------------------- |
-| Extreme heat           | Tomorrow.io               | >43°C for 3+ hours                        |
-| Heavy rain / flooding  | Tomorrow.io               | Rain >4 mm/hr                              |
-| Severe AQI             | Open-Meteo (free)         | US AQI ≥ 300                               |
-| Zone curfew / strike   | NewsData.io + LLM         | LLM verifies local news / social impact   |
-| Traffic gridlock       | NewsData.io + LLM         | LLM verifies traffic/congestion headlines |
-
-All triggers target **loss of income only**. No coverage for health, life, accidents, or vehicle repairs.
-
----
-
-## Platform Choice: Web (PWA)
-
-We use a **mobile-first web app** that can be installed as a PWA for both riders and admins:
-
-- **Reach:** No app store delay; works across devices.
-- **Updates:** Instant deploys without user updates.
-- **Install prompts:** Android/Chrome show an install banner; iOS users can use Share → Add to Home Screen.
-- **Shortcuts:** Installed PWA offers quick shortcuts to Rider Dashboard and Admin Dashboard.
-- **Offline fallback:** Service worker caches assets and shows an offline page when connectivity is lost.
-- **Dark mode:** High contrast for outdoor/night use and battery savings.
-- **Speed:** Next.js + Turbopack for fast iteration during the hackathon.
-
----
-
-## AI/ML Integration
-
-1. **Dynamic premium calculation (Weekly)**
-   - Inputs: Historical zone disruptions, next-week forecast, rider activity.
-   - Model: Simple regression or Scikit-learn pipeline, run weekly via cron.
-   - Output: Per-rider weekly premium for the next week.
-
-2. **Fraud detection**
-   - Location validation: Geofence-based payout—only riders in affected zone.
-   - Weather mismatch: Verify raw_api_data matches trigger thresholds.
-   - Duplicate claims: Same policy + same event blocked.
-   - Rapid claims: Too many claims in 24h flagged.
-
-3. **LLM verification**
-   - OpenRouter (`openrouter/free`) analyzes news/traffic data to determine if an event qualifies as a zone-closure disruption.
-   - Reduces false positives from raw APIs.
+| Trigger              | Source                   | Threshold                            |
+| -------------------- | ------------------------ | ------------------------------------ |
+| Extreme heat         | Open-Meteo / Tomorrow.io | >43°C for 3+ hours                   |
+| Heavy rain           | Tomorrow.io              | ≥ 4 mm/hr precipitation              |
+| Severe AQI           | WAQI / Open-Meteo        | 40% above zone's 30-day p75 baseline |
+| Zone curfew / strike | NewsData.io + LLM        | LLM severity ≥ 6/10                  |
+| Traffic gridlock     | NewsData.io + LLM        | LLM severity ≥ 6/10                  |
 
 ---
 
 ## Tech Stack
 
-| Layer        | Stack                                                    |
-| ------------ | -------------------------------------------------------- |
-| Frontend     | Next.js 15 (App Router), TypeScript, Tailwind CSS, Zustand, Framer Motion |
-| Backend      | Supabase (PostgreSQL, Auth, Realtime, Edge Functions)     |
-| AI/LLM       | OpenRouter API                                           |
-| APIs         | Tomorrow.io, Open-Meteo (AQI), NewsData.io               |
-| Payments     | Razorpay / Stripe (test mode)                             |
-| Deployment   | Vercel / Dokploy                                         |
+| Layer      | Stack                                               |
+| ---------- | --------------------------------------------------- |
+| Frontend   | Next.js 15, TypeScript, Tailwind CSS, Framer Motion |
+| Backend    | Supabase (PostgreSQL, Auth, Realtime)               |
+| AI / LLM   | OpenRouter (`arcee-ai/trinity-large-preview:free`)  |
+| Weather    | Tomorrow.io, Open-Meteo, WAQI                       |
+| News       | NewsData.io                                         |
+| Payments   | Stripe (test mode)                                  |
+| Deployment | Vercel — Mumbai region (`bom1`)                     |
+| PWA        | `@ducanh2912/next-pwa` with offline fallback        |
 
 ---
 
-## Development Plan
+## Database Setup
 
-- **Phase 1 ✓:** Foundation, Idea doc, DB schema, auth, minimal dashboard.
-- **Phase 2 ✓:** Policy subscription, payment sandbox, parametric adjudicator, 3–5 triggers, Realtime UI.
-- **Phase 3 ✓:** Fraud detection (duplicate, rapid-claims), admin dashboard, instant payout demo, final polish.
+Apply all 16 migrations in the `supabase/migrations/` folder to your Supabase project:
+
+**Option A — Supabase Dashboard:** SQL Editor → run each file in timestamp order.
+
+**Option B — CLI:**
+
+```bash
+npx supabase link --project-ref <project-ref>
+yarn db:migrate
+```
 
 ---
 
-## Getting Started
+## Cron Jobs
 
-```bash
-# Install
-npm install
-
-# Copy env
-cp .env.local.example .env.local
-# Add Supabase URL and anon key (required for auth)
-# For payments: set Razorpay test keys, or PAYMENT_DEMO_MODE=true for dev
-
-# Run
-npm run dev
-```
-
-### Database Setup
-
-Apply migrations to your Supabase project:
-
-**Option A – Supabase Dashboard**
-1. Open your project at [supabase.com/dashboard](https://supabase.com/dashboard)
-2. Go to **SQL Editor** → New query
-3. Run each migration in order: `20240304000001_create_profiles.sql` through `20240304000009_claim_verifications.sql`
-
-**Option B – Supabase CLI** (after `npx supabase link`)
-```bash
-npm run db:migrate
-```
-
-**Required tables:** `profiles`, `weekly_policies`, `live_disruption_events`, `parametric_claims`, `rider_delivery_reports`, `claim_verifications`, `premium_recommendations`
-
-**Storage:** Run `npm run setup-storage` to create the `rider-reports` bucket, or create it manually in Supabase Dashboard → Storage.
-
-### Cron (Vercel)
-Set `CRON_SECRET` in Vercel env. Cron routes: `/api/cron/adjudicator` (hourly), `/api/cron/weekly-premium` (Sundays).
+Two scheduled jobs: adjudicator (hourly) and weekly premium (Sunday). **Free option:** use the GitHub Actions workflow in `.github/workflows/cron.yml` — add `CRON_SECRET` and `APP_URL` as repo secrets. See [Deployment → Cron Jobs](docs/docs/deployment.md#cron-jobs) for setup.
 
 ---
 

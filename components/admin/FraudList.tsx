@@ -44,7 +44,7 @@ function ReviewButtons({
       <button
         onClick={() => handleAction('approved')}
         disabled={!!loading}
-        title="Approve — clear flag, count as valid payout"
+        title="Approve. Clear flag, count as valid payout"
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 hover:bg-[#22c55e]/15 hover:border-[#22c55e]/30 transition-all disabled:opacity-50"
       >
         {loading === 'approved' ? (
@@ -57,7 +57,7 @@ function ReviewButtons({
       <button
         onClick={() => handleAction('rejected')}
         disabled={!!loading}
-        title="Reject — keep flagged, mark as invalid"
+        title="Reject. Keep flagged, mark as invalid"
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20 hover:bg-[#ef4444]/15 hover:border-[#ef4444]/30 transition-all disabled:opacity-50"
       >
         {loading === 'rejected' ? (
@@ -84,7 +84,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
     return (
       <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl px-5 py-14 text-center">
         <ShieldAlert className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
-        <p className="text-sm text-[#666666]">No flagged claims — queue is clear</p>
+        <p className="text-sm text-[#666666]">No flagged claims. Queue is clear</p>
       </div>
     );
   }
@@ -137,7 +137,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                     </span>
                   </div>
                   <p className="text-sm text-[#f59e0b] truncate">
-                    {c.flag_reason ?? 'Flagged — reason unknown'}
+                    {c.flag_reason ?? 'Flagged. Reason unknown'}
                   </p>
                 </div>
                 <ReviewButtons claimId={c.id} onReviewed={handleReviewed} />

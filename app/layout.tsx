@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { AddToHomeScreen } from "@/components/pwa/AddToHomeScreen";
@@ -10,24 +10,22 @@ const inter = Inter({
   variable: "--font-sans",
 });
 
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-display",
-});
-
-const geistMono = Geist_Mono({
+const mono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "Oasis — Income protection for delivery partners",
+  title: "Oasis: Income protection for delivery partners",
   description:
     "AI-powered parametric wage protection for India's Q-commerce delivery partners.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/logo.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/logo.png", sizes: "512x512", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
@@ -55,7 +53,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} ${geist.variable} ${geistMono.variable} font-sans antialiased min-h-screen bg-[#0f0f0f] text-white`}
+        className={`${inter.variable} ${mono.variable} font-sans antialiased min-h-screen bg-[#0f0f0f] text-white`}
       >
         {children}
         <GoeyToaster />

@@ -64,7 +64,7 @@ export async function GET() {
   const totalPayouts = (claims ?? []).reduce((s, c) => s + Number(c.payout_amount_inr ?? 0), 0);
   const activeDisruptions = (eventsRes.data ?? []).filter((e) => (e.severity_score ?? 0) >= 7);
 
-  const prompt = `You are a friendly assistant for a gig delivery rider. Write ONE short, actionable sentence (max 15 words) as a personalized tip or reassurance. Be encouraging and practical.
+  const prompt = `You are a friendly assistant for a gig delivery rider. Write ONE short, actionable sentence (max 15 words) as a personalized tip or reassurance. Be encouraging and practical. Use simple, direct language. No em dashes.
 
 Context:
 - Rider uses ${platform}, has ${hasPolicy ? 'active' : 'no'} weekly coverage
@@ -92,8 +92,9 @@ Reply with ONLY the sentence, no quotes or punctuation at the end.`;
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
-    const content = data.choices?.[0]?.message?.content?.trim();
+    let content = data.choices?.[0]?.message?.content?.trim();
     if (!content) return NextResponse.json({ insight: null });
+    content = content.replace(/\s*—\s*/g, '. ');
 
     return NextResponse.json({ insight: content });
   } catch {

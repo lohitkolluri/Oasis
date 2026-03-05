@@ -1,19 +1,28 @@
 'use client';
 
-import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { Logo } from '@/components/ui/Logo';
 import { createClient } from '@/lib/supabase/client';
 import { gooeyToast } from 'goey-toast';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  useEffect(() => {
+    const registered = searchParams.get('registered');
+    if (registered === '1') {
+      gooeyToast.success('Account created! Check your email to confirm, then sign in.');
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,13 +45,14 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
+          <Logo size={24} />
           Oasis
         </Link>
         <div className="flex justify-center mb-6">
-          <Avatar seed="oasis-rider-signin" size={72} />
+          <Logo size={80} />
         </div>
         <h1 className="text-xl font-semibold mb-6 text-center">Sign in</h1>
         <form onSubmit={handleSubmit} className="space-y-4">

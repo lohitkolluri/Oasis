@@ -19,27 +19,40 @@ if (!url || !key) {
 const supabase = createClient(url, key);
 
 async function main() {
-  const bucket = "rider-reports";
-  const { data: buckets } = await supabase.storage.listBuckets();
-  const exists = buckets?.some((b) => b.name === bucket);
+  const bucketsToCreate = [
+    { name: "rider-reports", desc: "Delivery reports and claim proof photos" },
+    {
+      name: "government-ids",
+      desc: "KYC gov ID uploads (Aadhaar, PAN, etc.)",
+    },
+    {
+      name: "face-photos",
+      desc: "Face liveness verification photos for onboarding",
+    },
+  ];
 
-  if (exists) {
-    console.log(`Bucket "${bucket}" already exists`);
-    return;
+  const { data: existing } = await supabase.storage.listBuckets();
+  const existingNames = new Set((existing ?? []).map((b) => b.name));
+
+  for (const { name, desc } of bucketsToCreate) {
+    if (existingNames.has(name)) {
+      console.log(`Bucket "${name}" already exists`);
+      continue;
+    }
+
+    const { error } = await supabase.storage.createBucket(name, {
+      public: false,
+      fileSizeLimit: 5242880, // 5MB
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    });
+
+    if (error) {
+      console.error(`Failed to create bucket "${name}":`, error.message);
+      process.exit(1);
+    }
+
+    console.log(`Bucket "${name}" (${desc}) created successfully`);
   }
-
-  const { error } = await supabase.storage.createBucket(bucket, {
-    public: false,
-    fileSizeLimit: 5242880, // 5MB
-    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
-  });
-
-  if (error) {
-    console.error("Failed to create bucket:", error.message);
-    process.exit(1);
-  }
-
-  console.log(`Bucket "${bucket}" created successfully`);
 }
 
 main();
