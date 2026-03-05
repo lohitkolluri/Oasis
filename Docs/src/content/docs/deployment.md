@@ -58,6 +58,10 @@ This co-locates the serverless functions with the Supabase project (which should
 Vercel Hobby plans allow only **daily** cron jobs. Hourly crons require Pro. Use GitHub Actions (Option A) or Supabase Cron (Option C) for free hourly triggers.
 :::
 
+:::tip Root Directory
+**"No Next.js version detected"** — Set **Root Directory** to *empty* (or `.`) so Vercel uses the repo root where `package.json` includes Next.js. If Root Directory is `docs`, Vercel builds the Astro docs instead, which does not use Next.js.
+:::
+
 ---
 
 ## Cron Jobs
