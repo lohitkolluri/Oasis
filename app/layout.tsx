@@ -1,12 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { AddToHomeScreen } from "@/components/pwa/AddToHomeScreen";
+import { GoeyToaster } from "@/components/ui/GoeyToaster";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+});
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-display",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -44,9 +55,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} font-sans antialiased min-h-screen bg-[#0a0a0a] text-zinc-100`}
+        className={`${inter.variable} ${geist.variable} ${geistMono.variable} font-sans antialiased min-h-screen bg-[#0f0f0f] text-white`}
       >
         {children}
+        <GoeyToaster />
         <InstallPrompt />
         <AddToHomeScreen />
       </body>

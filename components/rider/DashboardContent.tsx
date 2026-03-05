@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { WalletCard } from "./WalletCard";
-import { RealtimeWallet } from "./RealtimeWallet";
-import { PolicyCard } from "./PolicyCard";
-import { PolicyDocumentsLink } from "./PolicyDocumentsLink";
-import { PlatformStatus } from "./PlatformStatus";
-import { ReportDeliverySection } from "./ReportDeliverySection";
-import { RiskRadar } from "./RiskRadar";
-import { PredictiveAlert } from "./PredictiveAlert";
-import { RiderInsight } from "./RiderInsight";
-import { Avatar } from "@/components/ui/Avatar";
-import { History } from "lucide-react";
-import type { ParametricClaim, WeeklyPolicy } from "@/lib/types/database";
-import type { User } from "@supabase/supabase-js";
+import { Avatar } from '@/components/ui/Avatar';
+import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
+import type { User } from '@supabase/supabase-js';
+import { History } from 'lucide-react';
+import Link from 'next/link';
+import { PlatformStatus } from './PlatformStatus';
+import { PolicyCard } from './PolicyCard';
+import { PolicyDocumentsLink } from './PolicyDocumentsLink';
+import { PredictiveAlert } from './PredictiveAlert';
+import { RealtimeWallet } from './RealtimeWallet';
+import { ReportDeliverySection } from './ReportDeliverySection';
+import { RiderInsight } from './RiderInsight';
+import { RiskRadar } from './RiskRadar';
+import { WalletCard } from './WalletCard';
 
 interface DashboardContentProps {
   user: User;
@@ -40,7 +40,7 @@ export function DashboardContent({
   planName,
   claimIdsNeedingVerification,
 }: DashboardContentProps) {
-  const firstName = profile?.full_name?.split(" ")[0] || "Partner";
+  const firstName = profile?.full_name?.split(' ')[0] || 'Partner';
 
   return (
     <div className="space-y-5">
@@ -72,12 +72,12 @@ export function DashboardContent({
           initialBalance={totalPayouts}
           initialClaimCount={totalClaimCount}
           policyIds={policyIds}
-          platform={profile?.platform ?? "zepto"}
+          platform={profile?.platform ?? 'zepto'}
         />
       ) : (
         <WalletCard
           balance={totalPayouts}
-          platform={profile?.platform ?? "zepto"}
+          platform={profile?.platform ?? 'zepto'}
           claimCount={totalClaimCount}
           profileId={user.id}
         />
@@ -107,9 +107,7 @@ export function DashboardContent({
               View all claims
             </span>
           </div>
-          <span className="text-xs text-zinc-600">
-            {totalClaimCount} total
-          </span>
+          <span className="text-xs text-zinc-600">{totalClaimCount} total</span>
         </Link>
       )}
 

@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "api.dicebear.com", pathname: "/7.x/**" },
     ],
   },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "recharts"],
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+  },
 };
 
 export default withPWA(nextConfig);

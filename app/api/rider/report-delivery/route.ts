@@ -25,6 +25,8 @@ export async function POST(request: Request) {
   let type: string | null = null;
   let message: string | null = null;
   let photo: File | null = null;
+  let gpsLat: number | null = null;
+  let gpsLng: number | null = null;
 
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
@@ -32,10 +34,16 @@ export async function POST(request: Request) {
     type = (formData.get("type") as string) ?? null;
     message = (formData.get("message") as string) ?? null;
     photo = formData.get("photo") as File | null;
+    const gpsLatRaw = formData.get("gps_lat");
+    const gpsLngRaw = formData.get("gps_lng");
+    gpsLat = gpsLatRaw != null ? Number(gpsLatRaw) : null;
+    gpsLng = gpsLngRaw != null ? Number(gpsLngRaw) : null;
   } else {
     const body = await request.json().catch(() => ({}));
     type = body.type ?? null;
     message = body.message ?? null;
+    gpsLat = body.gps_lat != null ? Number(body.gps_lat) : null;
+    gpsLng = body.gps_lng != null ? Number(body.gps_lng) : null;
   }
 
   if (!type || type !== "cant_deliver") {
@@ -51,8 +59,19 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single();
 
-  const zoneLat = profile?.zone_latitude != null ? Number(profile.zone_latitude) : null;
-  const zoneLng = profile?.zone_longitude != null ? Number(profile.zone_longitude) : null;
+  // Prefer precise device GPS when available; fall back to rider's saved zone centroid.
+  const zoneLat =
+    gpsLat != null && Number.isFinite(gpsLat)
+      ? gpsLat
+      : profile?.zone_latitude != null
+        ? Number(profile.zone_latitude)
+        : null;
+  const zoneLng =
+    gpsLng != null && Number.isFinite(gpsLng)
+      ? gpsLng
+      : profile?.zone_longitude != null
+        ? Number(profile.zone_longitude)
+        : null;
 
   let photoUrl: string | null = null;
   if (photo && photo.size > 0 && photo.size <= MAX_PHOTO_SIZE) {

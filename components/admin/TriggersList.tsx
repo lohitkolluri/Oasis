@@ -1,6 +1,7 @@
-"use client";
+'use client';
 
-import { Cloud, Car, Megaphone } from "lucide-react";
+import { motion } from 'framer-motion';
+import { Car, Cloud, Megaphone } from 'lucide-react';
 
 const typeIcons: Record<string, React.ReactNode> = {
   weather: <Cloud className="h-3.5 w-3.5" />,
@@ -17,8 +18,26 @@ interface Event {
   created_at: string;
 }
 
+function severityStatus(score: number): { label: string; badge: string; dot: string } {
+  if (score >= 8) return {
+    label: 'High',
+    badge: 'bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20',
+    dot: 'bg-[#a78bfa] animate-violet-pulse',
+  };
+  if (score >= 5) return {
+    label: 'Medium',
+    badge: 'bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20',
+    dot: 'bg-[#7dd3fc] animate-neon-pulse',
+  };
+  return {
+    label: 'Low',
+    badge: 'bg-[#262626] text-[#737373] border border-[#3a3a3a]',
+    dot: 'bg-[#737373]',
+  };
+}
+
 function AQIBadge({ raw }: { raw: Record<string, unknown> | null | undefined }) {
-  if (!raw || raw.trigger !== "severe_aqi") return null;
+  if (!raw || raw.trigger !== 'severe_aqi') return null;
 
   const current = raw.current_aqi as number | undefined;
   const threshold = raw.adaptive_threshold as number | undefined;
@@ -29,28 +48,26 @@ function AQIBadge({ raw }: { raw: Record<string, unknown> | null | undefined }) 
   if (!current || !threshold) return null;
 
   return (
-    <div className="mt-1 flex flex-wrap gap-1.5">
-      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/15 font-mono tabular-nums">
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/15 font-mono tabular-nums">
         AQI {current}
       </span>
       {threshold && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 border border-zinc-700 font-mono tabular-nums">
+        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#262626] text-[#666666] border border-[#3a3a3a] font-mono tabular-nums">
           threshold {threshold}
         </span>
       )}
       {baseline != null && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 border border-zinc-700 font-mono tabular-nums">
+        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#262626] text-[#666666] border border-[#3a3a3a] font-mono tabular-nums">
           p75 baseline {baseline}
         </span>
       )}
       {excess != null && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/15">
+        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/15">
           +{excess}% above normal
         </span>
       )}
-      {days != null && (
-        <span className="text-[10px] text-zinc-600">{days}-day history</span>
-      )}
+      {days != null && <span className="text-[10px] text-[#666666]">{days}-day history</span>}
     </div>
   );
 }
@@ -61,23 +78,22 @@ function TriggerSubtitle({ raw }: { raw: Record<string, unknown> | null | undefi
   if (!trigger) return null;
 
   const labels: Record<string, string> = {
-    extreme_heat: "Extreme heat ≥ 43°C sustained 3h",
-    heavy_rain: "Heavy rain ≥ 4 mm/h",
-    severe_aqi: "AQI spike — adaptive threshold breached",
-    traffic_gridlock: "Severe traffic gridlock",
-    zone_curfew: "Zone curfew / strike / lockdown",
+    extreme_heat: 'Extreme heat ≥ 43°C sustained 3h',
+    heavy_rain: 'Heavy rain ≥ 4 mm/h',
+    severe_aqi: 'AQI spike — adaptive threshold breached',
+    traffic_gridlock: 'Severe traffic gridlock',
+    zone_curfew: 'Zone curfew / strike / lockdown',
   };
 
-  return (
-    <p className="text-xs text-zinc-600 mt-0.5">{labels[trigger] ?? trigger}</p>
-  );
+  return <p className="text-xs text-[#666666] mt-0.5">{labels[trigger] ?? trigger}</p>;
 }
 
 export function TriggersList({ events }: { events: Event[] }) {
   if (!events || events.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-12 text-center">
-        <p className="text-sm text-zinc-600">
+      <div className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl px-5 py-14 text-center shadow-[0_0_20px_rgba(255,255,255,0.03)]">
+        <Cloud className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
+        <p className="text-sm text-[#666666]">
           No events yet — run the adjudicator or wait for the cron.
         </p>
       </div>
@@ -85,61 +101,70 @@ export function TriggersList({ events }: { events: Event[] }) {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-      <div className="px-5 py-3 border-b border-zinc-800 grid grid-cols-[1fr_auto_auto_auto] gap-4">
-        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-          Event
-        </span>
-        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-          Severity
-        </span>
-        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-          Verified
-        </span>
-        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-          Time
-        </span>
-      </div>
-      <div className="divide-y divide-zinc-800/70">
-        {events.map((e) => (
-          <div
-            key={e.id}
-            className="px-5 py-3 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-start"
-          >
-            <div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-zinc-600 shrink-0">
-                  {typeIcons[e.event_type] ?? <Cloud className="h-3.5 w-3.5" />}
-                </span>
-                <span className="text-sm text-zinc-300 capitalize">{e.event_type}</span>
-              </div>
-              <TriggerSubtitle raw={e.raw_api_data} />
-              <AQIBadge raw={e.raw_api_data} />
-            </div>
-            <span
-              className={`text-sm font-semibold tabular-nums mt-0.5 ${
-                e.severity_score >= 8 ? "text-red-400" : "text-amber-400"
-              }`}
-            >
-              {e.severity_score}/10
-            </span>
-            <span className="text-xs mt-0.5">
-              {e.verified_by_llm ? (
-                <span className="text-emerald-400 font-medium">Yes</span>
-              ) : (
-                <span className="text-zinc-600">—</span>
-              )}
-            </span>
-            <span className="text-xs text-zinc-600 tabular-nums mt-0.5">
-              {new Date(e.created_at).toLocaleString("en-IN", {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          </div>
+    <div className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.03)]">
+      {/* Column headers */}
+      <div className="px-5 py-3 border-b border-[#2d2d2d] grid grid-cols-[1fr_auto_auto_auto_auto] gap-4">
+        {['Event', 'Zone', 'Severity', 'Verified', 'Time'].map((h) => (
+          <span key={h} className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em]">{h}</span>
         ))}
+      </div>
+
+      <div className="divide-y divide-[#2d2d2d]">
+        {events.map((e, i) => {
+          const sev = severityStatus(e.severity_score);
+          return (
+            <motion.div
+              key={e.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.04 }}
+              className="px-5 py-4 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-start hover:bg-[#1e1e1e] transition-colors"
+            >
+              {/* Event */}
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[#666666] shrink-0">
+                    {typeIcons[e.event_type] ?? <Cloud className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="text-sm font-medium text-white capitalize">{e.event_type}</span>
+                </div>
+                <TriggerSubtitle raw={e.raw_api_data} />
+                <AQIBadge raw={e.raw_api_data} />
+              </div>
+
+              {/* Zone placeholder */}
+              <span className="text-xs text-[#666666] mt-0.5">—</span>
+
+              {/* Severity badge */}
+              <div className="mt-0.5">
+                <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full ${sev.badge}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sev.dot}`} />
+                  {sev.label}
+                </span>
+                <p className="text-[10px] text-[#666666] mt-1 tabular-nums">{e.severity_score}/10</p>
+              </div>
+
+              {/* Verified */}
+              <span className="text-xs mt-0.5">
+                {e.verified_by_llm ? (
+                  <span className="text-[#22c55e] font-semibold text-[10px]">Yes</span>
+                ) : (
+                  <span className="text-[#3a3a3a]">—</span>
+                )}
+              </span>
+
+              {/* Time */}
+              <span className="text-xs text-[#666666] tabular-nums mt-0.5 whitespace-nowrap">
+                {new Date(e.created_at).toLocaleString('en-IN', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );

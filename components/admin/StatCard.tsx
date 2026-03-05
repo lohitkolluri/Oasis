@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import { Cloud, ShieldAlert, TrendingUp, Users, FileCheck, Flag } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
+import { Cloud, FileCheck, Flag, ShieldAlert, TrendingDown, TrendingUp, Users } from 'lucide-react';
 
-type IconName = "TrendingUp" | "Cloud" | "ShieldAlert" | "Users" | "FileCheck" | "Flag";
+type IconName = 'TrendingUp' | 'Cloud' | 'ShieldAlert' | 'Users' | 'FileCheck' | 'Flag';
 
 const iconMap: Record<IconName, LucideIcon> = {
   TrendingUp,
@@ -15,51 +15,102 @@ const iconMap: Record<IconName, LucideIcon> = {
   Flag,
 };
 
-interface StatCardProps {
+export interface StatCardProps {
   label: string;
   value: string | number;
   icon: IconName;
-  accent?: "default" | "emerald" | "amber" | "red" | "violet";
+  accent?: 'default' | 'cyan' | 'violet' | 'emerald' | 'amber' | 'red';
   delay?: number;
   subtext?: string;
+  trend?: { direction: 'up' | 'down'; label: string };
 }
 
-const valueColors: Record<string, string> = {
-  default: "text-zinc-100",
-  emerald: "text-emerald-400",
-  amber: "text-amber-400",
-  red: "text-red-400",
-  violet: "text-violet-400",
+const accentMap: Record<string, { value: string; icon: string; bar: string; badge: string }> = {
+  default: {
+    value: 'text-white',
+    icon: 'bg-[#262626] text-[#737373]',
+    bar: 'bg-white/10',
+    badge: 'bg-[#262626] text-[#737373]',
+  },
+  cyan: {
+    value: 'text-[#7dd3fc]',
+    icon: 'bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20',
+    bar: 'bg-[#7dd3fc]/25',
+    badge: 'bg-[#7dd3fc]/10 text-[#7dd3fc]',
+  },
+  violet: {
+    value: 'text-[#a78bfa]',
+    icon: 'bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20',
+    bar: 'bg-[#a78bfa]/25',
+    badge: 'bg-[#a78bfa]/10 text-[#a78bfa]',
+  },
+  emerald: {
+    value: 'text-[#22c55e]',
+    icon: 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20',
+    bar: 'bg-[#22c55e]/20',
+    badge: 'bg-[#22c55e]/10 text-[#22c55e]',
+  },
+  amber: {
+    value: 'text-[#f59e0b]',
+    icon: 'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20',
+    bar: 'bg-[#f59e0b]/20',
+    badge: 'bg-[#f59e0b]/10 text-[#f59e0b]',
+  },
+  red: {
+    value: 'text-[#ef4444]',
+    icon: 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20',
+    bar: 'bg-[#ef4444]/20',
+    badge: 'bg-[#ef4444]/10 text-[#ef4444]',
+  },
 };
 
-export function StatCard({
-  label,
-  value,
-  icon,
-  accent = "default",
-  delay = 0,
-  subtext,
-}: StatCardProps) {
+export function StatCard({ label, value, icon, accent = 'default', delay = 0, subtext, trend }: StatCardProps) {
   const Icon = iconMap[icon] ?? TrendingUp;
+  const styles = accentMap[accent] ?? accentMap.default;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut", delay }}
-      className="rounded-xl border border-zinc-800 bg-zinc-900 p-5"
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay }}
+      whileHover={{ scale: 1.01, boxShadow: '0 0 25px rgba(125, 211, 252, 0.12)' }}
+      className="relative bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.03)] transition-all hover:border-[#3a3a3a] cursor-default"
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">
-          {label}
-        </span>
-        <Icon className="h-3.5 w-3.5 text-zinc-700" />
+      {/* Top accent line */}
+      {accent !== 'default' && (
+        <div className={`absolute top-0 left-0 right-0 h-px ${styles.bar}`} />
+      )}
+
+      <div className="flex items-start justify-between mb-4">
+        <span className="text-[11px] font-medium text-[#666666] tracking-wide uppercase">{label}</span>
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${styles.icon}`}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
       </div>
-      <p
-        className={`text-[26px] font-bold tabular-nums tracking-tight leading-none ${valueColors[accent]}`}
-      >
+
+      <p className={`text-3xl font-bold font-display tabular-nums tracking-tight leading-none ${styles.value}`}>
         {value}
       </p>
-      {subtext && <p className="text-xs text-zinc-600 mt-2">{subtext}</p>}
+
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
+        {subtext && (
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles.badge}`}>
+            {subtext}
+          </span>
+        )}
+        {trend && (
+          <span className={`flex items-center gap-0.5 text-[10px] font-medium ${
+            trend.direction === 'up' ? 'text-[#22c55e]' : 'text-[#ef4444]'
+          }`}>
+            {trend.direction === 'up' ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
+            {trend.label}
+          </span>
+        )}
+      </div>
     </motion.div>
   );
 }

@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "AI-powered parametric wage protection for India's Q-commerce delivery partners. Rider & Admin app.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0a0a",
+    background_color: "#0f0f0f",
     theme_color: "#059669",
     orientation: "portrait-primary",
     scope: "/",

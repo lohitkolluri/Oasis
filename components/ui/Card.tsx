@@ -1,35 +1,27 @@
-import { forwardRef } from "react";
+import { forwardRef } from 'react';
 
-type CardVariant = "default" | "elevated" | "outline" | "ghost";
+type CardVariant = 'default' | 'elevated' | 'outline' | 'ghost' | 'neon';
 
 const variantStyles: Record<CardVariant, string> = {
-  default: "bg-zinc-900 border border-zinc-800",
-  elevated: "bg-zinc-900 border border-zinc-800",
-  outline: "bg-transparent border border-zinc-800",
-  ghost: "bg-zinc-800/30 border border-transparent hover:bg-zinc-800/50",
+  default: 'bg-[#161616] border border-[#2d2d2d]',
+  elevated: 'bg-[#1e1e1e] border border-[#2d2d2d]',
+  outline: 'bg-transparent border border-[#2d2d2d]',
+  ghost: 'bg-[#1e1e1e]/30 border border-transparent hover:bg-[#1e1e1e]/50',
+  neon: 'bg-[#161616] border border-[#7dd3fc]/20 shadow-neon-cyan-sm',
 };
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
-  padding?: "none" | "sm" | "md" | "lg";
+  padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
-  (
-    {
-      variant = "default",
-      padding = "md",
-      className = "",
-      children,
-      ...props
-    },
-    ref
-  ) => {
+  ({ variant = 'default', padding = 'md', className = '', children, ...props }, ref) => {
     const paddingStyles = {
-      none: "",
-      sm: "p-4",
-      md: "p-5",
-      lg: "p-6",
+      none: '',
+      sm: 'p-4',
+      md: 'p-5',
+      lg: 'p-6',
     };
     return (
       <div
@@ -40,17 +32,17 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         {children}
       </div>
     );
-  }
+  },
 );
 
-Card.displayName = "Card";
+Card.displayName = 'Card';
 
 export function CardHeader({
   icon,
   title,
   badge,
   description,
-  className = "",
+  className = '',
 }: {
   icon?: React.ReactNode;
   title: string;
@@ -63,10 +55,8 @@ export function CardHeader({
       <div className="flex items-center gap-2.5">
         {icon && <div className="shrink-0">{icon}</div>}
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-zinc-100">{title}</h2>
-          {description && (
-            <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
-          )}
+          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          {description && <p className="text-xs text-[#666666] mt-0.5">{description}</p>}
         </div>
         {badge && <span className="ml-auto shrink-0">{badge}</span>}
       </div>

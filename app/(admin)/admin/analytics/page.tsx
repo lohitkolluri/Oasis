@@ -1,23 +1,26 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import { AnalyticsCharts } from "@/components/admin/AnalyticsCharts";
+import { AnalyticsCharts } from '@/components/admin/AnalyticsCharts';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AnalyticsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 py-2">
       <Link
         href="/admin"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-[#666666] hover:text-white transition-colors group"
       >
-        <ArrowLeft className="h-4 w-4" />
-        Back to dashboard
+        <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+        Back
       </Link>
+
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Analytics</h1>
-        <p className="text-zinc-500 text-sm mt-1">
+        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">Admin Console</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-white">Analytics</h1>
+        <p className="text-sm text-[#666666] mt-1">
           Claims, premiums, loss ratio, and trigger distribution — last 30 days
         </p>
       </div>
+
       <AnalyticsCharts />
     </div>
   );

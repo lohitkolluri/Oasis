@@ -1,27 +1,27 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdmin } from "@/lib/auth";
 
 /** Admin-only: update policy (deactivate, change plan). Requires admin auth. */
 export async function POST(request: Request) {
-  const supabaseAuth = await createClient();
+  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabaseAuth.auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (adminEmails.length > 0) {
-    const email = (user.email ?? "").toLowerCase();
-    if (!adminEmails.includes(email)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!isAdmin(user, profile)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();

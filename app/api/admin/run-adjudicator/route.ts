@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runAdjudicator } from "@/lib/adjudicator/run";
+import { isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
  * POST /api/admin/run-adjudicator — Run adjudicator on demand (same as cron).
- * Uses real weather, AQI, news APIs. Requires authenticated user.
+ * Uses real weather, AQI, news APIs. Admin-only.
  */
 export async function POST() {
   const supabase = await createClient();
@@ -19,8 +20,13 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-  if (adminEmails.length > 0 && !adminEmails.includes((user.email ?? "").toLowerCase())) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!isAdmin(user, profile)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

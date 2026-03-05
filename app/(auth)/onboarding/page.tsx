@@ -1,29 +1,29 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import type { PlatformType } from "@/lib/types/database";
-import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
+import type { PlatformType } from '@/lib/types/database';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function OnboardingPage() {
   const [platform, setPlatform] = useState<PlatformType | null>(null);
-  const [phone, setPhone] = useState("");
-  const [zone, setZone] = useState("");
+  const [phone, setPhone] = useState('');
+  const [zone, setZone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = createClient();
-  const [avatarSeed, setAvatarSeed] = useState("onboarding-rider");
+  const [avatarSeed, setAvatarSeed] = useState('onboarding-rider');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        setAvatarSeed(user.id ?? user.email ?? "onboarding-rider");
+        setAvatarSeed(user.id ?? user.email ?? 'onboarding-rider');
       }
     });
   }, []);
@@ -38,7 +38,7 @@ export default function OnboardingPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setError("Not signed in");
+      setError('Not signed in');
       setLoading(false);
       return;
     }
@@ -48,10 +48,12 @@ export default function OnboardingPage() {
     if (zone.trim()) {
       try {
         const geoRes = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zone.trim())}&count=1`
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zone.trim())}&count=1`,
         );
         if (geoRes.ok) {
-          const geo = (await geoRes.json()) as { results?: Array<{ latitude: number; longitude: number }> };
+          const geo = (await geoRes.json()) as {
+            results?: Array<{ latitude: number; longitude: number }>;
+          };
           if (geo.results?.[0]) {
             zoneLat = geo.results[0].latitude;
             zoneLng = geo.results[0].longitude;
@@ -62,23 +64,21 @@ export default function OnboardingPage() {
       }
     }
 
-    const { error: upsertError } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          full_name: user.user_metadata?.full_name ?? user.email,
-          phone_number: phone || null,
-          platform,
-          primary_zone_geofence: zone
-            ? { zone_name: zone, coordinates: zoneLat && zoneLng ? [zoneLng, zoneLat] : null }
-            : null,
-          zone_latitude: zoneLat,
-          zone_longitude: zoneLng,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+    const { error: upsertError } = await supabase.from('profiles').upsert(
+      {
+        id: user.id,
+        full_name: user.user_metadata?.full_name ?? user.email,
+        phone_number: phone || null,
+        platform,
+        primary_zone_geofence: zone
+          ? { zone_name: zone, coordinates: zoneLat && zoneLng ? [zoneLng, zoneLat] : null }
+          : null,
+        zone_latitude: zoneLat,
+        zone_longitude: zoneLng,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' },
+    );
 
     if (upsertError) {
       setError(upsertError.message);
@@ -86,7 +86,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push('/dashboard');
     router.refresh();
   }
 
@@ -115,22 +115,22 @@ export default function OnboardingPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setPlatform("zepto")}
+                onClick={() => setPlatform('zepto')}
                 className={`flex-1 py-3 px-4 rounded-lg border transition-colors ${
-                  platform === "zepto"
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600"
+                  platform === 'zepto'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                    : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
                 }`}
               >
                 Zepto
               </button>
               <button
                 type="button"
-                onClick={() => setPlatform("blinkit")}
+                onClick={() => setPlatform('blinkit')}
                 className={`flex-1 py-3 px-4 rounded-lg border transition-colors ${
-                  platform === "blinkit"
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600"
+                  platform === 'blinkit'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                    : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
                 }`}
               >
                 Blinkit
@@ -164,13 +164,8 @@ export default function OnboardingPage() {
             />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <Button
-            type="submit"
-            disabled={!platform || loading}
-            fullWidth
-            size="lg"
-          >
-            {loading ? "Saving..." : "Continue"}
+          <Button type="submit" disabled={!platform || loading} fullWidth size="lg">
+            {loading ? 'Saving...' : 'Continue'}
           </Button>
         </form>
       </div>

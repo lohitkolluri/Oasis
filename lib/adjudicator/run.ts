@@ -12,9 +12,9 @@
  *  - Plan cap: enforces max_claims_per_week per plan
  */
 
-import { createClient } from "@supabase/supabase-js";
-import { runAllFraudChecks } from "@/lib/fraud/detector";
-import { isWithinCircle, currentWeekMonday } from "@/lib/utils/geo";
+import { runAllFraudChecks } from '@/lib/fraud/detector';
+import { currentWeekMonday, isWithinCircle } from '@/lib/utils/geo';
+import { createClient } from '@supabase/supabase-js';
 
 export interface AdjudicatorResult {
   candidates_found: number;
@@ -24,12 +24,7 @@ export interface AdjudicatorResult {
 }
 
 export interface DemoTriggerOptions {
-  eventSubtype:
-    | "extreme_heat"
-    | "heavy_rain"
-    | "severe_aqi"
-    | "traffic_gridlock"
-    | "zone_curfew";
+  eventSubtype: 'extreme_heat' | 'heavy_rain' | 'severe_aqi' | 'traffic_gridlock' | 'zone_curfew';
   lat: number;
   lng: number;
   radiusKm?: number;
@@ -37,7 +32,7 @@ export interface DemoTriggerOptions {
 }
 
 interface TriggerCandidate {
-  type: "weather" | "traffic" | "social";
+  type: 'weather' | 'traffic' | 'social';
   severity: number;
   geofence?: Record<string, unknown>;
   raw: Record<string, unknown>;
@@ -51,16 +46,16 @@ function clusterKey(lat: number, lng: number): string {
 /** Get distinct active zone clusters from profiles with active policies this week */
 async function getActiveZones(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any
+  supabase: any,
 ): Promise<Array<{ lat: number; lng: number }>> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split('T')[0];
 
   const { data: activePolicies } = await supabase
-    .from("weekly_policies")
-    .select("profile_id")
-    .eq("is_active", true)
-    .lte("week_start_date", today)
-    .gte("week_end_date", today);
+    .from('weekly_policies')
+    .select('profile_id')
+    .eq('is_active', true)
+    .lte('week_start_date', today)
+    .gte('week_end_date', today);
 
   if (!activePolicies || activePolicies.length === 0) {
     return [{ lat: 12.9716, lng: 77.5946 }]; // Default Bangalore
@@ -71,11 +66,11 @@ async function getActiveZones(
   ];
 
   const { data: profiles } = await supabase
-    .from("profiles")
-    .select("zone_latitude, zone_longitude")
-    .in("id", profileIds)
-    .not("zone_latitude", "is", null)
-    .not("zone_longitude", "is", null);
+    .from('profiles')
+    .select('zone_latitude, zone_longitude')
+    .in('id', profileIds)
+    .not('zone_latitude', 'is', null)
+    .not('zone_longitude', 'is', null);
 
   if (!profiles || profiles.length === 0) {
     return [{ lat: 12.9716, lng: 77.5946 }];
@@ -94,12 +89,56 @@ async function getActiveZones(
   return seen.size > 0 ? Array.from(seen.values()) : [{ lat: 12.9716, lng: 77.5946 }];
 }
 
+/**
+ * Fetch current AQI for a coordinate.
+ * 1. WAQI ground-station API (most accurate, uses nearest monitoring station)
+ * 2. Open-Meteo satellite-based (free fallback, no key required)
+ */
+async function fetchCurrentAqi(
+  lat: number,
+  lng: number,
+  waqiKey: string | undefined,
+): Promise<number> {
+  if (waqiKey) {
+    try {
+      const res = await fetch(`https://api.waqi.info/feed/geo:${lat};${lng}/?token=${waqiKey}`);
+      if (res.ok) {
+        const data = (await res.json()) as { status?: string; data?: { aqi?: number | string } };
+        if (data.status === 'ok' && data.data?.aqi != null) {
+          const aqi = Number(data.data.aqi);
+          if (!isNaN(aqi) && aqi >= 0) return aqi;
+        }
+      }
+    } catch {
+      // Fall through to Open-Meteo
+    }
+  }
+  // Fallback: Open-Meteo satellite AQI (no key required)
+  try {
+    const res = await fetch(
+      `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`,
+    );
+    if (res.ok) {
+      const data = (await res.json()) as {
+        current?: { us_aqi?: number | null };
+        hourly?: { us_aqi?: (number | null)[] };
+      };
+      const aqi = data.current?.us_aqi ?? (data.hourly?.us_aqi ?? []).find((v) => v != null) ?? 0;
+      return Number(aqi);
+    }
+  } catch {
+    // Skip
+  }
+  return 0;
+}
+
 /** Run all trigger checks for a single geographic zone */
 async function checkZoneTriggers(
   zone: { lat: number; lng: number },
   tomorrowKey: string | undefined,
   openRouterKey: string | undefined,
-  newsDataKey: string | undefined
+  newsDataKey: string | undefined,
+  waqiKey: string | undefined,
 ): Promise<TriggerCandidate[]> {
   const { lat, lng } = zone;
   const candidates: TriggerCandidate[] = [];
@@ -112,7 +151,7 @@ async function checkZoneTriggers(
 
   try {
     const forecastRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m&past_hours=24&forecast_hours=0&timeformat=iso8601`
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m&past_hours=24&forecast_hours=0&timeformat=iso8601`,
     );
     if (forecastRes.ok) {
       const forecast = (await forecastRes.json()) as {
@@ -126,12 +165,12 @@ async function checkZoneTriggers(
         const t = new Date(times[i]);
         if (t <= now) {
           const v = temps[i];
-          if (v != null && typeof v === "number") last3.push(v);
+          if (v != null && typeof v === 'number') last3.push(v);
         }
       }
       if (last3.length >= 3 && last3.every((v) => v >= 43)) {
         heatSustained3h = true;
-        heatRawData = { ...forecast, trigger: "extreme_heat", source: "openmeteo_forecast" };
+        heatRawData = { ...forecast, trigger: 'extreme_heat', source: 'openmeteo_forecast' };
       }
     }
   } catch {
@@ -142,10 +181,10 @@ async function checkZoneTriggers(
     try {
       const [res, forecastRes] = await Promise.all([
         fetch(
-          `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`
+          `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`,
         ),
         fetch(
-          `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${tomorrowKey}`
+          `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${tomorrowKey}`,
         ),
       ]);
       if (res.ok) {
@@ -183,117 +222,92 @@ async function checkZoneTriggers(
 
   if (heatSustained3h) {
     candidates.push({
-      type: "weather",
+      type: 'weather',
       severity: 8,
-      geofence: { type: "circle", lat, lng, radius_km: 15 },
-      raw: { ...heatRawData, trigger: "extreme_heat" },
+      geofence: { type: 'circle', lat, lng, radius_km: 15 },
+      raw: { ...heatRawData, trigger: 'extreme_heat' },
     });
   }
 
   if (tomorrowKey && precip >= 4) {
     candidates.push({
-      type: "weather",
+      type: 'weather',
       severity: 7,
-      geofence: { type: "circle", lat, lng, radius_km: 15 },
-      raw: { ...precipRawData, trigger: "heavy_rain" },
+      geofence: { type: 'circle', lat, lng, radius_km: 15 },
+      raw: { ...precipRawData, trigger: 'heavy_rain' },
     });
   }
 
-  // ── 2. AQI — Adaptive threshold (Open-Meteo, free) ─────────────────────
+  // ── 2. AQI — Adaptive threshold (WAQI primary + Open-Meteo fallback) ───
   //
-  //  Problem: Fixed thresholds (e.g. AQI ≥ 201) fire every day in Delhi
-  //  (baseline ~250–300) but never in Bangalore (baseline ~60–80).
+  //  Current reading: WAQI ground-station API (nearest monitoring station,
+  //  most accurate for city-level AQI) → Open-Meteo satellite as fallback.
   //
-  //  Solution: Compare today's AQI against the zone's own 30-day historical
-  //  baseline. Trigger only when the air is meaningfully worse than normal
-  //  for that specific city — a true disruption signal, not chronic pollution.
+  //  Historical baseline: Open-Meteo 30-day hourly (WAQI free tier has no
+  //  historical endpoint). Compare today against the zone's own p75 baseline
+  //  so Delhi (baseline ~250) and Bangalore (baseline ~60) both get fair
+  //  adaptive thresholds.
   //
   //  Algorithm:
-  //    1. Fetch hourly US-AQI for the last 30 days (historical API)
-  //    2. Compute the 75th percentile → "normal bad day" for this zone
+  //    1. Fetch current AQI via WAQI (or Open-Meteo fallback)
+  //    2. Fetch 30-day hourly AQI from Open-Meteo for baseline
   //    3. Adaptive threshold = max(150, p75 × 1.40)  [40% above normal]
   //    4. Cap at 400 (WHO hazardous) so cities never become immune
-  //    5. Trigger if today's AQI ≥ adaptive threshold
-  //    6. Severity scales with how far above baseline (worse = higher severity)
+  //    5. Trigger if current AQI ≥ adaptive threshold
+  //    6. Severity scales with excess ratio (worse = higher)
   try {
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const startDate = thirtyDaysAgo.toISOString().split("T")[0];
-    const endDate = today.toISOString().split("T")[0];
+    const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
 
-    // Fetch historical AQI for baseline calculation
-    const [historicalRes, currentRes] = await Promise.all([
+    // Fetch current AQI (WAQI ground-station preferred) and historical baseline in parallel
+    const [currentAqi, historicalRes] = await Promise.all([
+      fetchCurrentAqi(lat, lng, waqiKey),
       fetch(
-        `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&start_date=${startDate}&end_date=${endDate}`
-      ),
-      fetch(
-        `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`
+        `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&start_date=${startDate}&end_date=${endDate}`,
       ),
     ]);
 
-    if (historicalRes.ok && currentRes.ok) {
+    if (historicalRes.ok) {
       const historical = (await historicalRes.json()) as {
         hourly?: { us_aqi?: (number | null)[] };
       };
-      const current = (await currentRes.json()) as {
-        current?: { us_aqi?: number | null };
-        hourly?: { us_aqi?: (number | null)[] };
-      };
 
-      // Build historical distribution (exclude nulls)
       const historicalValues = (historical.hourly?.us_aqi ?? []).filter(
-        (v): v is number => v != null && v > 0
+        (v): v is number => v != null && v > 0,
       );
-
-      // Current AQI — prefer current field, fall back to first hourly value
-      const currentAqi =
-        current.current?.us_aqi ??
-        (current.hourly?.us_aqi ?? []).find((v) => v != null) ??
-        0;
 
       let adaptiveThreshold = 201; // safe fallback
       let baseline75 = 0;
       let baselineMean = 0;
 
       if (historicalValues.length >= 48) {
-        // Need at least 2 days of data to establish a baseline
         const sorted = [...historicalValues].sort((a, b) => a - b);
         baseline75 = sorted[Math.floor(sorted.length * 0.75)];
         baselineMean = Math.round(
-          historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length
+          historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length,
         );
-
-        // Adaptive threshold: 40% above the zone's normal bad day
-        // Floor at 150 (minimum — clean cities shouldn't trigger on slightly
-        //   elevated but still healthy air)
-        // Cap at 400 (WHO "Hazardous" — every zone should still trigger here)
         adaptiveThreshold = Math.min(400, Math.max(150, Math.round(baseline75 * 1.4)));
       }
 
-      if ((currentAqi as number) >= adaptiveThreshold) {
-        // Severity = how many standard deviations above the adaptive threshold
-        // Range 6–10, higher = more anomalous
-        const excessRatio =
-          baseline75 > 0
-            ? ((currentAqi as number) - baseline75) / baseline75
-            : 0;
+      if (currentAqi >= adaptiveThreshold) {
+        const excessRatio = baseline75 > 0 ? (currentAqi - baseline75) / baseline75 : 0;
         const severity = Math.min(10, Math.max(6, Math.round(6 + excessRatio * 8)));
 
         candidates.push({
-          type: "weather",
+          type: 'weather',
           severity,
-          geofence: { type: "circle", lat, lng, radius_km: 15 },
+          geofence: { type: 'circle', lat, lng, radius_km: 15 },
           raw: {
-            trigger: "severe_aqi",
+            trigger: 'severe_aqi',
             current_aqi: currentAqi,
             adaptive_threshold: adaptiveThreshold,
             baseline_p75: baseline75,
             baseline_mean: baselineMean,
             historical_days: Math.round(historicalValues.length / 24),
-            excess_percent: Math.round(
-              (((currentAqi as number) - baseline75) / Math.max(1, baseline75)) * 100
-            ),
-            source: "openmeteo_adaptive",
+            excess_percent: Math.round(((currentAqi - baseline75) / Math.max(1, baseline75)) * 100),
+            source: waqiKey ? 'waqi_ground_station' : 'openmeteo_satellite',
           },
         });
       }
@@ -307,7 +321,7 @@ async function checkZoneTriggers(
   if (newsDataKey && openRouterKey) {
     try {
       const trafficRes = await fetch(
-        `https://newsdata.io/api/1/news?apikey=${newsDataKey}&q=traffic%20OR%20gridlock%20OR%20road%20closure%20OR%20congestion&country=in&language=en&limit=3`
+        `https://newsdata.io/api/1/news?apikey=${newsDataKey}&q=traffic%20OR%20gridlock%20OR%20road%20closure%20OR%20congestion&country=in&language=en&limit=3`,
       );
       if (trafficRes.ok) {
         const trafficData = (await trafficRes.json()) as {
@@ -315,18 +329,18 @@ async function checkZoneTriggers(
         };
         const trafficArticles = trafficData.results ?? [];
         if (trafficArticles.length > 0) {
-          const llmRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
+          const llmRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${openRouterKey}`,
             },
             body: JSON.stringify({
-              model: "meta-llama/llama-3.1-8b-instruct:free",
+              model: 'arcee-ai/trinity-large-preview:free:free',
               messages: [
                 {
-                  role: "user",
-                  content: `Do any of these headlines indicate severe traffic gridlock or road closures affecting delivery work in India? Reply JSON only: {"qualifies":true/false,"severity":0-10}. Headlines: ${trafficArticles.map((a) => a.title).join("; ")}`,
+                  role: 'user',
+                  content: `Do any of these headlines indicate severe traffic gridlock or road closures affecting delivery work in India? Reply JSON only: {"qualifies":true/false,"severity":0-10}. Headlines: ${trafficArticles.map((a) => a.title).join('; ')}`,
                 },
               ],
             }),
@@ -335,7 +349,7 @@ async function checkZoneTriggers(
             const llmData = (await llmRes.json()) as {
               choices?: Array<{ message?: { content?: string } }>;
             };
-            const content = llmData.choices?.[0]?.message?.content ?? "{}";
+            const content = llmData.choices?.[0]?.message?.content ?? '{}';
             const match = content.match(/\{[\s\S]*\}/);
             if (match) {
               try {
@@ -345,13 +359,13 @@ async function checkZoneTriggers(
                 };
                 if (parsed.qualifies && (parsed.severity ?? 0) >= 6) {
                   candidates.push({
-                    type: "traffic",
+                    type: 'traffic',
                     severity: parsed.severity ?? 7,
-                    geofence: { type: "circle", lat, lng, radius_km: 20 },
+                    geofence: { type: 'circle', lat, lng, radius_km: 20 },
                     raw: {
                       articles: trafficArticles,
                       llm: parsed,
-                      trigger: "traffic_gridlock",
+                      trigger: 'traffic_gridlock',
                     },
                   });
                 }
@@ -369,24 +383,24 @@ async function checkZoneTriggers(
     // ── 4. Zone curfew / strike / lockdown (NewsData + LLM + geocoding) ────
     try {
       const newsRes = await fetch(
-        `https://newsdata.io/api/1/news?apikey=${newsDataKey}&q=curfew%20OR%20strike%20OR%20lockdown&country=in&language=en&limit=3`
+        `https://newsdata.io/api/1/news?apikey=${newsDataKey}&q=curfew%20OR%20strike%20OR%20lockdown&country=in&language=en&limit=3`,
       );
       if (newsRes.ok) {
         const newsData = (await newsRes.json()) as { results?: Array<{ title?: string }> };
         const articles = newsData.results ?? [];
         if (articles.length > 0) {
-          const llmRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
+          const llmRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${openRouterKey}`,
             },
             body: JSON.stringify({
-              model: "meta-llama/llama-3.1-8b-instruct:free",
+              model: 'arcee-ai/trinity-large-preview:free:free',
               messages: [
                 {
-                  role: "user",
-                  content: `Do any of these headlines indicate a zone lockdown/curfew/strike preventing delivery work in India? Reply JSON only: {"qualifies":true/false,"severity":0-10,"zone":"city or region name if identifiable, else empty string"}. Headlines: ${articles.map((a) => a.title).join("; ")}`,
+                  role: 'user',
+                  content: `Do any of these headlines indicate a zone lockdown/curfew/strike preventing delivery work in India? Reply JSON only: {"qualifies":true/false,"severity":0-10,"zone":"city or region name if identifiable, else empty string"}. Headlines: ${articles.map((a) => a.title).join('; ')}`,
                 },
               ],
             }),
@@ -395,7 +409,7 @@ async function checkZoneTriggers(
             const llmData = (await llmRes.json()) as {
               choices?: Array<{ message?: { content?: string } }>;
             };
-            const content = llmData.choices?.[0]?.message?.content ?? "{}";
+            const content = llmData.choices?.[0]?.message?.content ?? '{}';
             const match = content.match(/\{[\s\S]*\}/);
             if (match) {
               try {
@@ -405,12 +419,12 @@ async function checkZoneTriggers(
                   zone?: string;
                 };
                 if (parsed.qualifies && (parsed.severity ?? 0) >= 6) {
-                  const zone = typeof parsed.zone === "string" ? parsed.zone.trim() : "";
-                  const toGeocode = zone || "India";
+                  const zone = typeof parsed.zone === 'string' ? parsed.zone.trim() : '';
+                  const toGeocode = zone || 'India';
                   let geofence: Record<string, unknown> = {};
                   try {
                     const geoRes = await fetch(
-                      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(toGeocode)}&count=1`
+                      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(toGeocode)}&count=1`,
                     );
                     if (geoRes.ok) {
                       const geo = (await geoRes.json()) as {
@@ -418,7 +432,7 @@ async function checkZoneTriggers(
                       };
                       if (geo.results?.[0]) {
                         geofence = {
-                          type: "circle",
+                          type: 'circle',
                           lat: geo.results[0].latitude,
                           lng: geo.results[0].longitude,
                           radius_km: zone ? 20 : 50,
@@ -427,11 +441,11 @@ async function checkZoneTriggers(
                     }
                   } catch {
                     // Fallback to zone's own coordinates
-                    geofence = { type: "circle", lat, lng, radius_km: 20 };
+                    geofence = { type: 'circle', lat, lng, radius_km: 20 };
                   }
                   if (geofence.lat != null && geofence.lng != null) {
                     candidates.push({
-                      type: "social",
+                      type: 'social',
                       severity: parsed.severity ?? 7,
                       geofence,
                       raw: { articles, llm: parsed },
@@ -457,11 +471,11 @@ async function checkZoneTriggers(
 async function logRun(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
-  result: AdjudicatorResult & { duration_ms: number; error?: string; is_demo?: boolean }
+  result: AdjudicatorResult & { duration_ms: number; error?: string; is_demo?: boolean },
 ) {
   try {
-    await supabase.from("system_logs").insert({
-      event_type: result.is_demo ? "adjudicator_demo" : "adjudicator_run",
+    await supabase.from('system_logs').insert({
+      event_type: result.is_demo ? 'adjudicator_demo' : 'adjudicator_run',
       metadata: {
         candidates_found: result.candidates_found,
         claims_created: result.claims_created,
@@ -479,7 +493,7 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
   const startMs = Date.now();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey) throw new Error("Supabase not configured");
+  if (!supabaseUrl || !supabaseKey) throw new Error('Supabase not configured');
 
   // Use `any` cast to avoid DB-type conflicts when system_logs isn't in generated types yet
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -487,25 +501,26 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
   const tomorrowKey = process.env.TOMORROW_IO_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const newsDataKey = process.env.NEWSDATA_IO_API_KEY;
+  const waqiKey = process.env.WAQI_API_KEY;
 
   let allCandidates: TriggerCandidate[] = [];
   let zonesChecked = 0;
 
   if (demoTrigger) {
     // Demo mode: inject a synthetic event directly
-    const typeMap: Record<string, "weather" | "traffic" | "social"> = {
-      extreme_heat: "weather",
-      heavy_rain: "weather",
-      severe_aqi: "weather",
-      traffic_gridlock: "traffic",
-      zone_curfew: "social",
+    const typeMap: Record<string, 'weather' | 'traffic' | 'social'> = {
+      extreme_heat: 'weather',
+      heavy_rain: 'weather',
+      severe_aqi: 'weather',
+      traffic_gridlock: 'traffic',
+      zone_curfew: 'social',
     };
     allCandidates = [
       {
-        type: typeMap[demoTrigger.eventSubtype] ?? "weather",
+        type: typeMap[demoTrigger.eventSubtype] ?? 'weather',
         severity: demoTrigger.severity ?? 8,
         geofence: {
-          type: "circle",
+          type: 'circle',
           lat: demoTrigger.lat,
           lng: demoTrigger.lng,
           radius_km: demoTrigger.radiusKm ?? 15,
@@ -513,7 +528,7 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
         raw: {
           trigger: demoTrigger.eventSubtype,
           demo: true,
-          source: "admin_demo_mode",
+          source: 'admin_demo_mode',
         },
       },
     ];
@@ -528,7 +543,7 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
     for (let i = 0; i < zones.length; i += BATCH) {
       const batch = zones.slice(i, i + BATCH);
       const results = await Promise.all(
-        batch.map((z) => checkZoneTriggers(z, tomorrowKey, openRouterKey, newsDataKey))
+        batch.map((z) => checkZoneTriggers(z, tomorrowKey, openRouterKey, newsDataKey, waqiKey)),
       );
       // Deduplicate: if same trigger type already in candidates from a previous zone, skip
       for (const zoneCandidates of results) {
@@ -557,19 +572,19 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
 
   // ── Process each candidate: insert event, find eligible policies, pay ───
   let claimsCreated = 0;
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split('T')[0];
 
   for (const candidate of allCandidates) {
     const { data: event, error: eventErr } = await supabase
-      .from("live_disruption_events")
+      .from('live_disruption_events')
       .insert({
         event_type: candidate.type,
         severity_score: candidate.severity,
         geofence_polygon: candidate.geofence ?? {},
-        verified_by_llm: candidate.type === "social",
+        verified_by_llm: candidate.type === 'social',
         raw_api_data: candidate.raw,
       })
-      .select("id")
+      .select('id')
       .single();
 
     if (eventErr || !event?.id) continue;
@@ -582,13 +597,11 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
     const radiusKm = geofence?.radius_km ?? 15;
 
     const { data: policies } = await supabase
-      .from("weekly_policies")
-      .select(
-        "id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)"
-      )
-      .eq("is_active", true)
-      .lte("week_start_date", today)
-      .gte("week_end_date", today);
+      .from('weekly_policies')
+      .select('id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)')
+      .eq('is_active', true)
+      .lte('week_start_date', today)
+      .gte('week_end_date', today);
 
     const weekStart = currentWeekMonday().toISOString();
 
@@ -602,9 +615,9 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
       const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("zone_latitude, zone_longitude")
-        .eq("id", policy.profile_id)
+        .from('profiles')
+        .select('zone_latitude, zone_longitude')
+        .eq('id', policy.profile_id)
         .single();
 
       const pLat = profile?.zone_latitude;
@@ -614,17 +627,17 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
       }
 
       const { count: weekClaimCount } = await supabase
-        .from("parametric_claims")
-        .select("id", { count: "exact", head: true })
-        .eq("policy_id", policy.id)
-        .gte("created_at", weekStart);
+        .from('parametric_claims')
+        .select('id', { count: 'exact', head: true })
+        .eq('policy_id', policy.id)
+        .gte('created_at', weekStart);
       if ((weekClaimCount ?? 0) >= maxClaimsPerWeek) continue;
 
       const { isFlagged } = await runAllFraudChecks(
         supabase,
         policy.id,
         event.id,
-        candidate.type === "weather" ? candidate.raw : undefined
+        candidate.type === 'weather' ? candidate.raw : undefined,
       );
       if (isFlagged) continue;
 
@@ -632,11 +645,11 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
         .toString(36)
         .slice(2, 7)}`;
 
-      const { error: claimErr } = await supabase.from("parametric_claims").insert({
+      const { error: claimErr } = await supabase.from('parametric_claims').insert({
         policy_id: policy.id,
         disruption_event_id: event.id,
         payout_amount_inr: payoutAmount,
-        status: "paid",
+        status: 'paid',
         gateway_transaction_id: txId,
         is_flagged: false,
       });
@@ -645,7 +658,7 @@ export async function runAdjudicator(demoTrigger?: DemoTriggerOptions): Promise<
   }
 
   const result: AdjudicatorResult = {
-    message: demoTrigger ? "Demo adjudicator run complete" : "Adjudicator run complete",
+    message: demoTrigger ? 'Demo adjudicator run complete' : 'Adjudicator run complete',
     candidates_found: allCandidates.length,
     claims_created: claimsCreated,
     zones_checked: zonesChecked,

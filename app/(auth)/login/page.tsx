@@ -1,35 +1,34 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
+import { gooeyToast } from 'goey-toast';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage(null);
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setMessage({ type: "error", text: error.message });
+      gooeyToast.error(error.message);
       setLoading(false);
       return;
     }
 
-    setMessage({ type: "success", text: "Signed in. Redirecting..." });
-    window.location.href = "/dashboard";
+    gooeyToast.success('Signed in successfully!');
+    window.location.href = '/dashboard';
   }
 
   return (
@@ -74,21 +73,12 @@ export default function LoginPage() {
               className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
-          {message && (
-            <p
-              className={`text-sm ${
-                message.type === "success" ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {message.text}
-            </p>
-          )}
           <Button type="submit" disabled={loading} fullWidth size="lg">
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
         <p className="mt-6 text-sm text-zinc-400 text-center">
-          Don&apos;t have an account?{" "}
+          Don&apos;t have an account?{' '}
           <Link href="/register" className="text-emerald-400 hover:underline">
             Get started
           </Link>

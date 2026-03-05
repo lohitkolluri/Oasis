@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 
 export default function OfflinePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0a0a0a] text-zinc-100">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0f0f0f] text-zinc-100">
       <div className="text-center max-w-sm">
         <h1 className="text-2xl font-bold mb-2">You&apos;re offline</h1>
         <p className="text-zinc-400 mb-6">

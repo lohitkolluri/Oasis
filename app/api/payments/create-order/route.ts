@@ -60,6 +60,7 @@ export async function POST(request: Request) {
         week_end_date: weekEnd,
         weekly_premium_inr: amountInr,
         is_active: !razorpayConfigured,
+        payment_status: demoModeAllowed ? "demo" : "pending",
       })
       .select("id")
       .single();
@@ -72,6 +73,17 @@ export async function POST(request: Request) {
     }
 
     if (demoModeAllowed) {
+      try {
+        await supabase.from("payment_transactions").insert({
+          profile_id: user.id,
+          weekly_policy_id: policy.id,
+          amount_inr: amountInr,
+          status: "paid",
+          paid_at: new Date().toISOString(),
+        });
+      } catch {
+        // Table may not exist yet
+      }
       return NextResponse.json({
         demoMode: true,
         policyId: policy.id,
@@ -88,6 +100,26 @@ export async function POST(request: Request) {
       receipt: receipt ?? `oasis_${user.id}_${Date.now()}`,
       notes: { profile_id: user.id, policy_id: policy.id },
     });
+
+    await supabase
+      .from("weekly_policies")
+      .update({
+        razorpay_order_id: order.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", policy.id);
+
+    try {
+      await supabase.from("payment_transactions").insert({
+        profile_id: user.id,
+        weekly_policy_id: policy.id,
+        amount_inr: amountInr,
+        razorpay_order_id: order.id,
+        status: "pending",
+      });
+    } catch {
+      // Table may not exist yet
+    }
 
     return NextResponse.json({
       orderId: order.id,

@@ -51,6 +51,8 @@ export async function POST(request: Request) {
       .from("weekly_policies")
       .update({
         is_active: true,
+        razorpay_payment_id,
+        payment_status: "paid",
         updated_at: new Date().toISOString(),
       })
       .eq("id", policy_id)
@@ -61,6 +63,46 @@ export async function POST(request: Request) {
         { error: "Failed to activate policy" },
         { status: 500 }
       );
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from("payment_transactions")
+        .select("id")
+        .eq("weekly_policy_id", policy_id)
+        .eq("profile_id", user.id)
+        .limit(1)
+        .single();
+
+      const paidAt = new Date().toISOString();
+      if (existing) {
+        await supabase
+          .from("payment_transactions")
+          .update({
+            razorpay_payment_id,
+            status: "paid",
+            paid_at: paidAt,
+          })
+          .eq("id", existing.id);
+      } else {
+        const { data: policy } = await supabase
+          .from("weekly_policies")
+          .select("weekly_premium_inr")
+          .eq("id", policy_id)
+          .eq("profile_id", user.id)
+          .single();
+        await supabase.from("payment_transactions").insert({
+          profile_id: user.id,
+          weekly_policy_id: policy_id,
+          amount_inr: policy?.weekly_premium_inr ?? 0,
+          razorpay_order_id,
+          razorpay_payment_id,
+          status: "paid",
+          paid_at: paidAt,
+        });
+      }
+    } catch {
+      // payment_transactions table may not exist
     }
   }
 

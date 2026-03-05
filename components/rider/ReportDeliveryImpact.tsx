@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Flag, X, Loader2 } from "lucide-react";
+import { gooeyToast } from "goey-toast";
 
 export function ReportDeliveryImpact() {
   const [open, setOpen] = useState(false);
@@ -20,6 +21,27 @@ export function ReportDeliveryImpact() {
       if (message.trim()) formData.set("message", message.trim());
       if (photo) formData.append("photo", photo);
 
+      // Best-effort: capture device GPS to attach precise incident location.
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          });
+        });
+        const { latitude, longitude, accuracy } = pos.coords;
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          formData.set("gps_lat", String(latitude));
+          formData.set("gps_lng", String(longitude));
+          if (Number.isFinite(accuracy)) {
+            formData.set("gps_accuracy", String(accuracy));
+          }
+        }
+      } catch {
+        // If user denies or GPS fails, still submit the report without coords.
+      }
+
       const res = await fetch("/api/rider/report-delivery", {
         method: "POST",
         body: formData,
@@ -28,16 +50,17 @@ export function ReportDeliveryImpact() {
         setSuccess(true);
         setMessage("");
         setPhoto(null);
+        gooeyToast.success("Report submitted with your location (when available).");
         setTimeout(() => {
           setOpen(false);
           setSuccess(false);
         }, 1500);
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error ?? "Failed to submit report");
+        gooeyToast.error(err.error ?? "Failed to submit report");
       }
     } catch {
-      alert("Failed to submit report");
+      gooeyToast.error("Failed to submit report");
     } finally {
       setLoading(false);
     }

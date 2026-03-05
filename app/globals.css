@@ -3,8 +3,42 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
+  /* Core surfaces */
+  --background: #0f0f0f;
+  --foreground: #ffffff;
+
+  /* Surface hierarchy */
+  --surface-1: #161616;
+  --surface-2: #1e1e1e;
+  --surface-3: #262626;
+  --surface-4: #2e2e2e;
+  --surface-5: #3a3a3a;
+
+  /* Borders */
+  --border: #2d2d2d;
+  --border-strong: #3a3a3a;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b6b6b;
+
+  /* Semantic / functional */
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --muted: #262626;
+  --muted-foreground: #737373;
+
+  /* Neon accents */
+  --neon-cyan: #7dd3fc;
+  --neon-violet: #a78bfa;
+  --neon-cyan-glow: rgba(125, 211, 252, 0.25);
+  --neon-violet-glow: rgba(167, 139, 250, 0.25);
+  --neon-cyan-dim: rgba(125, 211, 252, 0.08);
+  --neon-violet-dim: rgba(167, 139, 250, 0.08);
 }
 
 html {
@@ -14,30 +48,117 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-5); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-/* Number display utility */
+/* Tabular numbers utility */
 .num {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+}
+
+/* Entrance animations */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease both;
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Neon pulse (for status dots) */
+@keyframes neon-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--neon-cyan); }
+  50% { opacity: 0.6; box-shadow: 0 0 12px var(--neon-cyan); }
+}
+.animate-neon-pulse {
+  animation: neon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes violet-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--neon-violet); }
+  50% { opacity: 0.6; box-shadow: 0 0 12px var(--neon-violet); }
+}
+.animate-violet-pulse {
+  animation: violet-pulse 2s ease-in-out infinite;
+}
+
+/* Glass card base */
+.glass-card {
+  background: rgba(22, 22, 22, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.03);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 25px rgba(125, 211, 252, 0.12);
+  transform: scale(1.005);
+}
+
+/* Neon glow utilities */
+.glow-cyan {
+  box-shadow: 0 0 20px var(--neon-cyan-glow);
+}
+.glow-violet {
+  box-shadow: 0 0 20px var(--neon-violet-glow);
+}
+.glow-cyan-sm {
+  box-shadow: 0 0 8px var(--neon-cyan-glow);
+}
+
+/* Sidebar active item */
+.nav-active {
+  background: #1e1e1e;
+  color: #ffffff;
+  border-left: 2px solid var(--neon-cyan);
+}
+
+/* State hover layer */
+.state-hover:hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+/* Neon text glow */
+.text-neon-cyan {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px var(--neon-cyan-glow);
+}
+.text-neon-violet {
+  color: var(--neon-violet);
+  text-shadow: 0 0 12px var(--neon-violet-glow);
 }

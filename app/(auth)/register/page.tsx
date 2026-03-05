@@ -1,25 +1,24 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
+import { gooeyToast } from 'goey-toast';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage(null);
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -27,17 +26,14 @@ export default function RegisterPage() {
       options: { data: { full_name: fullName } },
     });
 
+    setLoading(false);
+
     if (error) {
-      setMessage({ type: "error", text: error.message });
-      setLoading(false);
+      gooeyToast.error(error.message);
       return;
     }
 
-    setMessage({
-      type: "success",
-      text: "Account created. Check your email to confirm, or sign in if already confirmed.",
-    });
-    setLoading(false);
+    gooeyToast.success('Account created! Check your email to confirm, then sign in.');
   }
 
   return (
@@ -51,7 +47,7 @@ export default function RegisterPage() {
           Oasis
         </Link>
         <div className="flex justify-center mb-6">
-          <Avatar seed={fullName || "oasis-new-rider"} size={72} />
+          <Avatar seed={fullName || 'oasis-new-rider'} size={72} />
         </div>
         <h1 className="text-xl font-semibold mb-6 text-center">Get started</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -98,21 +94,12 @@ export default function RegisterPage() {
               placeholder="Min 6 characters"
             />
           </div>
-          {message && (
-            <p
-              className={`text-sm ${
-                message.type === "success" ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {message.text}
-            </p>
-          )}
-          <Button type="submit" disabled={loading} fullWidth size="lg">
-            {loading ? "Creating account..." : "Create account"}
+          <Button type="submit" disabled={loading} size="lg" fullWidth>
+            {loading ? 'Creating account…' : 'Create account'}
           </Button>
         </form>
         <p className="mt-6 text-sm text-zinc-400 text-center">
-          Already have an account?{" "}
+          Already have an account?{' '}
           <Link href="/login" className="text-emerald-400 hover:underline">
             Sign in
           </Link>
