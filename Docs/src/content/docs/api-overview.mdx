@@ -1,0 +1,102 @@
+---
+title: API Reference Overview
+description: High-level overview of Oasis API architecture
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+The Oasis generic API endpoints live under `app/api/` in the Next.js App Router.
+
+Authentication is generally handled via Supabase session cookies (SSR). System endpoints (like Adjudicator CRONs) require a `CRON_SECRET` Bearer token.
+
+---
+
+## Interactive OpenAPI Reference
+
+We have fully interactive, auto-generated documentation for all Oasis endpoints where you can view request shapes, parameter constraints, and example JSON responses.
+
+<CardGrid>
+  <LinkCard
+    title="Cron Jobs"
+    description="Automated hourly adjudicators and weekly premium renewals."
+    href="/api/openapi/operations/getcronadjudicator/"
+    icon="setting"
+  />
+  <LinkCard
+    title="Admin Operations"
+    description="Manual overrides and synthetic metric injections."
+    href="/api/openapi/operations/postadminrunadjudicator/"
+    icon="laptop"
+  />
+  <LinkCard
+    title="KYC & Onboarding"
+    description="Face liveness verification and Aadhaar processing."
+    href="/api/openapi/operations/postverifygovernmentid/"
+    icon="approve-check"
+  />
+  <LinkCard
+    title="Payments & Subscriptions"
+    description="Stripe Checkout creation and asynchronous Webhooks."
+    href="/api/openapi/operations/postcreatecheckout/"
+    icon="rocket"
+  />
+</CardGrid>
+
+---
+
+## Non-OpenAPI Internal Routes
+
+The following are internal or proxy routes that do not have formal OpenAPI contracts as they rely strictly on Supabase Auth context.
+
+### `GET /api/admin/system-health`
+
+Returns current system status for the dashboard: database connection, API key availability, last adjudicator run.
+
+**Response:**
+```json
+{
+  "database": "ok",
+  "tomorrowio": "configured",
+  "newsdata": "configured",
+  "openrouter": "configured",
+  "lastRun": "2024-03-05T11:00:00.000Z",
+  "lastRunResult": {
+    "claims_created": 8,
+    "zones_checked": 2
+  }
+}
+```
+
+### `GET /api/admin/analytics`
+
+Returns aggregated platform analytics for the admin dashboard.
+
+**Response:**
+```json
+{
+  "totalRiders": 120,
+  "activePolicies": 87,
+  "totalClaims": 342,
+  "totalPayoutInr": 136800,
+  "flaggedClaims": 4,
+  "weeklyGrowth": 12.5
+}
+```
+
+### `GET /api/admin/insights`
+Returns AI-generated platform insights (next-week risk prediction, top disruption zones).
+
+### `POST /api/routing/check`
+
+Proxy to the OSRM routing API. Returns route details between two coordinates.
+
+**Body:**
+```json
+{
+  "origin": { "lat": 12.9716, "lng": 77.5946 },
+  "destination": { "lat": 12.9352, "lng": 77.6245 }
+}
+```
+
+### `POST /api/auth/signout`
+Signs out the current session by clearing Supabase auth cookies. Redirects to `/login`.
