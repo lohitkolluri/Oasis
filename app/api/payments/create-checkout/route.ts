@@ -98,18 +98,19 @@ export async function POST(request: Request) {
       if (process.env.NODE_ENV === 'production') {
         baseUrl = getAppUrl();
       } else {
-      baseUrl = getAppUrl();
-      if (origin) baseUrl = origin.replace(/\/$/, '');
-      else {
-        const referer = request.headers.get('referer');
-        if (referer) {
-          try {
-            baseUrl = new URL(referer).origin;
-          } catch {
-            /* keep getAppUrl() default */
+        baseUrl = getAppUrl();
+        if (origin) baseUrl = origin.replace(/\/$/, '');
+        else {
+          const referer = request.headers.get('referer');
+          if (referer) {
+            try {
+              baseUrl = new URL(referer).origin;
+            } catch {
+              /* keep getAppUrl() default */
+            }
           }
+        }
       }
-    }
     } catch (e) {
       const msg =
         e instanceof Error && e.message?.includes('NEXT_PUBLIC_APP_URL')
