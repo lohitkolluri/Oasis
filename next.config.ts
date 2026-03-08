@@ -8,6 +8,25 @@ const withPWA = withPWAInit({
   fallbacks: {
     document: "/~offline",
   },
+  // Ensure auth-sensitive navigations always hit the network (avoids stale cached login state in PWA)
+  extendDefaultRuntimeCaching: true,
+  workboxOptions: {
+    runtimeCaching: [
+      {
+        urlPattern: ({ url }) => {
+          const p = url.pathname;
+          return p === "/" || p.startsWith("/dashboard") || p.startsWith("/login") || p.startsWith("/register") || p.startsWith("/onboarding");
+        },
+        handler: "NetworkFirst",
+        method: "GET",
+        options: {
+          cacheName: "auth-pages",
+          networkTimeoutSeconds: 5,
+          expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 },
+        },
+      },
+    ],
+  },
 });
 
 const nextConfig: NextConfig = {

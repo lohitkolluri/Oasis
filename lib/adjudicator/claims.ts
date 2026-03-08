@@ -15,6 +15,7 @@ import type {
   TriggerCandidate,
 } from '@/lib/adjudicator/types';
 import { addDays, toDateString } from '@/lib/utils/date';
+import { simulatePayout } from '@/lib/adjudicator/payouts';
 
 export interface ProcessClaimsOptions {
   /** When set (demo), only this profile gets the claim/payout; zone check is skipped for them. */
@@ -105,6 +106,7 @@ export async function processClaimsForEvent(
   let payoutsInitiated = 0;
   let payoutFailures = 0;
   const paidPhones = new Set<string>();
+  const isDemo = candidate.raw?.demo === true || candidate.raw?.source === 'admin_demo_mode';
 
   for (const policy of policies) {
     const plan = policy.plan_packages as {
@@ -167,10 +169,32 @@ export async function processClaimsForEvent(
         eventId,
         undefined,
       );
-      // Payout: rider must verify location (see verify-location API). When the app is open
+
+      // Demo mode: auto-record payout so ledger has a row and demo shows "1 payout(s)"
+      if (isDemo) {
+        const payoutOk = await simulatePayout(
+          supabase,
+          claimData.id,
+          policy.profile_id,
+          payoutAmount,
+        );
+        if (payoutOk) {
+          payoutsInitiated++;
+          await supabase
+            .from('parametric_claims')
+            .update({
+              status: 'paid',
+              gateway_transaction_id: `oasis_demo_${Date.now()}_${claimData.id.slice(0, 8)}`,
+            })
+            .eq('id', claimData.id);
+        } else {
+          payoutFailures++;
+        }
+      }
+
+      // Payout (non-demo): rider must verify location (see verify-location API). When the app is open
       // on mobile, RealtimeNotifications auto-requests GPS and POSTs to verify-location so
       // payout can be processed without the rider tapping "Verify". Otherwise they verify manually.
-
       const eventLabel =
         candidate.subtype === 'extreme_heat'
           ? 'Extreme heat'
@@ -185,8 +209,12 @@ export async function processClaimsForEvent(
                   : 'Disruption';
       const { error: notifErr } = await supabase.from('rider_notifications').insert({
         profile_id: policy.profile_id,
-        title: `Claim created — verify location`,
-        body: `${eventLabel} in your zone. Verify your location in the app to receive ₹${payoutAmount}.`,
+        title: isDemo
+          ? `Demo: claim paid — ₹${payoutAmount} credited`
+          : `Claim created — verify location`,
+        body: isDemo
+          ? `${eventLabel} (demo). Payout recorded to your wallet.`
+          : `${eventLabel} in your zone. Verify your location in the app to receive ₹${payoutAmount}.`,
         type: 'payout',
         metadata: { claim_id: claimData.id, amount_inr: payoutAmount, subtype: candidate.subtype },
       });

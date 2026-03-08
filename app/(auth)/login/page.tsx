@@ -16,6 +16,13 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const supabase = createClient();
 
+  // PWA: if session was restored from localStorage backup, redirect to dashboard
+  useEffect(() => {
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.replace('/dashboard');
+    });
+  }, []);
+
   useEffect(() => {
     const registered = searchParams.get('registered');
     if (registered !== '1') return;

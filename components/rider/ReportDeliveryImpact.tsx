@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flag, X, Loader2, Camera, ImageIcon } from "lucide-react";
 import { gooeyToast } from "goey-toast";
@@ -21,6 +22,8 @@ export function ReportDeliveryImpact({
   triggerClassName,
 }: ReportDeliveryImpactProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const isControlled = controlledOpen !== undefined && onOpenChange != null;
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? onOpenChange : setInternalOpen;
@@ -168,23 +171,26 @@ export function ReportDeliveryImpact({
         </button>
       )}
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70"
-            onClick={() => !loading && setOpen(false)}
-          >
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border-t sm:border border-zinc-700 bg-zinc-900 p-5 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {mounted &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70"
+                onClick={() => !loading && setOpen(false)}
+              >
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "tween", duration: 0.3 }}
+                  className="w-full max-w-md mx-auto min-w-0 rounded-t-2xl sm:rounded-2xl border-t sm:border border-zinc-700 bg-zinc-900 p-5 shadow-xl sm:max-h-[90vh] overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-zinc-100">Report delivery issue</h3>
                 <button
@@ -300,10 +306,12 @@ export function ReportDeliveryImpact({
                   </div>
                 </form>
               )}
-            </motion.div>
-          </motion.div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </>
   );
 }
