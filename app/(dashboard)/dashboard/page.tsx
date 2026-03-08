@@ -38,15 +38,10 @@ export default async function DashboardPage() {
     ? (result.activePolicy.plan_packages as { name?: string }).name
     : undefined;
 
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-
   return (
     <DashboardContent
       user={user}
       profile={profile}
-      greeting={greeting}
       policyIds={result.policyIds}
       totalPayouts={stats.totalPayouts}
       totalClaimCount={stats.totalClaimCount}

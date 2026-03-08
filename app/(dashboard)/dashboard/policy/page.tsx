@@ -20,7 +20,7 @@ export default async function PolicyPage({
 
   const { data: policies } = await supabase
     .from("weekly_policies")
-    .select("*")
+    .select("*, plan_packages(name)")
     .eq("profile_id", user.id)
     .order("week_start_date", { ascending: false })
     .limit(5);
@@ -67,6 +67,10 @@ export default async function PolicyPage({
   }
 
   const activePolicy = policies?.find((p) => p.is_active) ?? null;
+  const planName =
+    activePolicy?.plan_packages && typeof activePolicy.plan_packages === "object" && activePolicy.plan_packages !== null
+      ? (activePolicy.plan_packages as { name?: string }).name ?? "Weekly plan"
+      : "Weekly plan";
 
   const { data: plans } = await supabase
     .from("plan_packages")
@@ -83,25 +87,58 @@ export default async function PolicyPage({
         <ArrowLeft className="h-4 w-4" />
         Back to dashboard
       </Link>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold text-white">Weekly Policy</h1>
-        <Link
-          href="/dashboard/policy/docs"
-          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-uber-green transition-colors"
-        >
-          <FileText className="h-4 w-4" />
-          Policy docs
-        </Link>
-      </div>
-      <PolicySubscribeForm
-        profileId={user.id}
-        activePolicy={activePolicy}
-        existingPolicies={policies ?? []}
-        plans={plans ?? []}
-        suggestedPremium={premium}
-        paymentSuccess={params.success === "1"}
-        paymentCanceled={params.canceled === "1"}
-      />
+      {activePolicy ? (
+        <>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              Subscription details
+            </h1>
+            <p className="text-sm text-zinc-500 mt-0.5">
+              Your current coverage and payment details
+            </p>
+          </div>
+          <PolicySubscribeForm
+            profileId={user.id}
+            activePolicy={activePolicy}
+            planName={planName}
+            existingPolicies={policies ?? []}
+            plans={plans ?? []}
+            suggestedPremium={premium}
+            paymentSuccess={params.success === '1'}
+            paymentCanceled={params.canceled === '1'}
+          />
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white">
+                Weekly Policy
+              </h1>
+              <p className="text-sm text-zinc-500 mt-0.5">
+                Subscribe for weekly parametric coverage
+              </p>
+            </div>
+            <Link
+              href="/dashboard/policy/docs"
+              className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-uber-green transition-colors shrink-0"
+            >
+              <FileText className="h-4 w-4" />
+              Policy docs
+            </Link>
+          </div>
+          <PolicySubscribeForm
+            profileId={user.id}
+            activePolicy={activePolicy}
+            planName={planName}
+            existingPolicies={policies ?? []}
+            plans={plans ?? []}
+            suggestedPremium={premium}
+            paymentSuccess={params.success === '1'}
+            paymentCanceled={params.canceled === '1'}
+          />
+        </>
+      )}
     </div>
   );
 }

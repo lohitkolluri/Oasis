@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
-import { Wallet } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronRight, Wallet } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface WalletBalanceCardProps {
   initialBalance: number;
@@ -11,6 +12,8 @@ interface WalletBalanceCardProps {
   policyIds: string[];
   /** Optional sparkline values (e.g. last 7 days). If not provided, uses placeholder. */
   sparklineData?: number[];
+  /** Show a "View details" style CTA on the card (e.g. on wallet page). */
+  showAction?: boolean;
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -28,7 +31,7 @@ function Sparkline({ values }: { values: number[] }) {
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
-      className="w-full h-7 text-uber-green/60"
+      className="w-full h-7 text-white/40"
       preserveAspectRatio="none"
     >
       <polyline
@@ -48,6 +51,7 @@ export function WalletBalanceCard({
   weeklyChange,
   policyIds,
   sparklineData,
+  showAction = false,
 }: WalletBalanceCardProps) {
   const [balance, setBalance] = useState(initialBalance);
   const [justUpdated, setJustUpdated] = useState(false);
@@ -70,7 +74,7 @@ export function WalletBalanceCard({
           setBalance((b) => b + Number(newClaim.payout_amount_inr));
           setJustUpdated(true);
           setTimeout(() => setJustUpdated(false), 2500);
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -78,44 +82,82 @@ export function WalletBalanceCard({
     };
   }, [policyIds]);
 
-  const spark = sparklineData && sparklineData.length > 0
-    ? sparklineData
-    : [0, balance * 0.3, balance * 0.5, balance * 0.8, balance];
+  const spark =
+    sparklineData && sparklineData.length > 0
+      ? sparklineData
+      : [0, balance * 0.3, balance * 0.5, balance * 0.8, balance];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className={`rounded-2xl overflow-hidden border transition-all duration-500 ${
+      className={`relative overflow-hidden rounded-3xl border transition-all duration-500 ${
         justUpdated
-          ? 'bg-uber-green/10 border-uber-green/30 shadow-[0_0_24px_rgba(58,167,109,0.15)]'
-          : 'bg-surface-1/90 border-white/10 backdrop-blur-sm'
+          ? 'border-uber-green/40 shadow-[0_0_32px_rgba(58,167,109,0.2)]'
+          : 'border-white/10'
       }`}
     >
-      <div className="bg-gradient-to-br from-uber-green/10 via-transparent to-transparent px-5 pt-5 pb-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold text-uber-green/90 uppercase tracking-wider">
-            Wallet Balance
-          </span>
-          <Wallet className="h-4 w-4 text-uber-green/50" />
+      {/* Background: subtle radial gradients + corner orb (no green–violet band) */}
+      <div
+        className="absolute inset-0 bg-surface-1"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 opacity-100"
+        style={{
+          background:
+            'radial-gradient(ellipse 120% 100% at 100% 0%, rgba(255,255,255,0.06) 0%, transparent 50%),' +
+            'radial-gradient(ellipse 80% 80% at 0% 100%, rgba(58,167,109,0.08) 0%, transparent 50%)',
+        }}
+        aria-hidden
+      />
+      <div
+        className="absolute -top-12 -right-12 w-36 h-36 rounded-full opacity-30"
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)' }}
+        aria-hidden
+      />
+
+      <div className="relative px-5 pt-5 pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-uber-green/15 border border-uber-green/25 shrink-0">
+              <Wallet className="h-4 w-4 text-uber-green" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/80 uppercase tracking-wider">
+                Payout balance
+              </p>
+              <motion.p
+                key={balance}
+                initial={justUpdated ? { scale: 1.05, opacity: 0.9 } : false}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className={`text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-white ${
+                  justUpdated ? 'text-uber-green' : ''
+                }`}
+              >
+                ₹{balance.toLocaleString('en-IN')}
+              </motion.p>
+            </div>
+          </div>
+          {showAction && (
+            <Link
+              href="/dashboard/wallet"
+              className="shrink-0 flex items-center gap-1 rounded-full bg-black/30 hover:bg-black/40 border border-white/10 px-3 py-2 text-xs font-medium text-white/90 transition-colors"
+            >
+              Details
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
         </div>
-        <motion.p
-          key={balance}
-          initial={{ scale: 1.05, opacity: 0.9 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className={`text-3xl font-bold tabular-nums tracking-tight text-white ${
-            justUpdated ? 'text-uber-green' : ''
-          }`}
-        >
-          ₹{balance.toLocaleString('en-IN')}
-        </motion.p>
+
         {weeklyChange !== 0 && (
-          <p className="text-xs font-medium mt-1 text-uber-green/90">
+          <p className="text-xs font-medium mt-2 text-white/70">
             {weeklyChange > 0 ? '+' : ''}₹{weeklyChange.toLocaleString('en-IN')} this week
           </p>
         )}
+
         <div className="mt-3 min-h-[28px]">
           <Sparkline values={spark} />
         </div>

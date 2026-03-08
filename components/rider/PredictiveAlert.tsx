@@ -59,17 +59,17 @@ export function PredictiveAlert() {
   if (!alert) return null;
 
   return (
-    <div className="rounded-[20px] border border-uber-orange/20 bg-uber-orange/5 overflow-hidden">
+    <div className="rounded-2xl border border-uber-orange/20 bg-uber-orange/5 overflow-hidden">
       <div className="h-0.5 bg-gradient-to-r from-uber-orange/60 via-uber-orange/30 to-transparent" />
-      <div className="flex items-start gap-3 p-4">
-        <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-uber-orange/12 shrink-0 mt-0.5">
-          <ShieldAlert className="text-uber-orange" style={{ width: 16, height: 16 }} />
+      <div className="flex items-start gap-2.5 px-3 py-3">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-uber-orange/12 shrink-0 mt-0.5">
+          <ShieldAlert className="h-4 w-4 text-uber-orange" />
         </div>
-        <div>
-          <p className="text-[10px] font-bold text-uber-orange/80 uppercase tracking-[0.12em] mb-1">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-uber-orange/80 uppercase tracking-wider mb-0.5">
             Risk alert
           </p>
-          <p className="text-[13px] text-uber-orange/90 leading-[1.55]">{alert}</p>
+          <p className="text-[12px] text-uber-orange/90 leading-snug">{alert}</p>
         </div>
       </div>
     </div>

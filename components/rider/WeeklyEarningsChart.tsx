@@ -37,38 +37,31 @@ export function WeeklyEarningsChart({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15, duration: 0.35 }}
+      transition={{ delay: 0.12, duration: 0.3 }}
       className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden"
     >
-      <div className="px-5 pt-5 pb-2 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-zinc-200">
+      <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
+        <h3 className="text-[12px] font-semibold text-zinc-200">
           Earnings this week
         </h3>
-        <span className="text-sm font-bold text-uber-green tabular-nums">
+        <span className="text-[13px] font-bold text-uber-green tabular-nums">
           ₹{total.toLocaleString('en-IN')}
         </span>
       </div>
-      <div className="w-full min-w-0 h-[180px] px-3 pb-4">
+      <div className="w-full min-w-0 h-[160px] px-3 pb-3">
         {!hasData ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+          <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-4">
             <p className="text-[13px] text-zinc-400 font-medium">
               No earnings this week yet
             </p>
-            <p className="text-[11px] text-zinc-500 max-w-[200px]">
+            <p className="text-[11px] text-zinc-500 max-w-[220px] leading-relaxed">
               Payouts will appear here when disruptions trigger in your zone
             </p>
-            <div className="flex gap-1.5 mt-2">
-              {DAY_LABELS.map((d) => (
-                <div
-                  key={d}
-                  className="w-6 h-8 rounded-t bg-white/5"
-                  title={d}
-                  aria-hidden
-                />
-              ))}
-            </div>
+            <p className="text-[10px] text-zinc-600 mt-1">
+              Mon · Tue · Wed · Thu · Fri · Sat · Sun
+            </p>
           </div>
         ) : (
           <ResponsiveContainer

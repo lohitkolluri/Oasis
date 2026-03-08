@@ -62,7 +62,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* Hair-line divider */}
         <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </header>
-      <main className="max-w-xl mx-auto px-4 py-5 pb-28">{children}</main>
+      <main className="max-w-xl mx-auto px-4 py-4 pb-24">{children}</main>
       <BottomNav />
     </div>
   );

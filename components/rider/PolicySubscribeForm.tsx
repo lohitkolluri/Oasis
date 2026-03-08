@@ -6,10 +6,12 @@ import { createClient } from '@/lib/supabase/client';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import { Check, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { SubscriptionDetails } from './SubscriptionDetails';
 
 interface PolicySubscribeFormProps {
   profileId: string;
   activePolicy: WeeklyPolicy | null;
+  planName?: string;
   existingPolicies: WeeklyPolicy[];
   plans: PlanPackage[];
   suggestedPremium?: number;
@@ -34,6 +36,7 @@ function getNextWeekDates() {
 export function PolicySubscribeForm({
   profileId,
   activePolicy,
+  planName: planNameProp = 'Weekly plan',
   existingPolicies,
   plans,
   suggestedPremium = 99,
@@ -129,17 +132,10 @@ export function PolicySubscribeForm({
 
   if (activePolicy) {
     return (
-      <Card variant="elevated" padding="lg">
-        <p className="text-zinc-300">
-          You have active coverage for{' '}
-          <strong>
-            {formatDate(activePolicy.week_start_date)} – {formatDate(activePolicy.week_end_date)}
-          </strong>
-        </p>
-        <p className="text-sm text-zinc-500">
-          Weekly premium: ₹{Number(activePolicy.weekly_premium_inr).toLocaleString()}
-        </p>
-      </Card>
+      <SubscriptionDetails
+        policy={activePolicy}
+        planName={planNameProp}
+      />
     );
   }
 

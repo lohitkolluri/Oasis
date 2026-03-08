@@ -1,7 +1,7 @@
 import { AdminInsights } from '@/components/admin/AdminInsights';
 import { RunAdjudicatorButton } from '@/components/admin/RunAdjudicatorButton';
-import { StatCard } from '@/components/admin/StatCard';
 import { SystemHealth } from '@/components/admin/SystemHealth';
+import { KPICard } from '@/components/ui/KPICard';
 import { getNextWeekPrediction } from '@/lib/ml/next-week-risk';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -127,34 +127,35 @@ export default async function AdminDashboardPage() {
       <section>
         <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">Key Metrics</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Weekly Premiums"
+          <KPICard
+            title="Weekly Premiums"
+            label="Collected"
             value={`₹${totalPremiums.toLocaleString('en-IN')}`}
-            icon="TrendingUp"
             accent="cyan"
-            delay={0}
+            index={0}
           />
-          <StatCard
-            label="Active Riders"
+          <KPICard
+            title="Active Riders"
+            count={ridersCount ?? 0}
+            label="Registered"
             value={ridersCount ?? 0}
-            icon="Users"
             accent="violet"
-            delay={0.05}
+            index={1}
           />
-          <StatCard
-            label="Policies Active"
+          <KPICard
+            title="Policies Active"
+            count={activePoliciesCount}
+            label="This week"
             value={activePoliciesCount}
-            icon="FileCheck"
-            accent="default"
-            delay={0.1}
+            accent="blue"
+            index={2}
           />
-          <StatCard
-            label="Loss Ratio"
+          <KPICard
+            title="Loss Ratio"
+            label={Number(lossRatio) > 80 ? 'Above threshold' : 'Within range'}
             value={`${lossRatio}%`}
-            icon="TrendingUp"
-            accent={Number(lossRatio) > 80 ? 'amber' : 'default'}
-            delay={0.15}
-            subtext={Number(lossRatio) > 80 ? 'Above threshold' : 'Within range'}
+            accent={Number(lossRatio) > 80 ? 'amber' : 'emerald'}
+            index={3}
           />
         </div>
       </section>

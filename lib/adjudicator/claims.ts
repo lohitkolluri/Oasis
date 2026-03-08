@@ -167,7 +167,9 @@ export async function processClaimsForEvent(
         eventId,
         undefined,
       );
-      // Payout only after rider verifies location (see verify-location API)
+      // Payout: rider must verify location (see verify-location API). When the app is open
+      // on mobile, RealtimeNotifications auto-requests GPS and POSTs to verify-location so
+      // payout can be processed without the rider tapping "Verify". Otherwise they verify manually.
 
       const eventLabel =
         candidate.subtype === 'extreme_heat'

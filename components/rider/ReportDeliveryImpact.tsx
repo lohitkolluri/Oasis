@@ -10,12 +10,15 @@ export interface ReportDeliveryImpactProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   renderTrigger?: boolean;
+  /** Optional class for the trigger button when renderTrigger is true */
+  triggerClassName?: string;
 }
 
 export function ReportDeliveryImpact({
   open: controlledOpen,
   onOpenChange,
   renderTrigger = true,
+  triggerClassName,
 }: ReportDeliveryImpactProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined && onOpenChange != null;
@@ -158,9 +161,9 @@ export function ReportDeliveryImpact({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-uber-yellow/40 bg-uber-yellow/10 px-4 py-2 text-sm font-medium text-uber-yellow/90 hover:bg-uber-yellow/20 transition-colors"
+          className={`inline-flex items-center justify-center gap-2.5 rounded-xl border-2 border-uber-yellow/50 bg-uber-yellow/15 px-4 py-3 text-sm font-semibold text-uber-yellow active:scale-[0.98] hover:bg-uber-yellow/25 transition-colors ${triggerClassName ?? ""}`}
         >
-          <Flag className="h-4 w-4" />
+          <Flag className="h-4 w-4 shrink-0" />
           Report delivery issue
         </button>
       )}

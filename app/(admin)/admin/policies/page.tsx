@@ -1,3 +1,4 @@
+import { KPICard } from '@/components/ui/KPICard';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ArrowLeft, ChevronRight, FileCheck, Shield } from 'lucide-react';
 import Link from 'next/link';
@@ -54,21 +55,29 @@ export default async function AdminPoliciesPage() {
 
       {/* Summary metrics */}
       <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: 'Active Policies', value: activeCount, color: 'text-[#7dd3fc]', barColor: '#7dd3fc' },
-          { label: 'Total Premium (active)', value: `₹${activePremium.toLocaleString('en-IN')}`, color: 'text-[#22c55e]', barColor: '#22c55e' },
-          { label: 'Plans in Use', value: plansInUse, color: 'text-white', barColor: '#a78bfa' },
-        ].map((m, i) => (
-          <div
-            key={m.label}
-            className="bg-[#161616] border border-[#2d2d2d] rounded-2xl p-5 overflow-hidden relative"
-            style={{ animationDelay: `${i * 0.05}s` }}
-          >
-            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `${m.barColor}40` }} />
-            <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">{m.label}</p>
-            <p className={`text-3xl font-bold tabular-nums tracking-tight ${m.color}`}>{m.value}</p>
-          </div>
-        ))}
+        <KPICard
+          title="Active Policies"
+          count={activeCount}
+          label="Current"
+          value={activeCount}
+          accent="cyan"
+          index={0}
+        />
+        <KPICard
+          title="Total Premium"
+          label="Active policies"
+          value={`₹${activePremium.toLocaleString('en-IN')}`}
+          accent="emerald"
+          index={1}
+        />
+        <KPICard
+          title="Plans in Use"
+          count={plansInUse}
+          label="Distinct plans"
+          value={plansInUse}
+          accent="violet"
+          index={2}
+        />
       </div>
 
       {/* Policies list */}
