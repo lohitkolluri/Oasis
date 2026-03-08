@@ -187,7 +187,12 @@ export async function checkNewsTriggers(
                 type: 'social',
                 subtype: 'zone_curfew',
                 severity: parsed.severity ?? 7,
-                geofence,
+                geofence: {
+                  lat: geofence.lat,
+                  lng: geofence.lng,
+                  radius_km: geofence.radius_km,
+                  type: 'circle',
+                },
                 raw: { articles, llm: parsed, trigger: 'zone_curfew' },
               });
             }
