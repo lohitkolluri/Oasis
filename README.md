@@ -25,7 +25,6 @@ Full developer documentation is in the [`/docs`](./docs) folder (Astro Starlight
 | [Deployment](./docs/src/content/docs/deployment.md)                   | Vercel deployment, cron setup            |
 | [Payments (Stripe)](./docs/PAYMENTS.md)                               | Stripe-only; Razorpay deprecated         |
 | [Realtime triggers](./docs/REALTIME-TRIGGERS.md)                     | Webhook + 15-min cron for adjudicator    |
-| [Refactoring roadmap](./docs/REFACTORING-ROADMAP.md)                 | Phased plan for production-grade quality |
 | [Supabase Integrations](./docs/src/content/docs/features/supabase-integrations.md) | Cron, Queues, Stripe options            |
 
 To run the docs site locally:

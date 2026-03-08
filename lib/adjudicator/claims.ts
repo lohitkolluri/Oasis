@@ -14,8 +14,12 @@ import type {
   SupabaseAdmin,
   TriggerCandidate,
 } from '@/lib/adjudicator/types';
-import { simulatePayout } from '@/lib/adjudicator/payouts';
-import { toDateString } from '@/lib/utils/date';
+import { addDays, toDateString } from '@/lib/utils/date';
+
+export interface ProcessClaimsOptions {
+  /** When set (demo), only this profile gets the claim/payout; zone check is skipped for them. */
+  restrictToProfileId?: string;
+}
 
 /**
  * Match policies in geofence, run fraud checks, create claims and record payouts.
@@ -25,6 +29,7 @@ export async function processClaimsForEvent(
   supabase: SupabaseAdmin,
   eventId: string,
   candidate: TriggerCandidate,
+  options?: ProcessClaimsOptions,
 ): Promise<ProcessTriggerResult> {
   const today = toDateString(new Date());
   const geofence = candidate.geofence;
@@ -32,15 +37,26 @@ export async function processClaimsForEvent(
   const eventLng = geofence?.lng ?? DEFAULT_ZONE.lng;
   const radiusKm =
     geofence?.radius_km ?? TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM;
+  const restrictToProfileId = options?.restrictToProfileId;
 
-  const { data: policies } = await supabase
+  // Policies are often created for "next week" (Mon–Sun). For normal runs we require today in [week_start, week_end].
+  // For demo with a selected rider, also include "next week" policies: week_start <= today+7, week_end >= today.
+  const weekStartUpper = restrictToProfileId ? addDays(today, 7) : today;
+
+  let query = supabase
     .from('weekly_policies')
     .select(
       'id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)',
     )
     .eq('is_active', true)
-    .lte('week_start_date', today)
+    .lte('week_start_date', weekStartUpper)
     .gte('week_end_date', today);
+
+  if (restrictToProfileId) {
+    query = query.eq('profile_id', restrictToProfileId);
+  }
+
+  const { data: policies } = await query;
 
   if (!policies || policies.length === 0) {
     return { claimsCreated: 0, payoutsInitiated: 0, eventId };
@@ -102,7 +118,7 @@ export async function processClaimsForEvent(
     const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
     const profile = profileMap.get(policy.profile_id);
-    if (profile?.lat != null && profile?.lng != null) {
+    if (!restrictToProfileId && profile?.lat != null && profile?.lng != null) {
       if (
         !isWithinCircle(
           profile.lat,
@@ -130,18 +146,13 @@ export async function processClaimsForEvent(
     );
     if (isFlagged) continue;
 
-    const txId = `oasis_payout_${Date.now()}_${policy.id.slice(0, 8)}_${Math.random()
-      .toString(36)
-      .slice(2, 7)}`;
-
     const { data: claimData, error: claimErr } = await supabase
       .from('parametric_claims')
       .insert({
         policy_id: policy.id,
         disruption_event_id: eventId,
         payout_amount_inr: payoutAmount,
-        status: 'paid',
-        gateway_transaction_id: txId,
+        status: 'pending_verification',
         is_flagged: false,
       })
       .select('id')
@@ -156,14 +167,30 @@ export async function processClaimsForEvent(
         eventId,
         undefined,
       );
-      const payoutOk = await simulatePayout(
-        supabase,
-        claimData.id,
-        policy.profile_id,
-        payoutAmount,
-      );
-      if (payoutOk) payoutsInitiated++;
-      else payoutFailures++;
+      // Payout only after rider verifies location (see verify-location API)
+
+      const eventLabel =
+        candidate.subtype === 'extreme_heat'
+          ? 'Extreme heat'
+          : candidate.subtype === 'heavy_rain'
+            ? 'Heavy rain'
+            : candidate.subtype === 'severe_aqi'
+              ? 'Severe AQI'
+              : candidate.subtype === 'zone_curfew'
+                ? 'Zone curfew'
+                : candidate.subtype === 'traffic_gridlock'
+                  ? 'Traffic gridlock'
+                  : 'Disruption';
+      const { error: notifErr } = await supabase.from('rider_notifications').insert({
+        profile_id: policy.profile_id,
+        title: `Claim created — verify location`,
+        body: `${eventLabel} in your zone. Verify your location in the app to receive ₹${payoutAmount}.`,
+        type: 'payout',
+        metadata: { claim_id: claimData.id, amount_inr: payoutAmount, subtype: candidate.subtype },
+      });
+      if (notifErr) {
+        // Table may not exist yet or RLS; don't fail the claim
+      }
     }
   }
 

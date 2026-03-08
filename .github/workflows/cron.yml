@@ -27,6 +27,16 @@ jobs:
       github.event.schedule == '*/15 * * * *' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'adjudicator')
     steps:
+      - name: Check cron secrets
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL is not set. Add it in repo Settings → Secrets and variables → Actions (e.g. https://your-app.vercel.app)"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET is not set. Add it in repo Settings → Secrets and variables → Actions (same value as in Vercel env)."
+            exit 1
+          fi
       - name: Run adjudicator
         run: |
           curl -sf --max-time 120 -X GET "${{ secrets.APP_URL }}/api/cron/adjudicator" \
@@ -40,6 +50,16 @@ jobs:
       github.event.schedule == '30 17 * * 0' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'weekly-premium')
     steps:
+      - name: Check cron secrets
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL is not set. Add it in repo Settings → Secrets and variables → Actions (e.g. https://your-app.vercel.app)"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET is not set. Add it in repo Settings → Secrets and variables → Actions (same value as in Vercel env)."
+            exit 1
+          fi
       # Route maxDuration = 120; use 130 so client does not kill the request before server completes
       - name: Run weekly premium renewal
         run: |

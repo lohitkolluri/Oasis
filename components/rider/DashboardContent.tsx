@@ -5,7 +5,6 @@ import { Avatar } from '@/components/ui/Avatar';
 import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import type { User } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { PlatformStatus } from './PlatformStatus';
 import { PolicyCard } from './PolicyCard';
 import { PolicyDocumentsLink } from './PolicyDocumentsLink';
 import { PredictiveAlert } from './PredictiveAlert';
@@ -143,8 +142,7 @@ export function DashboardContent({
         />
       </motion.div>
 
-      {/* Platform status & predictive alert */}
-      <PlatformStatus />
+      {/* Predictive alert */}
       <motion.div variants={item}>
         <PredictiveAlert />
       </motion.div>

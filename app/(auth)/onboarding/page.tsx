@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { createClient } from '@/lib/supabase/client';
 import type { PlatformType } from '@/lib/types/database';
+import { isMobileForGps } from '@/lib/utils/device';
 import { gooeyToast } from 'goey-toast';
 import {
   ArrowLeft,
@@ -66,6 +67,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>('idle');
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>('idle');
+  const [locationRequesting, setLocationRequesting] = useState(false);
+  const [cameraRequesting, setCameraRequesting] = useState(false);
   const [isSecureContext, setIsSecureContext] = useState(true);
   const [gesture, setGesture] = useState<string | null>(null);
   const [showFaceCamera, setShowFaceCamera] = useState(false);
@@ -119,6 +122,10 @@ export default function OnboardingPage() {
   async function prefillZoneFromCurrentLocation() {
     if (zoneLat != null || zoneLng != null || zone.trim().length > 0) return;
     if (typeof window === 'undefined' || !navigator.geolocation) return;
+    if (!isMobileForGps(navigator.userAgent)) {
+      gooeyToast.info('Use a mobile device to set your zone from current location.');
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -167,10 +174,21 @@ export default function OnboardingPage() {
       setLocationStatus('unavailable');
       return;
     }
-    setLocationStatus('idle');
+    if (!isMobileForGps(navigator.userAgent)) {
+      setLocationStatus('unavailable');
+      gooeyToast.info('Location is only used on mobile for precise zone. Use a phone to set your zone.');
+      return;
+    }
+    setLocationRequesting(true);
     navigator.geolocation.getCurrentPosition(
-      () => setLocationStatus('granted'),
-      () => setLocationStatus('denied'),
+      () => {
+        setLocationStatus('granted');
+        setLocationRequesting(false);
+      },
+      () => {
+        setLocationStatus('denied');
+        setLocationRequesting(false);
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   }
@@ -180,13 +198,15 @@ export default function OnboardingPage() {
       setCameraStatus('unavailable');
       return;
     }
-    setCameraStatus('idle');
+    setCameraRequesting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach((t) => t.stop());
       setCameraStatus('granted');
     } catch {
       setCameraStatus('denied');
+    } finally {
+      setCameraRequesting(false);
     }
   }
 
@@ -851,8 +871,8 @@ export default function OnboardingPage() {
                 </div>
               )}
               <p className="text-xs text-zinc-400 text-center">
-                Click each button below. Your browser will show a permission prompt check the
-                address bar (lock icon) or a small popup window.
+                Click each button below. Your browser will show a permission prompt — check the
+                address bar (lock icon) or a small popup.
               </p>
               <div className="space-y-4">
                 <div className="rounded-xl border border-zinc-700 bg-zinc-900/50 p-4 space-y-3">
@@ -872,11 +892,11 @@ export default function OnboardingPage() {
                         disabled={
                           !isSecureContext ||
                           locationStatus === 'granted' ||
-                          locationStatus === 'idle'
+                          locationRequesting
                         }
                         className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-800/80 disabled:opacity-60"
                       >
-                        {locationStatus === 'idle'
+                        {locationRequesting
                           ? 'Requesting…'
                           : locationStatus === 'granted'
                             ? 'Granted'
@@ -909,11 +929,11 @@ export default function OnboardingPage() {
                         disabled={
                           !isSecureContext ||
                           cameraStatus === 'granted' ||
-                          cameraStatus === 'idle'
+                          cameraRequesting
                         }
                         className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-800/80 disabled:opacity-60"
                       >
-                        {cameraStatus === 'idle'
+                        {cameraRequesting
                           ? 'Requesting…'
                           : cameraStatus === 'granted'
                             ? 'Granted'
@@ -930,6 +950,11 @@ export default function OnboardingPage() {
                   </div>
                 </div>
               </div>
+              {typeof navigator !== 'undefined' && !isMobileForGps(navigator.userAgent) && (
+                <p className="text-xs text-amber-400/90 text-center rounded-lg bg-amber-500/10 border border-amber-500/30 p-2">
+                  Zone and location work best on a mobile device. You can continue and set your zone manually (e.g. search).
+                </p>
+              )}
               <p className="text-xs text-zinc-500 text-center">
                 You can change these later in your browser or device settings. Continuing without
                 granting may limit some features (e.g. “Use current location”, camera capture).
@@ -1275,8 +1300,8 @@ export default function OnboardingPage() {
                   {!faceVerified && !faceVerifying && (
                     <div className="space-y-3">
                       {gesture && (
-                        <p className="text-sm text-zinc-300 bg-zinc-800/60 rounded-lg px-3 py-2">
-                          <span className="text-uber-green-400 font-medium">Do this:</span> {gesture}
+                        <p className="text-sm text-zinc-200 bg-zinc-800/80 rounded-lg px-3 py-2.5 border border-zinc-700/60">
+                          <span className="text-uber-green-400 font-semibold">Do this:</span> {gesture}
                         </p>
                       )}
                       {!showFaceCamera ? (
@@ -1290,32 +1315,47 @@ export default function OnboardingPage() {
                           Capture face
                         </button>
                       ) : (
-                        <div className="rounded-lg overflow-hidden border border-zinc-700 relative">
-                          <video
-                            ref={faceVideoRef}
-                            className="w-full bg-black aspect-[3/4] object-cover"
-                            style={{ transform: 'scaleX(-1)' }}
-                            autoPlay
-                            playsInline
-                            muted
-                          />
-                          <div
-                            className="absolute inset-0 pointer-events-none flex items-center justify-center"
-                            aria-hidden
-                          >
-                            <div className="w-44 h-56 rounded-[40%] border-2 border-uber-green-500/60 border-dashed" />
+                        <div className="rounded-xl overflow-hidden border border-zinc-600 bg-zinc-900/80 shadow-lg shadow-black/30 relative">
+                          {/* Camera area: square aspect, max height so it's not too long */}
+                          <div className="relative w-full max-h-[min(72vw,280px)] aspect-square mx-auto bg-black">
+                            <video
+                              ref={faceVideoRef}
+                              className="w-full h-full object-cover"
+                              style={{ transform: 'scaleX(-1)' }}
+                              autoPlay
+                              playsInline
+                              muted
+                            />
+                            {/* Ring light effect: soft bright ring around face area */}
+                            <div
+                              className="absolute inset-0 pointer-events-none"
+                              aria-hidden
+                              style={{
+                                background: 'radial-gradient(circle at center, transparent 28%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0.08) 48%, transparent 58%)',
+                              }}
+                            />
+                            {/* Face alignment guide: circular, with subtle glow */}
+                            <div
+                              className="absolute inset-0 pointer-events-none flex items-center justify-center"
+                              aria-hidden
+                            >
+                              <div
+                                className="w-[72%] max-w-[200px] aspect-square rounded-full border-2 border-uber-green-400/80 border-dashed"
+                                style={{ boxShadow: '0 0 0 1px rgba(16,185,129,0.2), 0 0 28px rgba(16,185,129,0.25)' }}
+                              />
+                            </div>
                           </div>
                           {faceCameraError && (
-                            <p className="text-xs text-red-400 px-3 py-2">{faceCameraError}</p>
+                            <p className="text-xs text-red-400 px-3 py-2 bg-red-950/30">{faceCameraError}</p>
                           )}
-                          <div className="px-3 py-2 bg-zinc-900 flex items-center justify-between">
-                            <span className="text-[11px] text-zinc-400">
+                          <div className="px-3 py-2.5 bg-zinc-800/90 flex items-center justify-between border-t border-zinc-700/80">
+                            <span className="text-xs text-zinc-300">
                               Align face in the frame. Must be a live selfie.
                             </span>
                             <button
                               type="button"
                               onClick={captureFacePhoto}
-                              className="text-xs px-3 py-1.5 rounded-full bg-uber-green-500 text-black font-medium hover:bg-uber-green-400"
+                              className="text-xs px-4 py-2 rounded-lg bg-uber-green-500 text-white font-semibold hover:bg-uber-green-400 active:scale-[0.98] shadow-md shadow-uber-green-500/20 transition-all"
                             >
                               Capture
                             </button>
@@ -1323,7 +1363,7 @@ export default function OnboardingPage() {
                           <button
                             type="button"
                             onClick={stopFaceCamera}
-                            className="w-full py-1.5 text-xs text-zinc-500 hover:text-zinc-400"
+                            className="w-full py-2 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
                           >
                             Cancel
                           </button>

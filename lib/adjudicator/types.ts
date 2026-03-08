@@ -37,6 +37,8 @@ export interface DemoTriggerOptions {
   lng: number;
   radiusKm?: number;
   severity?: number;
+  /** When set, only this rider (profile_id) gets the claim/payout; zone check is skipped for them. */
+  riderId?: string;
 }
 
 export interface TriggerCandidate {

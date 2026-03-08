@@ -5,10 +5,13 @@
  * Fixes applied:
  *  - Uses shared isWithinCircle from lib/utils/geo (was duplicated)
  *  - Rejects verifications submitted more than 24 hours after claim creation
+ *  - Only accepts requests from mobile user-agents for precise location
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { simulatePayout } from "@/lib/adjudicator/payouts";
+import { isMobileForGps } from "@/lib/utils/device";
 import { isWithinCircle } from "@/lib/utils/geo";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +29,14 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userAgent = request.headers.get("user-agent") ?? "";
+  if (!isMobileForGps(userAgent)) {
+    return NextResponse.json(
+      { error: "Use a mobile device for precise location verification." },
+      { status: 403 }
+    );
   }
 
   let claimId: string | null = null;
@@ -61,7 +72,7 @@ export async function POST(request: Request) {
 
   const { data: claim } = await supabase
     .from("parametric_claims")
-    .select("id, policy_id, disruption_event_id, created_at")
+    .select("id, policy_id, disruption_event_id, created_at, status, payout_amount_inr")
     .eq("id", claimId)
     .single();
 
@@ -91,7 +102,7 @@ export async function POST(request: Request) {
 
   const { data: event } = await supabase
     .from("live_disruption_events")
-    .select("geofence_polygon")
+    .select("geofence_polygon, raw_api_data")
     .eq("id", claim.disruption_event_id)
     .single();
 
@@ -99,6 +110,8 @@ export async function POST(request: Request) {
   const centerLat = gf?.lat ?? 12.9716;
   const centerLng = gf?.lng ?? 77.5946;
   const radiusKm = gf?.radius_km ?? 10;
+  const raw = event?.raw_api_data as { demo?: boolean; source?: string } | undefined;
+  const isDemoEvent = raw?.demo === true || raw?.source === "admin_demo_mode";
 
   const inside = isWithinCircle(lat, lng, centerLat, centerLng, radiusKm);
   const status = inside ? "inside_geofence" : "outside_geofence";
@@ -140,8 +153,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  if (status === "outside_geofence") {
-    const admin = createAdminClient();
+  const admin = createAdminClient();
+  if (isDemoEvent) {
+    await admin
+      .from("parametric_claims")
+      .update({ is_flagged: false, flag_reason: null })
+      .eq("id", claimId);
+  } else if (status === "outside_geofence") {
     await admin
       .from("parametric_claims")
       .update({
@@ -151,9 +169,29 @@ export async function POST(request: Request) {
       .eq("id", claimId);
   }
 
+  // Payout only after location verification (inside_geofence); prevents scam
+  let payoutInitiated = false;
+  if (inside && claim?.status === "pending_verification" && policy?.profile_id) {
+    const amountInr = claim.payout_amount_inr != null ? Number(claim.payout_amount_inr) : 400;
+    const txId = `oasis_verify_${Date.now()}_${claimId.slice(0, 8)}_${Math.random().toString(36).slice(2, 8)}`;
+    const payoutOk = await simulatePayout(admin, claimId, policy.profile_id, amountInr);
+    if (payoutOk) {
+      await admin
+        .from("parametric_claims")
+        .update({ status: "paid", gateway_transaction_id: txId })
+        .eq("id", claimId);
+      payoutInitiated = true;
+    }
+  }
+
   return NextResponse.json({
     verified: true,
     status,
-    message: inside ? "Location verified inside zone" : "Location recorded (outside zone)",
+    payout_initiated: payoutInitiated,
+    message: inside
+      ? payoutInitiated
+        ? "Location verified. Payout credited to your wallet."
+        : "Location verified inside zone"
+      : "Location recorded (outside zone)",
   });
 }

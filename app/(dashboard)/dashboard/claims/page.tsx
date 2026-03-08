@@ -214,9 +214,12 @@ export default async function ClaimsHistoryPage() {
 
                     {/* Flagged notice */}
                     {claim.is_flagged && claim.flag_reason && (
-                      <div className="mt-2 rounded-[10px] bg-uber-yellow/8 border border-uber-yellow/15 px-3 py-2">
+                      <div className="mt-2 rounded-[10px] bg-uber-yellow/8 border border-uber-yellow/15 px-3 py-2 space-y-1">
                         <p className="text-[11px] text-uber-yellow font-medium">
                           Under review: {claim.flag_reason}
+                        </p>
+                        <p className="text-[10px] text-zinc-400">
+                          Re-verify your location from the Dashboard (Recent Payouts) or contact support for payout.
                         </p>
                       </div>
                     )}

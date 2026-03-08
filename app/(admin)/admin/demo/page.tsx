@@ -6,12 +6,26 @@ import Link from 'next/link';
 export default async function AdminDemoPage() {
   const supabase = createAdminClient();
 
-  const { data: demoRuns } = await supabase
-    .from('system_logs')
-    .select('id, created_at, metadata')
-    .eq('event_type', 'adjudicator_demo')
-    .order('created_at', { ascending: false })
-    .limit(20);
+  const [{ data: demoRuns }, { data: riders }] = await Promise.all([
+    supabase
+      .from('system_logs')
+      .select('id, created_at, metadata')
+      .eq('event_type', 'adjudicator_demo')
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase
+      .from('profiles')
+      .select('id, full_name, phone_number, platform')
+      .or('role.eq.rider,role.is.null')
+      .order('full_name'),
+  ]);
+
+  const riderList = (riders ?? []).map((r) => ({
+    id: r.id,
+    full_name: r.full_name ?? 'Unknown',
+    phone_number: r.phone_number ?? null,
+    platform: r.platform ?? null,
+  }));
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleString('en-IN', {
@@ -45,7 +59,7 @@ export default async function AdminDemoPage() {
         </p>
       </div>
 
-      <DemoTriggerPanel />
+      <DemoTriggerPanel riders={riderList} />
 
       {/* Recent demo runs */}
       <div>

@@ -37,6 +37,7 @@ export const demoTriggerSchema = z.object({
   lng: z.number().min(-180).max(180),
   radiusKm: z.number().min(0.1).max(100).optional(),
   severity: z.number().min(1).max(10).optional(),
+  riderId: z.string().uuid().optional(),
 });
 
 export const reviewClaimSchema = z.object({

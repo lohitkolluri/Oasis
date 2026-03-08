@@ -13,7 +13,7 @@ export function ReportDeliverySection() {
             <Flag className="text-uber-yellow" style={{ width: 14, height: 14 }} />
           </div>
           <p className="text-[13px] font-semibold text-zinc-300">
-            Trouble delivering in your zone?
+            Report delivery issue
           </p>
         </div>
         <ReportDeliveryImpact />

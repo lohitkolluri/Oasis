@@ -1,4 +1,5 @@
 import { BottomNav } from '@/components/rider/BottomNav';
+import { RealtimeNotifications } from '@/components/rider/RealtimeNotifications';
 import { Avatar } from '@/components/ui/Avatar';
 import { Logo } from '@/components/ui/Logo';
 import { createClient } from '@/lib/supabase/server';
@@ -30,6 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-black">
+      <RealtimeNotifications profileId={user.id} />
       {/* Top App Bar — Uber black */}
       <header className="sticky top-0 z-10 bg-black/95 backdrop-blur-2xl">
         <div className="max-w-xl mx-auto px-4 h-14 flex items-center justify-between">

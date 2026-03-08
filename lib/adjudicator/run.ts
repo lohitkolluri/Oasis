@@ -12,6 +12,7 @@ import { isWithinCircle } from '@/lib/utils/geo';
 import { getActiveZones } from '@/lib/adjudicator/zones';
 import { checkWeatherTriggers } from '@/lib/adjudicator/triggers/weather';
 import { checkNewsTriggers } from '@/lib/adjudicator/triggers/news';
+import { checkTrafficTriggers } from '@/lib/adjudicator/triggers/traffic';
 import { isDuplicateEvent, insertDisruptionEvent } from '@/lib/adjudicator/events';
 import { processClaimsForEvent } from '@/lib/adjudicator/claims';
 import { logRun } from '@/lib/adjudicator/payouts';
@@ -30,9 +31,9 @@ const BATCH_SIZE = 5;
 export async function processSingleTrigger(
   supabase: ReturnType<typeof createAdminClient>,
   candidate: TriggerCandidate,
-  options: { skipIdempotency?: boolean } = {},
+  options: { skipIdempotency?: boolean; restrictToProfileId?: string } = {},
 ): Promise<ProcessTriggerResult> {
-  const { skipIdempotency = false } = options;
+  const { skipIdempotency = false, restrictToProfileId } = options;
 
   if (!skipIdempotency && (await isDuplicateEvent(supabase, candidate))) {
     return { claimsCreated: 0, payoutsInitiated: 0 };
@@ -41,7 +42,9 @@ export async function processSingleTrigger(
   const event = await insertDisruptionEvent(supabase, candidate);
   if (!event) return { claimsCreated: 0, payoutsInitiated: 0 };
 
-  return processClaimsForEvent(supabase, event.id, candidate);
+  return processClaimsForEvent(supabase, event.id, candidate, {
+    ...(restrictToProfileId && { restrictToProfileId }),
+  });
 }
 
 export async function runAdjudicator(
@@ -55,6 +58,7 @@ export async function runAdjudicator(
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const newsDataKey = process.env.NEWSDATA_IO_API_KEY;
   const waqiKey = process.env.WAQI_API_KEY;
+  const tomtomKey = process.env.TOMTOM_API_KEY;
 
   let allCandidates: TriggerCandidate[] = [];
   let zonesChecked = 0;
@@ -93,9 +97,13 @@ export async function runAdjudicator(
     for (let i = 0; i < zones.length; i += BATCH_SIZE) {
       const batch = zones.slice(i, i + BATCH_SIZE);
       const results = await Promise.all(
-        batch.map((z) =>
-          checkWeatherTriggers(z, tomorrowKey, waqiKey),
-        ),
+        batch.map(async (z) => {
+          const [weatherCandidates, trafficCandidates] = await Promise.all([
+            checkWeatherTriggers(z, tomorrowKey, waqiKey),
+            checkTrafficTriggers(z, tomtomKey),
+          ]);
+          return [...weatherCandidates, ...trafficCandidates];
+        }),
       );
       const radiusKm = TRIGGERS.CANDIDATE_DEDUPE_RADIUS_KM;
       for (const zoneCandidates of results) {
@@ -139,13 +147,15 @@ export async function runAdjudicator(
   let payoutFailures = 0;
 
   const concurrency = ADJUDICATOR.TRIGGER_CONCURRENCY;
+  const triggerOptions = {
+    skipIdempotency: !!demoTrigger,
+    restrictToProfileId: demoTrigger?.riderId,
+  };
   for (let i = 0; i < allCandidates.length; i += concurrency) {
     const batch = allCandidates.slice(i, i + concurrency);
     const outcomes = await Promise.all(
       batch.map((candidate) =>
-        processSingleTrigger(supabase, candidate, {
-          skipIdempotency: !!demoTrigger,
-        }),
+        processSingleTrigger(supabase, candidate, triggerOptions),
       ),
     );
     for (const outcome of outcomes) {

@@ -2,9 +2,16 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { gooeyToast } from 'goey-toast';
-import { AlertCircle, CheckCircle, ChevronDown, FlaskConical, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, FlaskConical, Loader2, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+
+export interface DemoRider {
+  id: string;
+  full_name: string;
+  phone_number: string | null;
+  platform: string | null;
+}
 
 type EventSubtype =
   | 'extreme_heat'
@@ -16,6 +23,8 @@ type EventSubtype =
 interface DemoResult {
   candidates_found: number;
   claims_created: number;
+  payouts_initiated?: number;
+  payout_failures?: number;
   zones_checked: number;
   error?: string;
 }
@@ -76,12 +85,22 @@ const PRESETS: Array<{
   },
 ];
 
-export function DemoTriggerPanel() {
+interface DemoTriggerPanelProps {
+  riders?: DemoRider[];
+}
+
+export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(PRESETS[0]);
+  const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
+  const [riderDropdownOpen, setRiderDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DemoResult | null>(null);
+
+  const lat = selected.lat;
+  const lng = selected.lng;
+  const selectedRider = riders.find((r) => r.id === selectedRiderId);
 
   async function handleTrigger() {
     setLoading(true);
@@ -92,10 +111,11 @@ export function DemoTriggerPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eventSubtype: selected.subtype,
-          lat: selected.lat,
-          lng: selected.lng,
+          lat,
+          lng,
           radiusKm: 50,
           severity: 9,
+          ...(selectedRiderId && { riderId: selectedRiderId }),
         }),
       });
       const data = await res.json();
@@ -106,8 +126,10 @@ export function DemoTriggerPanel() {
         return;
       }
       setResult(data);
+      const payouts = data.payouts_initiated ?? 0;
+      const forRider = selectedRider ? ` for ${selectedRider.full_name}` : '';
       gooeyToast.success('Demo completed', {
-        description: `${data.claims_created} payout(s) triggered across ${data.zones_checked} zone(s)`,
+        description: `${data.claims_created} claim(s), ${payouts} payout(s)${forRider}`,
       });
       router.refresh();
     } catch {
@@ -133,13 +155,77 @@ export function DemoTriggerPanel() {
         <FlaskConical className="h-4 w-4 text-[#a78bfa]" />
         <h2 className="font-semibold text-white">Trigger a demo</h2>
       </div>
-      <p className="text-sm text-[#666666] mb-6">
-        Injects a synthetic disruption event and runs the adjudicator to create demo claims.
+      <p className="text-sm text-[#666666] mb-4">
+        Fires a synthetic disruption at the preset location. Choose a rider to trigger the payout
+        for that user only, or leave as “All riders in zone” to find all drivers in the preset
+        area and create claims + notifications.
       </p>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        {/* Dropdown */}
-        <div className="relative flex-1 min-w-0">
+      <div className="space-y-3">
+        {riders.length > 0 && (
+          <div className="relative min-w-0">
+            <label className="block text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em] mb-1.5">
+              Rider (optional)
+            </label>
+            <button
+              type="button"
+              onClick={() => setRiderDropdownOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-[#2d2d2d] bg-[#1e1e1e] text-sm text-[#9ca3af] hover:border-[#3a3a3a] hover:text-white transition-all"
+            >
+              <span className="truncate flex items-center gap-2">
+                <User className="h-4 w-4 text-[#666666] shrink-0" />
+                {selectedRider
+                  ? `${selectedRider.full_name}${selectedRider.platform ? ` (${selectedRider.platform})` : ''}`
+                  : 'All riders in zone'}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-[#666666] shrink-0 transition-transform ${riderDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            <AnimatePresence>
+              {riderDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute z-20 top-full mt-1.5 w-full rounded-2xl border border-[#2d2d2d] bg-[#161616] shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden max-h-48 overflow-y-auto"
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedRiderId(null); setRiderDropdownOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-[#1e1e1e] transition-colors ${!selectedRiderId ? 'bg-[#1e1e1e]' : ''}`}
+                  >
+                    <User className="h-4 w-4 text-[#666666] shrink-0" />
+                    <span className="font-medium text-white">All riders in zone</span>
+                  </button>
+                  {riders.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => { setSelectedRiderId(r.id); setRiderDropdownOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-[#1e1e1e] transition-colors ${selectedRiderId === r.id ? 'bg-[#1e1e1e]' : ''}`}
+                    >
+                      <User className="h-4 w-4 text-[#666666] shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-white truncate">{r.full_name}</p>
+                        <p className="text-xs text-[#666666]">
+                          {[r.platform, r.phone_number].filter(Boolean).join(' · ') || r.id.slice(0, 8)}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <label className="block text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em] mb-1.5">
+              Event type (preset location)
+            </label>
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -207,6 +293,7 @@ export function DemoTriggerPanel() {
           )}
         </button>
       </div>
+      </div>
 
       <AnimatePresence>
         {result && (
@@ -227,7 +314,19 @@ export function DemoTriggerPanel() {
             )}
             {result.error
               ? result.error
-              : `Demo completed. ${result.claims_created} payout(s) triggered across ${result.zones_checked} zone(s)`}
+              : (() => {
+                  const payouts = result.payouts_initiated ?? 0;
+                  const forRider = selectedRider ? ` for ${selectedRider.full_name}` : '';
+                  let msg = `Demo completed. ${result.claims_created} claim(s), ${payouts} payout(s)${forRider}.`;
+                  if (result.claims_created === 0) {
+                    msg += selectedRiderId
+                      ? ' Selected rider has no active policy covering this week (or payment not yet confirmed).'
+                      : ' Ensure at least one rider has an active weekly policy and their zone is within the preset area.';
+                  } else if (payouts === 0) {
+                    msg += ' Payouts not recorded: ensure the payout_ledger table exists (run Supabase migrations).';
+                  }
+                  return msg;
+                })()}
           </motion.div>
         )}
       </AnimatePresence>

@@ -26,6 +26,8 @@ export const TRIGGERS = {
   AQI_EXCESS_MULTIPLIER: 1.4,
   LLM_SEVERITY_THRESHOLD: 6,
   DEFAULT_GEOFENCE_RADIUS_KM: 15,
+  /** Zepto-style single dark-store zone: ~1.5–3 km. Use for hyper-local disruption (one delivery area). See docs/ZEPTO-ZONE-CONTEXT.md. */
+  SINGLE_ZONE_RADIUS_KM: 2,
   /** Radius (km) to consider two events the same for duplicate detection. */
   DUPLICATE_EVENT_RADIUS_KM: 30,
   /** In-memory candidate dedupe: same subtype within this radius = duplicate. */
@@ -34,6 +36,10 @@ export const TRIGGERS = {
   NEWS_GEOFENCE_RADIUS_KM: 20,
   /** News curfew trigger: geofence radius when zone is country-wide (km). */
   NEWS_GEOFENCE_RADIUS_KM_COUNTRY: 50,
+  /** TomTom traffic: currentSpeed/freeFlowSpeed below this = gridlock trigger. */
+  TRAFFIC_CONGESTION_RATIO_THRESHOLD: 0.5,
+  /** TomTom: ignore segment if confidence below this (0–1). */
+  TRAFFIC_MIN_CONFIDENCE: 0.2,
 } as const;
 
 /** Fraud detection thresholds */
@@ -70,4 +76,5 @@ export const EXTERNAL_APIS = {
   CACHE_WEATHER_TTL_MS: 30 * 60 * 1000, // 30 min
   CACHE_AQI_TTL_MS: 60 * 60 * 1000,     // 1 hour
   CACHE_NEWS_TTL_MS: 15 * 60 * 1000,     // 15 min
+  CACHE_TRAFFIC_TTL_MS: 15 * 60 * 1000,  // 15 min (TomTom flow segment)
 } as const;

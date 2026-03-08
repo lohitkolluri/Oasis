@@ -26,7 +26,7 @@ export const POST = withAdminAuth(async (_ctx, request) => {
 
   const parsed = parseWithSchema(demoTriggerSchema, body);
   if (!parsed.success) return parsed.response;
-  const { eventSubtype, lat, lng, radiusKm, severity } = parsed.data;
+  const { eventSubtype, lat, lng, radiusKm, severity, riderId } = parsed.data;
 
   const demoOptions: DemoTriggerOptions = {
     eventSubtype,
@@ -34,6 +34,7 @@ export const POST = withAdminAuth(async (_ctx, request) => {
     lng,
     radiusKm: radiusKm ?? 15,
     severity: severity ?? 8,
+    ...(riderId && { riderId }),
   };
 
   try {
