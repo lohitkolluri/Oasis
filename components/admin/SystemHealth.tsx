@@ -7,12 +7,18 @@ import { useEffect, useState } from 'react';
 interface ApiCheck { name: string; ok: boolean; status: number; }
 
 interface HealthData {
-  status: 'healthy' | 'degraded' | 'warning';
+  status: 'healthy' | 'degraded' | 'warning' | 'unhealthy';
   lastAdjudicatorRun: {
+    runId: string | null;
     at: string;
+    severity?: string;
     candidatesFound: number;
     claimsCreated: number;
+    payoutsInitiated?: number;
     durationMs: number;
+    error?: string | null;
+    payoutFailures?: number | null;
+    logFailures?: number | null;
   } | null;
   errors24h: number;
   apis: ApiCheck[];
@@ -24,10 +30,11 @@ interface HealthData {
   }>;
 }
 
-const STATUS_CONFIG = {
-  healthy:  { label: 'Healthy',  dot: 'bg-[#22c55e]', text: 'text-[#22c55e]', border: 'border-[#22c55e]/20' },
-  warning:  { label: 'Warning',  dot: 'bg-[#f59e0b]', text: 'text-[#f59e0b]', border: 'border-[#f59e0b]/20' },
-  degraded: { label: 'Degraded', dot: 'bg-[#ef4444]', text: 'text-[#ef4444]', border: 'border-[#ef4444]/20' },
+const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; border: string }> = {
+  healthy:   { label: 'Healthy',   dot: 'bg-[#22c55e]', text: 'text-[#22c55e]', border: 'border-[#22c55e]/20' },
+  warning:   { label: 'Warning',   dot: 'bg-[#f59e0b]', text: 'text-[#f59e0b]', border: 'border-[#f59e0b]/20' },
+  degraded:  { label: 'Degraded',  dot: 'bg-[#ef4444]', text: 'text-[#ef4444]', border: 'border-[#ef4444]/20' },
+  unhealthy: { label: 'Unhealthy', dot: 'bg-[#ef4444]', text: 'text-[#ef4444]', border: 'border-[#ef4444]/20' },
 };
 
 function timeAgo(iso: string) {
@@ -77,7 +84,7 @@ export function SystemHealth() {
     );
   }
 
-  const s = STATUS_CONFIG[data.status];
+  const s = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.degraded;
 
   return (
     <motion.div
@@ -114,7 +121,17 @@ export function SystemHealth() {
           </p>
           {data.lastAdjudicatorRun ? (
             <div className="space-y-1.5">
-              <span className="text-sm font-semibold text-white">{timeAgo(data.lastAdjudicatorRun.at)}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-white">{timeAgo(data.lastAdjudicatorRun.at)}</span>
+                {data.lastAdjudicatorRun.runId && (
+                  <span className="text-[10px] font-mono text-[#666666] truncate max-w-[180px]" title={data.lastAdjudicatorRun.runId}>
+                    {data.lastAdjudicatorRun.runId.slice(0, 8)}…
+                  </span>
+                )}
+                {data.lastAdjudicatorRun.severity === 'error' && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ef4444]/10 text-[#ef4444]">Run error</span>
+                )}
+              </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666666]">
                   {data.lastAdjudicatorRun.candidatesFound} events
@@ -125,7 +142,17 @@ export function SystemHealth() {
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666666]">
                   {data.lastAdjudicatorRun.durationMs}ms
                 </span>
+                {((data.lastAdjudicatorRun.payoutFailures ?? 0) > 0 || (data.lastAdjudicatorRun.logFailures ?? 0) > 0) && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b]">
+                    {(data.lastAdjudicatorRun.payoutFailures ?? 0) + (data.lastAdjudicatorRun.logFailures ?? 0)} failures
+                  </span>
+                )}
               </div>
+              {data.lastAdjudicatorRun.error && (
+                <p className="text-[10px] text-[#ef4444] truncate max-w-full" title={data.lastAdjudicatorRun.error}>
+                  {data.lastAdjudicatorRun.error}
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-sm text-[#666666]">No runs logged yet</p>

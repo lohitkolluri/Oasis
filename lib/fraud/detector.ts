@@ -1,17 +1,4 @@
-/**
- * Fraud detection for parametric claims.
- *
- * 7-layer pipeline (ALL checks now wired into production flow):
- *  1. Duplicate: same policy + same disruption event → instant skip
- *  2. Rapid claims: policy has ≥ threshold claims in 24h
- *  3. Weather mismatch: raw API values don't support the stated trigger
- *  4. Location verification: rider GPS was recorded outside the event geofence
- *  5. Device fingerprint: same device hash across multiple zones in 1h
- *  6. Cluster anomaly: ≥10 claims for same event in <10 min
- *  7. Historical baseline: zone claim rate >3× 4-week rolling average
- *
- * Cross-profile velocity: same phone number across multiple profiles
- */
+/** Fraud checks for parametric claims: duplicate, rapid claims, weather/location/device/cluster/baseline, cross-profile velocity */
 
 import { FRAUD } from '@/lib/config/constants';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -21,8 +8,6 @@ export interface FraudCheckResult {
   reason?: string;
   checkName?: string;
 }
-
-// ── 1. Duplicate Claim ───────────────────────────────────────────────────────
 
 export async function checkDuplicateClaim(
   supabase: SupabaseClient,
@@ -45,8 +30,6 @@ export async function checkDuplicateClaim(
   }
   return { isFlagged: false };
 }
-
-// ── 2. Rapid Claims ──────────────────────────────────────────────────────────
 
 export async function checkRapidClaims(
   supabase: SupabaseClient,
@@ -72,8 +55,6 @@ export async function checkRapidClaims(
   }
   return { isFlagged: false };
 }
-
-// ── 3. Weather Mismatch ──────────────────────────────────────────────────────
 
 export function checkWeatherMismatch(
   rawApiData: Record<string, unknown> | null,
@@ -137,8 +118,6 @@ export function checkWeatherMismatch(
   return { isFlagged: false };
 }
 
-// ── 4. Location Verification ─────────────────────────────────────────────────
-
 export async function checkLocationVerification(
   supabase: SupabaseClient,
   claimId: string,
@@ -159,8 +138,6 @@ export async function checkLocationVerification(
   }
   return { isFlagged: false };
 }
-
-// ── 5. Device Fingerprint ────────────────────────────────────────────────────
 
 export async function checkDeviceFingerprint(
   supabase: SupabaseClient,
@@ -213,8 +190,6 @@ export async function checkDeviceFingerprint(
   return { isFlagged: false };
 }
 
-// ── 6. Cluster Anomaly ───────────────────────────────────────────────────────
-
 export async function checkClusterAnomaly(
   supabase: SupabaseClient,
   disruptionEventId: string,
@@ -239,8 +214,6 @@ export async function checkClusterAnomaly(
 
   return { isFlagged: false };
 }
-
-// ── 7. Historical Baseline ───────────────────────────────────────────────────
 
 export async function checkHistoricalBaseline(
   supabase: SupabaseClient,
@@ -271,8 +244,6 @@ export async function checkHistoricalBaseline(
 
   return { isFlagged: false };
 }
-
-// ── Cross-Profile Velocity ───────────────────────────────────────────────────
 
 export async function checkCrossProfileVelocity(
   supabase: SupabaseClient,
@@ -333,8 +304,6 @@ export async function checkCrossProfileVelocity(
   return { isFlagged: false };
 }
 
-// ── Composite Check Functions ────────────────────────────────────────────────
-
 export async function flagClaimAsFraud(
   supabase: SupabaseClient,
   claimId: string,
@@ -346,20 +315,102 @@ export async function flagClaimAsFraud(
     .eq('id', claimId);
 }
 
+/** Preloaded data for batch fraud checks (avoids N+1 per policy). */
+export interface PreloadedFraudData {
+  /** Policy IDs that already have a claim for this event (duplicate). */
+  duplicateClaimPolicyIds: Set<string>;
+  /** Claim count per policy in the rapid-claims window. */
+  rapidClaimCountByPolicy: Map<string, number>;
+}
+
 /**
- * Run all pre-claim fraud checks (before claim insertion).
- * Checks: duplicate, rapid claims, weather mismatch.
+ * Preload duplicate and rapid-claims data for many policies and one event.
+ * Call once before the policy loop, then pass to runAllFraudChecks.
  */
+export async function preloadFraudData(
+  supabase: SupabaseClient,
+  policyIds: string[],
+  disruptionEventId: string,
+): Promise<PreloadedFraudData> {
+  const duplicateClaimPolicyIds = new Set<string>();
+  const rapidClaimCountByPolicy = new Map<string, number>();
+
+  if (policyIds.length === 0) {
+    return { duplicateClaimPolicyIds, rapidClaimCountByPolicy };
+  }
+
+  const windowStart = new Date();
+  windowStart.setHours(
+    windowStart.getHours() - FRAUD.RAPID_CLAIMS_WINDOW_HOURS,
+  );
+
+  const [duplicateRes, rapidRes] = await Promise.all([
+    supabase
+      .from('parametric_claims')
+      .select('policy_id')
+      .in('policy_id', policyIds)
+      .eq('disruption_event_id', disruptionEventId),
+    supabase
+      .from('parametric_claims')
+      .select('policy_id')
+      .in('policy_id', policyIds)
+      .gte('created_at', windowStart.toISOString()),
+  ]);
+
+  for (const row of duplicateRes.data ?? []) {
+    const p = row as { policy_id: string };
+    if (p.policy_id) duplicateClaimPolicyIds.add(p.policy_id);
+  }
+
+  for (const row of rapidRes.data ?? []) {
+    const p = row as { policy_id: string };
+    if (p.policy_id) {
+      rapidClaimCountByPolicy.set(
+        p.policy_id,
+        (rapidClaimCountByPolicy.get(p.policy_id) ?? 0) + 1,
+      );
+    }
+  }
+
+  return { duplicateClaimPolicyIds, rapidClaimCountByPolicy };
+}
+
+/** Pre-claim: duplicate, rapid claims, weather mismatch. Optional preloaded data to avoid N+1. */
 export async function runAllFraudChecks(
   supabase: SupabaseClient,
   policyId: string,
   disruptionEventId: string,
   rawApiData?: Record<string, unknown> | null,
+  preloaded?: PreloadedFraudData | null,
 ): Promise<FraudCheckResult> {
-  const [duplicate, rapid] = await Promise.all([
-    checkDuplicateClaim(supabase, policyId, disruptionEventId),
-    checkRapidClaims(supabase, policyId),
-  ]);
+  let duplicate: FraudCheckResult;
+  let rapid: FraudCheckResult;
+
+  if (preloaded) {
+    duplicate = preloaded.duplicateClaimPolicyIds.has(policyId)
+      ? {
+          isFlagged: true,
+          reason: 'Duplicate: same policy + disruption event',
+          checkName: 'duplicate_claim',
+        }
+      : { isFlagged: false };
+    const count = preloaded.rapidClaimCountByPolicy.get(policyId) ?? 0;
+    rapid =
+      count >= FRAUD.RAPID_CLAIMS_THRESHOLD
+        ? {
+            isFlagged: true,
+            reason: `Rapid claims: ${count} in ${FRAUD.RAPID_CLAIMS_WINDOW_HOURS}h (threshold ${FRAUD.RAPID_CLAIMS_THRESHOLD})`,
+            checkName: 'rapid_claims',
+          }
+        : { isFlagged: false };
+  } else {
+    const [dup, rap] = await Promise.all([
+      checkDuplicateClaim(supabase, policyId, disruptionEventId),
+      checkRapidClaims(supabase, policyId),
+    ]);
+    duplicate = dup;
+    rapid = rap;
+  }
 
   if (duplicate.isFlagged) return duplicate;
   if (rapid.isFlagged) return rapid;

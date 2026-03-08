@@ -158,13 +158,13 @@ export function PolicySubscribeForm({
                   onClick={() => setSelectedPlan(plan)}
                   className={`rounded-xl border p-4 text-left transition-all ${
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
+                      ? 'border-uber-green bg-uber-green/10 ring-1 ring-uber-green/30'
                       : 'border-zinc-700 bg-zinc-900/80 hover:border-zinc-600'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-zinc-100">{plan.name}</span>
-                    {isSelected && <Check className="h-4 w-4 text-emerald-400 shrink-0" />}
+                    {isSelected && <Check className="h-4 w-4 text-uber-green shrink-0" />}
                   </div>
                   {plan.description && (
                     <p className="text-xs text-zinc-500 mb-2 line-clamp-2">{plan.description}</p>
@@ -185,8 +185,8 @@ export function PolicySubscribeForm({
       )}
       <Card variant="elevated" padding="lg">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/10">
-            <Shield className="h-5 w-5 text-emerald-400" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-uber-green/10">
+            <Shield className="h-5 w-5 text-uber-green" />
           </div>
           <h2 className="font-semibold">Subscribe for next week</h2>
         </div>
@@ -211,7 +211,7 @@ export function PolicySubscribeForm({
         {message && (
           <p
             className={`mt-4 text-sm ${
-              message.type === 'success' ? 'text-emerald-400' : 'text-red-400'
+              message.type === 'success' ? 'text-uber-green' : 'text-uber-red'
             }`}
           >
             {message.text}

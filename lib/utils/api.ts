@@ -1,8 +1,11 @@
 /**
  * Shared API utilities: error handling, rate limiting, response helpers.
+ * Rate limiting uses a store (in-memory or Supabase) for single- or multi-instance use.
  */
 
 import { RATE_LIMITS } from '@/lib/config/constants';
+import { getRateLimitStore } from '@/lib/utils/rate-limit-store';
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 // ── Standardized API error ──────────────────────────────────────────────────
@@ -18,38 +21,36 @@ export class ApiError extends Error {
   }
 }
 
-export function errorResponse(error: unknown, fallbackMessage = 'Internal server error') {
+/** In production returns genericMessage; in dev returns error message or String(err). */
+export function sanitizeErrorMessage(err: unknown, genericMessage: string): string {
+  if (process.env.NODE_ENV === 'production') return genericMessage;
+  return err instanceof Error ? err.message : String(err);
+}
+
+export function errorResponse(
+  error: unknown,
+  fallbackMessage = 'Internal server error',
+  meta?: { requestId?: string | null },
+) {
   if (error instanceof ApiError) {
+    const safeMessage =
+      process.env.NODE_ENV === 'production' && error.statusCode >= 500
+        ? fallbackMessage
+        : error.message;
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: safeMessage, code: error.code },
       { status: error.statusCode },
     );
   }
-  console.error('[API Error]', error);
-  return NextResponse.json(
-    { error: error instanceof Error ? error.message : fallbackMessage },
-    { status: 500 },
-  );
+  logger.error('API error', {
+    ...meta,
+    error: error instanceof Error ? error.message : String(error),
+  });
+  const clientMessage = sanitizeErrorMessage(error, fallbackMessage);
+  return NextResponse.json({ error: clientMessage }, { status: 500 });
 }
 
-// ── In-memory rate limiter ──────────────────────────────────────────────────
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-// Clean up expired entries every 5 minutes
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore) {
-      if (now > entry.resetAt) rateLimitStore.delete(key);
-    }
-  }, 5 * 60 * 1000);
-}
+// ── Rate limiter (async; uses in-memory or Supabase store) ───────────────────
 
 export interface RateLimitOptions {
   maxRequests: number;
@@ -58,34 +59,28 @@ export interface RateLimitOptions {
 
 /**
  * Check rate limit for a given key. Returns null if allowed, or a NextResponse 429 if exceeded.
+ * Uses Supabase store when configured so limits are shared across instances.
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   options?: Partial<RateLimitOptions>,
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const maxRequests = options?.maxRequests ?? RATE_LIMITS.DEFAULT_PER_MINUTE;
   const windowMs = options?.windowMs ?? 60_000;
-  const now = Date.now();
 
-  const entry = rateLimitStore.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
-    return null;
-  }
+  const store = getRateLimitStore();
+  const result = await store.check(key, windowMs, maxRequests);
 
-  entry.count++;
-  if (entry.count > maxRequests) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-    return NextResponse.json(
-      { error: 'Too many requests', retryAfter },
-      {
-        status: 429,
-        headers: { 'Retry-After': String(retryAfter) },
-      },
-    );
-  }
+  if (result.allowed) return null;
 
-  return null;
+  const retryAfter = result.retryAfterSec ?? 60;
+  return NextResponse.json(
+    { error: 'Too many requests', retryAfter },
+    {
+      status: 429,
+      headers: { 'Retry-After': String(retryAfter) },
+    },
+  );
 }
 
 /**

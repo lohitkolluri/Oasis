@@ -148,29 +148,43 @@ export async function POST(request: Request) {
   try {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Optional server-side envelope encryption before storing in Supabase Storage.
-    const encKeyBase64 = process.env.GOV_ID_ENCRYPTION_KEY;
+    const encKeyBase64 = process.env.GOV_ID_ENCRYPTION_KEY?.trim();
+
+    if (process.env.NODE_ENV === 'production' && !encKeyBase64) {
+      return NextResponse.json(
+        { error: 'KYC storage not configured. Set GOV_ID_ENCRYPTION_KEY (32-byte base64) in production.' },
+        { status: 503 },
+      );
+    }
+
     let toStore = fileBuffer;
     if (encKeyBase64) {
       try {
         const key = Buffer.from(encKeyBase64, 'base64');
         if (key.length !== 32) {
-          console.error(
-            'GOV_ID_ENCRYPTION_KEY must be a 32-byte key in base64. Skipping encryption.',
-          );
+          if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json(
+              { error: 'GOV_ID_ENCRYPTION_KEY must be 32-byte base64.' },
+              { status: 503 },
+            );
+          }
         } else {
-          const iv = crypto.randomBytes(12); // 96-bit IV for AES-GCM
+          const iv = crypto.randomBytes(12);
           const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
           const encrypted = Buffer.concat([
             cipher.update(fileBuffer),
             cipher.final(),
           ]);
           const tag = cipher.getAuthTag();
-          // Store IV + TAG + CIPHERTEXT so we can decrypt later.
           toStore = Buffer.concat([iv, tag, encrypted]);
         }
-      } catch (err) {
-        console.error('Gov ID encryption error, storing unencrypted blob instead:', err);
+      } catch {
+        if (process.env.NODE_ENV === 'production') {
+          return NextResponse.json(
+            { error: 'Government ID encryption failed.' },
+            { status: 503 },
+          );
+        }
       }
     }
 
@@ -182,7 +196,6 @@ export async function POST(request: Request) {
       });
 
     if (uploadErr) {
-      console.error('Gov ID upload error:', uploadErr);
       return NextResponse.json(
         {
           error: 'Failed to upload. Ensure the government-ids bucket exists in Supabase Storage.',
@@ -190,8 +203,7 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
-  } catch (err) {
-    console.error('Gov ID upload error:', err);
+  } catch {
     return NextResponse.json({ error: 'Failed to upload government ID' }, { status: 500 });
   }
 
@@ -263,7 +275,6 @@ Rules:
           choices?: Array<{ message?: { content?: string } }>;
         };
         const content = data.choices?.[0]?.message?.content ?? '';
-        console.log('Gov ID LLM raw content:', content);
         const match = content.match(/\{[\s\S]*\}/);
         if (match) {
           const parsed = JSON.parse(match[0]) as VerificationResult & {
@@ -297,32 +308,14 @@ Rules:
           };
         }
       } else {
-        const bodyText = await res.text().catch(() => '');
-        console.error('OpenRouter verification failed:', res.status, bodyText);
         verification = {
           verified: false,
           reason: 'Government ID could not be verified due to an OpenRouter API error.',
         };
       }
-    } catch (err) {
-      console.error('LLM verification error:', err);
+    } catch {
       verification = { verified: false, reason: 'Verification service error' };
     }
-  }
-
-  // High-level audit log for debugging verification behavior (with minimal PII).
-  try {
-    console.log('Gov ID verification summary', {
-      userId: user.id,
-      storagePath: path,
-      fullNameLength: fullName.length,
-      fileType: file.type,
-      fileSizeBytes: file.size,
-      verified: verification.verified,
-      reason: verification.reason,
-    });
-  } catch {
-    // Logging must never break the request
   }
 
   return NextResponse.json({

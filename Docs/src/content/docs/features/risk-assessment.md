@@ -3,7 +3,7 @@ title: Risk Assessment & Premium Calculation
 description: Dynamic weekly premium based on zone history and forecast
 ---
 
-Weekly premium is computed per rider from zone history and weather forecast. Strictly weekly — computed every Sunday, covers Monday through Sunday.
+Weekly premium is computed per rider from zone history and weather forecast. Strictly weekly - computed every Sunday, covers Monday through Sunday.
 
 ## Premium Formula
 
@@ -59,7 +59,7 @@ export async function getHistoricalEventCount(
   for (const ev of data) {
     const gf = ev.geofence_polygon;
     if (!gf?.lat || !gf?.lng) {
-      count++;  // Citywide event — affects everyone
+      count++;  // Citywide event - affects everyone
       continue;
     }
     if (isWithinCircle(zoneLatitude, zoneLongitude, gf.lat, gf.lng, gf.radius_km ?? 10)) {
@@ -148,4 +148,4 @@ Every Sunday at 17:30 UTC, `/api/cron/weekly-premium` runs:
 3. For each rider with an expired policy, recalculates the premium for the coming week.
 4. Optionally creates a `premium_recommendations` row for display on the rider's dashboard.
 
-Riders must manually re-subscribe each week — automatic renewal would require Stripe Subscriptions.
+Riders must manually re-subscribe each week - automatic renewal would require Stripe Subscriptions.

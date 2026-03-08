@@ -47,10 +47,6 @@ export function AdminInsights() {
           <p className="text-sm font-semibold font-display text-white">Lumo</p>
           <p className="text-[10px] text-[#666666]">AI-powered platform insights</p>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#7dd3fc]/10 border border-[#7dd3fc]/20">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#7dd3fc] animate-neon-pulse" />
-          <span className="text-[10px] text-[#7dd3fc] font-medium">Live</span>
-        </div>
       </div>
 
       <p className="text-sm text-[#9ca3af] leading-relaxed mb-5">{data.summary}</p>

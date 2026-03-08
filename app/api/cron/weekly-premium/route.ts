@@ -1,3 +1,4 @@
+import { getCronSecret, isCronSecretRequired } from '@/lib/config/env';
 import { DEFAULT_ZONE, RATE_LIMITS } from '@/lib/config/constants';
 import {
     calculatePremiumWithLlm,
@@ -5,6 +6,8 @@ import {
     getHistoricalEventCount,
 } from '@/lib/ml/premium-calc';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { clusterKey } from '@/lib/utils/geo';
+import { toDateString } from '@/lib/utils/date';
 import { checkRateLimit, errorResponse } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 
@@ -15,23 +18,29 @@ export const maxDuration = 120;
  * GET /api/cron/weekly-premium
  *
  * Compute premium recommendations for all profiles.
- * B3 fix: proper handling when zone coords are missing (uses DEFAULT_ZONE).
- * M1: uses LLM-assisted premium calculation.
+ * In production CRON_SECRET is required; if missing, returns 503.
  */
 export async function GET(request: Request) {
-  const rateLimited = checkRateLimit('cron:weekly-premium', {
-    maxRequests: RATE_LIMITS.CRON_PER_HOUR,
-    windowMs: 60 * 60 * 1000,
-  });
-  if (rateLimited) return rateLimited;
+  const cronSecret = getCronSecret();
+  if (isCronSecretRequired() && !cronSecret) {
+    return NextResponse.json(
+      { error: 'Cron not configured. Set CRON_SECRET in production.' },
+      { status: 503 },
+    );
+  }
 
-  const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
+
+  const rateLimited = await checkRateLimit('cron:weekly-premium', {
+    maxRequests: RATE_LIMITS.CRON_PER_HOUR,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (rateLimited) return rateLimited;
 
   try {
     const admin = createAdminClient();
@@ -48,12 +57,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // Deduplicate zones for API calls (same cluster = same forecast)
     const zoneCache = new Map<string, { historicalEvents: number; forecastRisk: number }>();
-    function clusterKey(lat: number, lng: number): string {
-      return `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
-    }
-
     let processed = 0;
     const BATCH_SIZE = 5;
 
@@ -86,13 +90,12 @@ export async function GET(request: Request) {
             platform: profile.platform,
           });
 
-          // Compute next Monday as week_start_date
           const now = new Date();
           const dayOfWeek = now.getDay();
           const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
           const nextMonday = new Date(now);
           nextMonday.setDate(now.getDate() + daysUntilMonday);
-          const weekStartDate = nextMonday.toISOString().split('T')[0];
+          const weekStartDate = toDateString(nextMonday);
 
           await admin.from('premium_recommendations').upsert(
             {

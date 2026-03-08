@@ -73,12 +73,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
           {/* Right side */}
           <div className="flex items-center gap-3 ml-auto md:ml-0">
-            {/* Status dot */}
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1e1e1e] border border-[#2d2d2d]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#7dd3fc] animate-neon-pulse" />
-              <span className="text-[10px] text-[#666666] font-medium">Live</span>
-            </div>
-
             {/* Rider app link */}
             <Link
               href="/dashboard"

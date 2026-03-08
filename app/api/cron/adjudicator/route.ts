@@ -1,6 +1,8 @@
+import { getCronSecret, isCronSecretRequired } from '@/lib/config/env';
 import { runAdjudicator } from '@/lib/adjudicator/run';
 import { RATE_LIMITS } from '@/lib/config/constants';
 import { checkRateLimit, errorResponse } from '@/lib/utils/api';
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -10,18 +12,17 @@ export const maxDuration = 120;
  * GET /api/cron/adjudicator
  *
  * Vercel Cron job that runs the parametric adjudicator hourly.
- * Authenticates via CRON_SECRET header. Rate limited.
+ * Authenticates via CRON_SECRET (Bearer). In production CRON_SECRET is required; if missing, returns 503.
  */
 export async function GET(request: Request) {
-  // Rate limit cron calls
-  const rateLimited = checkRateLimit('cron:adjudicator', {
-    maxRequests: RATE_LIMITS.CRON_PER_HOUR,
-    windowMs: 60 * 60 * 1000,
-  });
-  if (rateLimited) return rateLimited;
+  const cronSecret = getCronSecret();
+  if (isCronSecretRequired() && !cronSecret) {
+    return NextResponse.json(
+      { error: 'Cron not configured. Set CRON_SECRET in production.' },
+      { status: 503 },
+    );
+  }
 
-  // Auth: Vercel sends CRON_SECRET in Authorization header
-  const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${cronSecret}`) {
@@ -29,10 +30,21 @@ export async function GET(request: Request) {
     }
   }
 
+  const rateLimited = await checkRateLimit('cron:adjudicator', {
+    maxRequests: RATE_LIMITS.CRON_PER_HOUR,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (rateLimited) return rateLimited;
+
   try {
     const result = await runAdjudicator();
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: result.run_id ? { 'x-request-id': result.run_id } : undefined,
+    });
   } catch (err) {
+    logger.error('Adjudicator cron failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return errorResponse(err, 'Adjudicator cron failed');
   }
 }

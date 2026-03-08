@@ -11,11 +11,11 @@ export default function Home() {
       <Logo size={96} className="mb-6" priority />
       <div className="flex items-center gap-3 mb-4">
         {RIDER_SEEDS.map((seed) => (
-          <Avatar key={seed} seed={seed} size={40} className="ring-2 ring-emerald-500/20" />
+          <Avatar key={seed} seed={seed} size={40} className="ring-2 ring-uber-green/20" />
         ))}
       </div>
       <h1 className="text-4xl font-bold mb-2 text-white">
-        <span className="text-emerald-400">Oasis</span>
+        <span className="text-uber-green">Oasis</span>
       </h1>
       <p className="text-zinc-500 mb-8 text-center max-w-md">
         AI-powered parametric wage protection for India's Q-commerce delivery

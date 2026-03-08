@@ -16,15 +16,15 @@ export function RiderInsight() {
   if (!insight) return null;
 
   return (
-    <div className="rounded-[20px] bg-[#111820] border border-amber-500/15 overflow-hidden">
+    <div className="rounded-[20px] bg-surface-1 border border-uber-yellow/15 overflow-hidden">
       {/* Accent strip */}
-      <div className="h-0.5 bg-gradient-to-r from-amber-500/60 via-amber-400/30 to-transparent" />
+      <div className="h-0.5 bg-gradient-to-r from-uber-yellow/60 via-uber-yellow/30 to-transparent" />
       <div className="flex items-start gap-3 px-4 py-4">
-        <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-amber-500/12 shrink-0 mt-0.5">
-          <Sparkles className="text-amber-400" style={{ width: 16, height: 16 }} />
+        <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-uber-yellow/12 shrink-0 mt-0.5">
+          <Sparkles className="text-uber-yellow" style={{ width: 16, height: 16 }} />
         </div>
         <div>
-          <p className="text-[10px] font-bold text-amber-400/80 uppercase tracking-[0.12em] mb-1">
+          <p className="text-[10px] font-bold text-uber-yellow/80 uppercase tracking-[0.12em] mb-1">
             Lumo · Your insight
           </p>
           <p className="text-[13px] text-zinc-300 leading-[1.55]">{insight}</p>

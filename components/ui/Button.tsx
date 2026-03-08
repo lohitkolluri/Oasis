@@ -6,19 +6,19 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-emerald-500 text-white hover:bg-emerald-400 focus:ring-emerald-400/30 active:scale-[0.98]',
+    'bg-uber-green text-white hover:bg-uber-green/90 focus:ring-uber-green/30 active:scale-[0.98]',
   secondary:
-    'bg-[#1e1e1e] hover:bg-[#262626] text-white border border-[#2d2d2d] hover:border-[#3a3a3a] focus:ring-[#3a3a3a] active:scale-[0.98]',
+    'bg-[#171717] hover:bg-[#262626] text-white border border-[#333] hover:border-[#404040] focus:ring-[#404040] active:scale-[0.98]',
   outline:
-    'bg-transparent border border-[#3a3a3a] text-[#9ca3af] hover:bg-[#1e1e1e] hover:text-white hover:border-[#3a3a3a] focus:ring-[#3a3a3a]',
+    'bg-transparent border border-[#404040] text-[#a3a3a3] hover:bg-[#171717] hover:text-white hover:border-[#404040] focus:ring-[#404040]',
   ghost:
-    'bg-transparent text-[#666666] hover:text-white hover:bg-[#1e1e1e] focus:ring-[#3a3a3a]',
+    'bg-transparent text-[#737373] hover:text-white hover:bg-[#171717] focus:ring-[#404040]',
   danger:
-    'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20 hover:bg-[#ef4444]/15 hover:border-[#ef4444]/30 focus:ring-[#ef4444]/30 active:scale-[0.98]',
+    'bg-uber-red/10 text-uber-red border border-uber-red/20 hover:bg-uber-red/15 hover:border-uber-red/30 focus:ring-uber-red/30 active:scale-[0.98]',
   neon:
-    'bg-[#7dd3fc] text-black hover:bg-[#93dffe] focus:ring-[#7dd3fc]/30 active:scale-[0.98] shadow-[0_0_12px_rgba(125,211,252,0.25)]',
+    'bg-uber-blue text-white hover:bg-uber-blue/90 focus:ring-uber-blue/30 active:scale-[0.98] shadow-[0_0_12px_rgba(39,110,241,0.25)]',
   'neon-violet':
-    'bg-[#a78bfa] text-black hover:bg-[#b79cfb] focus:ring-[#a78bfa]/30 active:scale-[0.98] shadow-[0_0_12px_rgba(167,139,250,0.25)]',
+    'bg-uber-purple text-white hover:bg-uber-purple/90 focus:ring-uber-purple/30 active:scale-[0.98] shadow-[0_0_12px_rgba(115,86,191,0.25)]',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -28,7 +28,7 @@ const sizeStyles: Record<ButtonSize, string> = {
 };
 
 const baseStyles =
-  'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0f0f0f] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100';
+  'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100';
 
 export interface ButtonProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,

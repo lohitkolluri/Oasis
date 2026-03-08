@@ -57,8 +57,6 @@ export async function POST(request: Request) {
     );
   }
 
-  console.log('[face-verify] POST request', { userId: user.id, hasAuth: !!user });
-
   const contentType = request.headers.get('content-type') ?? '';
   let file: File | null = null;
   let expectedGesture: string | null = null;
@@ -104,19 +102,20 @@ export async function POST(request: Request) {
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${user.id}/face-verification.${ext}`;
 
-  console.log('[face-verify] File received', {
-    size: file.size,
-    type: file.type,
-    expectedGesture: expectedGesture,
-  });
+  const encKeyBase64 =
+    process.env.FACE_PHOTO_ENCRYPTION_KEY?.trim() ||
+    process.env.GOV_ID_ENCRYPTION_KEY?.trim();
+
+  if (process.env.NODE_ENV === 'production' && !encKeyBase64) {
+    return NextResponse.json(
+      { error: 'KYC storage not configured. Set FACE_PHOTO_ENCRYPTION_KEY (32-byte base64) in production.' },
+      { status: 503 },
+    );
+  }
 
   try {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Optional envelope encryption at rest (same pattern as gov ID)
-    const encKeyBase64 =
-      process.env.FACE_PHOTO_ENCRYPTION_KEY?.trim() ||
-      process.env.GOV_ID_ENCRYPTION_KEY?.trim();
     let toStore = fileBuffer;
     if (encKeyBase64) {
       try {
@@ -131,10 +130,20 @@ export async function POST(request: Request) {
           const tag = cipher.getAuthTag();
           toStore = Buffer.concat([iv, tag, encrypted]);
         } else {
-          console.warn('[face-verify] FACE_PHOTO_ENCRYPTION_KEY must be 32-byte base64. Storing unencrypted.');
+          if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json(
+              { error: 'KYC storage not configured. Set FACE_PHOTO_ENCRYPTION_KEY (32-byte base64).' },
+              { status: 503 },
+            );
+          }
         }
       } catch (err) {
-        console.error('[face-verify] Encryption error, storing unencrypted:', err);
+        if (process.env.NODE_ENV === 'production') {
+          return NextResponse.json(
+            { error: 'Face photo encryption failed.' },
+            { status: 503 },
+          );
+        }
       }
     }
 
@@ -146,7 +155,6 @@ export async function POST(request: Request) {
       });
 
     if (uploadErr) {
-      console.error('[face-verify] Upload error:', uploadErr);
       return NextResponse.json(
         {
           error:
@@ -155,8 +163,7 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
-  } catch (err) {
-    console.error('[face-verify] Upload exception:', err);
+  } catch {
     return NextResponse.json(
       { error: 'Failed to upload face photo' },
       { status: 500 },
@@ -238,25 +245,13 @@ Reply ONLY with valid JSON: {"verified": true/false, "reason": "brief explanatio
         };
         verified = parsed.verified === true;
         reason = parsed.reason ?? 'Could not verify liveness.';
-        console.log('[face-verify] LLM result', {
-          userId: user.id,
-          verified,
-          reason,
-          rawSnippet: content.slice(0, 120),
-        });
-      } else {
-        console.warn('[face-verify] No JSON in LLM response', { contentSnippet: content.slice(0, 80) });
       }
     } else {
-      const bodyText = await res.text().catch(() => '');
-      console.error('[face-verify] OpenRouter failed', { status: res.status, body: bodyText?.slice(0, 200) });
       reason = 'Verification service error.';
     }
-  } catch (err) {
-    console.error('[face-verify] LLM error:', err);
+  } catch {
+    reason = 'Verification service error.';
   }
-
-  console.log('[face-verify] Final result', { userId: user.id, verified, path: verified ? path : null });
 
   return NextResponse.json({
     path: verified ? path : null,

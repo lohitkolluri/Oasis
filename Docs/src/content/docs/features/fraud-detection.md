@@ -83,7 +83,7 @@ Legitimate scenario: a rider in a high-disruption day (heat in the morning, rain
 
 Validates that the raw API data stored on the disruption event actually supports the claimed trigger. This catches cases where the trigger type has been tampered with or the data arrived corrupted.
 
-**Extreme heat:** Flag if `temperature < 40°C` in raw data (trigger requires ≥43°C — 3°C buffer for edge cases).
+**Extreme heat:** Flag if `temperature < 40°C` in raw data (trigger requires ≥43°C - 3°C buffer for edge cases).
 
 **Heavy rain:** Flag if `precipitationIntensity < 3 mm/h` in raw data (trigger requires ≥4 mm/h).
 
@@ -123,7 +123,7 @@ export async function checkLocationVerification(
 }
 ```
 
-Location verification is optional — riders are not required to submit GPS data. If no verification exists, this check passes.
+Location verification is optional - riders are not required to submit GPS data. If no verification exists, this check passes.
 
 ---
 
@@ -193,7 +193,7 @@ The **Admin → Fraud** page (`/admin/fraud`) lists all `parametric_claims` wher
 - The disruption event details
 - An override button to unflag legitimate claims
 
-Flagged claims are not deleted — they remain in the database for audit purposes.
+Flagged claims are not deleted - they remain in the database for audit purposes.
 
 ---
 

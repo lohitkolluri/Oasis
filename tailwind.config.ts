@@ -33,6 +33,16 @@ export default {
           cyan: 'var(--neon-cyan)',
           violet: 'var(--neon-violet)',
         },
+        uber: {
+          black: '#000000',
+          blue: '#276EF1',
+          green: '#3AA76D',
+          yellow: '#FFC043',
+          red: '#D44333',
+          orange: '#ED6E33',
+          purple: '#7356BF',
+          brown: '#99644C',
+        },
       },
       borderColor: {
         DEFAULT: 'var(--border)',

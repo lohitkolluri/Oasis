@@ -13,6 +13,7 @@ import {
     TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 function eventTypeLabel(type: string) {
   const map: Record<string, string> = {
@@ -84,7 +85,7 @@ export default async function ClaimsHistoryPage() {
       {/* Back */}
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#606880] hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
       >
         <ArrowLeft style={{ width: 14, height: 14 }} />
         Dashboard
@@ -93,61 +94,61 @@ export default async function ClaimsHistoryPage() {
       {/* Title */}
       <div>
         <h1 className="text-[20px] font-bold tracking-tight text-white">Claims History</h1>
-        <p className="text-[12px] text-[#606880] mt-0.5">Parametric payouts from your policies</p>
+        <p className="text-[12px] text-zinc-500 mt-0.5">Parametric payouts from your policies</p>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-3 gap-2.5">
-        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
+        <div className="rounded-[20px] bg-surface-1 border border-white/10/70 p-4">
           <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-sky-500/12 mb-3">
             <BarChart3 className="text-sky-400" style={{ width: 15, height: 15 }} />
           </div>
           <p className="text-[22px] font-bold text-white tabular-nums leading-none">
             {claims?.length ?? 0}
           </p>
-          <p className="text-[10px] text-[#606880] mt-1.5 font-medium">Total</p>
+          <p className="text-[10px] text-zinc-500 mt-1.5 font-medium">Total</p>
         </div>
-        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
-          <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-emerald-500/12 mb-3">
-            <TrendingUp className="text-emerald-400" style={{ width: 15, height: 15 }} />
+        <div className="rounded-[20px] bg-surface-1 border border-white/10/70 p-4">
+          <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-uber-green/12 mb-3">
+            <TrendingUp className="text-uber-green" style={{ width: 15, height: 15 }} />
           </div>
-          <p className="text-[20px] font-bold text-emerald-400 tabular-nums leading-none">
+          <p className="text-[20px] font-bold text-uber-green tabular-nums leading-none">
             ₹{totalPaid.toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] text-[#606880] mt-1.5 font-medium">Paid out</p>
+          <p className="text-[10px] text-zinc-500 mt-1.5 font-medium">Paid out</p>
         </div>
-        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
+        <div className="rounded-[20px] bg-surface-1 border border-white/10/70 p-4">
           <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-violet-500/12 mb-3">
             <Shield className="text-violet-400" style={{ width: 15, height: 15 }} />
           </div>
           <p className="text-[22px] font-bold text-white tabular-nums leading-none">
             {policies?.length ?? 0}
           </p>
-          <p className="text-[10px] text-[#606880] mt-1.5 font-medium">Policies</p>
+          <p className="text-[10px] text-zinc-500 mt-1.5 font-medium">Policies</p>
         </div>
       </div>
 
       {/* Claims list */}
       {!claims || claims.length === 0 ? (
-        <div className="rounded-[24px] bg-[#111820] border border-[#1e2535]/70 px-5 py-14 text-center">
+        <div className="rounded-[24px] bg-surface-1 border border-white/10/70 px-5 py-14 text-center">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#1a2030] mx-auto mb-4">
             <Clock className="text-[#404860]" style={{ width: 24, height: 24 }} />
           </div>
           <p className="text-[14px] font-semibold text-zinc-400">No claims yet</p>
-          <p className="text-[12px] text-[#606880] mt-1 max-w-xs mx-auto leading-relaxed">
+          <p className="text-[12px] text-zinc-500 mt-1 max-w-xs mx-auto leading-relaxed">
             Claims appear automatically when a disruption is detected in your zone
           </p>
         </div>
       ) : (
-        <div className="rounded-[24px] bg-[#111820] border border-[#1e2535]/70 overflow-hidden">
+        <div className="rounded-[24px] bg-surface-1 border border-white/10/70 overflow-hidden">
           {/* List header */}
-          <div className="px-5 py-3.5 border-b border-[#1e2535]/50">
-            <p className="text-[11px] font-bold text-[#606880] uppercase tracking-[0.12em]">
+          <div className="px-5 py-3.5 border-b border-white/10/50">
+            <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-[0.12em]">
               {claims.length} {claims.length === 1 ? "claim" : "claims"}
             </p>
           </div>
 
-          <div className="divide-y divide-[#1e2535]/40">
+          <div className="divide-y divide-white/10/40">
             {claims.map((claim) => {
               const event = claim.live_disruption_events as
                 | { event_type?: string; severity_score?: number; created_at?: string }
@@ -159,12 +160,12 @@ export default async function ClaimsHistoryPage() {
                   {/* Status icon */}
                   <div className="shrink-0 mt-0.5">
                     {claim.is_flagged ? (
-                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-amber-500/12">
-                        <AlertCircle className="text-amber-400" style={{ width: 16, height: 16 }} />
+                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-uber-yellow/12">
+                        <AlertCircle className="text-uber-yellow" style={{ width: 16, height: 16 }} />
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-emerald-500/12">
-                        <CheckCircle className="text-emerald-400" style={{ width: 16, height: 16 }} />
+                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-uber-green/12">
+                        <CheckCircle className="text-uber-green" style={{ width: 16, height: 16 }} />
                       </div>
                     )}
                   </div>
@@ -213,8 +214,8 @@ export default async function ClaimsHistoryPage() {
 
                     {/* Flagged notice */}
                     {claim.is_flagged && claim.flag_reason && (
-                      <div className="mt-2 rounded-[10px] bg-amber-500/8 border border-amber-500/15 px-3 py-2">
-                        <p className="text-[11px] text-amber-400 font-medium">
+                      <div className="mt-2 rounded-[10px] bg-uber-yellow/8 border border-uber-yellow/15 px-3 py-2">
+                        <p className="text-[11px] text-uber-yellow font-medium">
                           Under review: {claim.flag_reason}
                         </p>
                       </div>

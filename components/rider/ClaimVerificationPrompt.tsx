@@ -87,7 +87,7 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
 
   if (done) {
     return (
-      <div className="flex items-center gap-2 text-emerald-400 text-sm">
+      <div className="flex items-center gap-2 text-uber-green text-sm">
         <CheckCircle className="h-4 w-4 shrink-0" />
         <span>Location verified</span>
       </div>
@@ -95,8 +95,8 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
   }
 
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
-      <p className="text-sm text-amber-200/90">
+    <div className="rounded-xl border border-uber-yellow/30 bg-uber-yellow/5 p-3 space-y-2">
+      <p className="text-sm text-uber-yellow/90">
         Verify you were in {zoneName} during this disruption
       </p>
       <div className="flex flex-wrap gap-2">
@@ -104,12 +104,12 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
           type="button"
           onClick={handleVerify}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-200 hover:bg-amber-500/30 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-uber-yellow/20 px-3 py-1.5 text-sm font-medium text-uber-yellow/90 hover:bg-amber-500/30 disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
           Verify location
         </button>
-        <label className="inline-flex items-center gap-2 rounded-lg border border-amber-500/40 px-3 py-1.5 text-sm font-medium text-amber-200 cursor-pointer hover:bg-amber-500/10 disabled:opacity-50">
+        <label className="inline-flex items-center gap-2 rounded-lg border border-uber-yellow/40 px-3 py-1.5 text-sm font-medium text-uber-yellow/90 cursor-pointer hover:bg-uber-yellow/10 disabled:opacity-50">
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"

@@ -93,8 +93,8 @@ CREATE TABLE weekly_policies (
 ```
 
 **Indexes:**
-- `(profile_id, is_active)` — fast lookup for dashboard
-- `(week_start_date, week_end_date)` — adjudicator range query
+- `(profile_id, is_active)` - fast lookup for dashboard
+- `(week_start_date, week_end_date)` - adjudicator range query
 
 **RLS:** Riders see only their own policies.
 
@@ -132,7 +132,7 @@ The `geofence_polygon` field uses a custom JSON format:
 
 ### `parametric_claims`
 
-Auto-inserted by the adjudicator when a rider is eligible for a payout. Status goes directly to `'paid'` — no manual approval step.
+Auto-inserted by the adjudicator when a rider is eligible for a payout. Status goes directly to `'paid'` - no manual approval step.
 
 ```sql
 CREATE TABLE parametric_claims (
@@ -149,9 +149,9 @@ CREATE TABLE parametric_claims (
 ```
 
 **Indexes:**
-- `(policy_id)` — rider dashboard claims list
-- `(status)` — admin claims overview
-- `(created_at DESC)` — recent activity feed
+- `(policy_id)` - rider dashboard claims list
+- `(status)` - admin claims overview
+- `(created_at DESC)` - recent activity feed
 
 **RLS:** Riders see only claims linked to their own policies. Service role has full access.
 
@@ -248,11 +248,11 @@ CREATE TABLE payment_transactions (
 |---|---|---|---|---|
 | `profiles` | Own only | Own only | Via service role | Full |
 | `weekly_policies` | Own only | Own only | Via service role | Full |
-| `parametric_claims` | Own only | — | Via service role | Full |
-| `live_disruption_events` | All | — | Via service role | Full |
-| `plan_packages` | Active only | — | Via service role | Full |
+| `parametric_claims` | Own only | - | Via service role | Full |
+| `live_disruption_events` | All | - | Via service role | Full |
+| `plan_packages` | Active only | - | Via service role | Full |
 | `claim_verifications` | Own only | Own only | Via service role | Full |
-| `system_logs` | — | — | Via service role | Full |
+| `system_logs` | - | - | Via service role | Full |
 
 ---
 

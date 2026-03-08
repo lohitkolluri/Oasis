@@ -1,16 +1,20 @@
 /**
  * POST /api/payments/webhook
  * Stripe server-to-server webhook for checkout.session.completed.
- * Configure this URL in Stripe Dashboard → Developers → Webhooks.
+ * Idempotency and policy/payment update happen in one DB transaction via process_stripe_checkout_event.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getStripeWebhookSecret } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 export async function POST(request: Request) {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = getStripeWebhookSecret();
   if (!webhookSecret) {
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 });
   }
@@ -35,13 +39,24 @@ export async function POST(request: Request) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   const policyId = session.metadata?.policy_id;
-  const paymentIntentId = session.payment_intent as string | null;
+  const paymentIntentId = (session.payment_intent as string) ?? null;
 
   if (!policyId) {
     return NextResponse.json({ ok: true, message: 'No policy_id in metadata' });
   }
 
-  const admin = createAdminClient();
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    logger.error('Stripe webhook: Supabase not configured', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return NextResponse.json(
+      { error: isProd ? 'Service unavailable' : 'Supabase not configured' },
+      { status: 503 },
+    );
+  }
 
   const { data: policy } = await admin
     .from('weekly_policies')
@@ -53,43 +68,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, message: 'Policy not found' });
   }
 
-  await admin
-    .from('weekly_policies')
-    .update({
-      is_active: true,
-      stripe_payment_intent_id: paymentIntentId,
-      payment_status: 'paid',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', policy.id);
+  const { data: result, error: rpcError } = await admin.rpc('process_stripe_checkout_event', {
+    p_event_id: event.id,
+    p_policy_id: policy.id,
+    p_session_id: session.id,
+    p_payment_intent_id: paymentIntentId,
+    p_profile_id: policy.profile_id,
+    p_amount_inr: Number(policy.weekly_premium_inr),
+  });
 
-  const { data: existing } = await admin
-    .from('payment_transactions')
-    .select('id')
-    .eq('weekly_policy_id', policy.id)
-    .limit(1)
-    .single();
-
-  const paidAt = new Date().toISOString();
-  if (existing) {
-    await admin
-      .from('payment_transactions')
-      .update({
-        stripe_payment_intent_id: paymentIntentId,
-        status: 'paid',
-        paid_at: paidAt,
-      })
-      .eq('id', existing.id);
-  } else {
-    await admin.from('payment_transactions').insert({
-      profile_id: policy.profile_id,
-      weekly_policy_id: policy.id,
-      amount_inr: policy.weekly_premium_inr,
-      stripe_checkout_session_id: session.id,
-      stripe_payment_intent_id: paymentIntentId,
-      status: 'paid',
-      paid_at: paidAt,
+  if (rpcError) {
+    logger.error('Stripe webhook: process_stripe_checkout_event failed', {
+      event_id: event.id,
+      policy_id: policyId,
+      error: rpcError.message,
     });
+    return NextResponse.json(
+      { error: isProd ? 'Failed to process payment' : rpcError.message },
+      { status: 500 },
+    );
+  }
+
+  const status = Array.isArray(result) ? result[0] : result;
+  if (status === 'already_processed') {
+    return NextResponse.json({ ok: true, message: 'Already processed' });
   }
 
   return NextResponse.json({ ok: true });

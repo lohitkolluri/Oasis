@@ -1,5 +1,5 @@
 /**
- * Rider self-report: "I can't deliver" with optional message and photo.
+ * Rider self-report: "I can't deliver" with optional message and required photo.
  * POST /api/rider/report-delivery
  */
 import { NextResponse } from "next/server";
@@ -49,6 +49,13 @@ export async function POST(request: Request) {
   if (!type || type !== "cant_deliver") {
     return NextResponse.json(
       { error: "Invalid type. Use 'cant_deliver'" },
+      { status: 400 }
+    );
+  }
+
+  if (!photo || photo.size === 0) {
+    return NextResponse.json(
+      { error: "Photo is required. Take or upload a photo." },
       { status: 400 }
     );
   }

@@ -40,17 +40,17 @@ export function RoleSelector({ profileId, currentRole }: RoleSelectorProps) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Role</p>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Role</p>
+      {error && <p className="text-sm text-uber-red">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setRole('rider')}
           disabled={loading}
-          className={`inline-flex items-center gap-1.5 text-xs py-2 px-3 rounded-lg border transition-colors disabled:opacity-50 ${
+          className={`inline-flex items-center gap-1.5 text-xs py-2 px-3 rounded-xl border transition-colors disabled:opacity-50 ${
             currentRole === 'rider'
-              ? 'bg-zinc-700 border-zinc-600 text-zinc-200'
-              : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300'
+              ? 'bg-white/5 border-white/10 text-white'
+              : 'bg-transparent border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-300'
           }`}
         >
           {loading && currentRole !== 'rider' ? (
@@ -64,10 +64,10 @@ export function RoleSelector({ profileId, currentRole }: RoleSelectorProps) {
           type="button"
           onClick={() => setRole('admin')}
           disabled={loading}
-          className={`inline-flex items-center gap-1.5 text-xs py-2 px-3 rounded-lg border transition-colors disabled:opacity-50 ${
+          className={`inline-flex items-center gap-1.5 text-xs py-2 px-3 rounded-xl border transition-colors disabled:opacity-50 ${
             currentRole === 'admin'
-              ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
-              : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-violet-500/30 hover:text-violet-300'
+              ? 'bg-uber-blue/15 border-uber-blue/40 text-uber-blue'
+              : 'bg-transparent border-white/10 text-zinc-400 hover:border-uber-blue/30 hover:text-uber-blue'
           }`}
         >
           {loading && currentRole !== 'admin' ? (

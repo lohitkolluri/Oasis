@@ -22,7 +22,7 @@ export default function PolicyDocsPage() {
       <div className="prose prose-invert prose-zinc max-w-none space-y-8 text-sm">
         <section>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-emerald-500" />
+            <FileText className="h-4 w-4 text-uber-green" />
             1. Definitions
           </h2>
           <ul className="list-disc pl-5 space-y-2 text-zinc-400">
@@ -127,7 +127,7 @@ export default function PolicyDocsPage() {
       <div className="pt-4 border-t border-zinc-800">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-uber-green hover:text-uber-green/80 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Return to dashboard

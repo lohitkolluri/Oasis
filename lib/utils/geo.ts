@@ -11,6 +11,13 @@ import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 import type { Feature, GeoJSON, MultiPolygon, Polygon } from 'geojson';
 
+// ── Zone clustering (for API deduplication) ───────────────────────────────────
+
+/** ~11 km grid key for deduplicating nearby zones in API calls. */
+export function clusterKey(lat: number, lng: number): string {
+  return `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
+}
+
 // ── Distance & circle geofencing ─────────────────────────────────────────────
 
 export function isWithinCircle(

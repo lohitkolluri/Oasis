@@ -1,32 +1,14 @@
 /**
  * LLM-powered admin insights: executive summary and recommended actions.
- * Uses OpenRouter (openrouter/free) to analyze platform stats.
  * Admin-only.
  */
-import { isAdmin } from '@/lib/utils/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { withAdminAuth } from '@/lib/utils/admin-guard';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (!isAdmin(user, profile)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
+export const GET = withAdminAuth(async (_ctx) => {
   const adminSupabase = createAdminClient();
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -152,4 +134,4 @@ Respond with JSON only: {"summary": "...", "actions": ["...", "..."]}`;
     console.warn('[admin/insights] LLM fetch failed:', err);
     return NextResponse.json(fallbackInsights());
   }
-}
+});

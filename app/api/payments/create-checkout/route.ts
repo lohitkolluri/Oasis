@@ -1,18 +1,21 @@
 /**
  * POST /api/payments/create-checkout
  * Creates a Stripe Checkout Session for weekly premium payment.
- * Replaces Razorpay create-order.
+ * Creates a Stripe Checkout Session for weekly policy payment.
  */
 import { RATE_LIMITS } from '@/lib/config/constants';
+import { getAppUrl } from '@/lib/config/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { createCheckoutSchema } from '@/lib/validations/schemas';
+import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
 export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'payment-create');
-  const rateLimited = checkRateLimit(limitKey, {
+  const rateLimited = await checkRateLimit(limitKey, {
     maxRequests: RATE_LIMITS.PAYMENTS_PER_MINUTE,
   });
   if (rateLimited) return rateLimited;
@@ -39,15 +42,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { planId, weekStart, weekEnd } = body as {
-      planId?: string;
-      weekStart?: string;
-      weekEnd?: string;
-    };
-
-    if (!weekStart || !weekEnd) {
-      return NextResponse.json({ error: 'Week dates required' }, { status: 400 });
-    }
+    const parsed = parseWithSchema(createCheckoutSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { planId, weekStart, weekEnd } = parsed.data;
 
     let amountInr: number;
     if (planId) {
@@ -95,16 +92,32 @@ export async function POST(request: Request) {
     }
 
     const origin = request.headers.get('origin');
-    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    if (origin) baseUrl = origin.replace(/\/$/, '');
-    else {
-      const referer = request.headers.get('referer');
-      if (referer)
-        try {
-          baseUrl = new URL(referer).origin;
-        } catch {
-          /* use default */
-        }
+    // Production: use only canonical app URL to avoid redirect abuse; never trust Origin/Referer.
+    let baseUrl: string;
+    try {
+      if (process.env.NODE_ENV === 'production') {
+        baseUrl = getAppUrl();
+      } else {
+      baseUrl = getAppUrl();
+      if (origin) baseUrl = origin.replace(/\/$/, '');
+      else {
+        const referer = request.headers.get('referer');
+        if (referer) {
+          try {
+            baseUrl = new URL(referer).origin;
+          } catch {
+            /* keep getAppUrl() default */
+          }
+      }
+    }
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message?.includes('NEXT_PUBLIC_APP_URL')
+          ? 'App URL not configured. Set NEXT_PUBLIC_APP_URL in production for Stripe redirects.'
+          : process.env.NODE_ENV === 'production'
+            ? 'App URL not configured.'
+            : (e instanceof Error ? e.message : 'Configuration error');
+      return NextResponse.json({ error: msg }, { status: 503 });
     }
 
     const stripe = new Stripe(stripeSecret!);

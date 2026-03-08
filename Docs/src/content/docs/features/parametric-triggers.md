@@ -147,7 +147,7 @@ The 400 cap prevents cities from becoming "immune" regardless of their historica
 3. Trigger if qualifies=true AND severity >= 6
 ```
 
-The LLM step reduces false positives from headlines about minor traffic jams that wouldn't significantly impact delivery earnings. The model is a free OpenRouter tier — no cost for moderate usage.
+The LLM step reduces false positives from headlines about minor traffic jams that wouldn't significantly impact delivery earnings. The model is a free OpenRouter tier - no cost for moderate usage.
 
 **Geofence:** 20 km radius around zone center.
 **Severity:** LLM-assigned, minimum 6.

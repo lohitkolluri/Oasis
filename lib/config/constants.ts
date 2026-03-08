@@ -1,9 +1,6 @@
-/**
- * Shared constants used across the platform.
- * Single source of truth for values previously hardcoded in multiple files.
- */
+/** Platform-wide constants: zones, triggers, fraud thresholds, rate limits, external API config */
 
-/** Default fallback coordinates (Bangalore) when rider has no zone set */
+/** Default fallback zone (Bangalore) when rider has no coordinates */
 export const DEFAULT_ZONE = {
   lat: 12.9716,
   lng: 77.5946,
@@ -29,6 +26,14 @@ export const TRIGGERS = {
   AQI_EXCESS_MULTIPLIER: 1.4,
   LLM_SEVERITY_THRESHOLD: 6,
   DEFAULT_GEOFENCE_RADIUS_KM: 15,
+  /** Radius (km) to consider two events the same for duplicate detection. */
+  DUPLICATE_EVENT_RADIUS_KM: 30,
+  /** In-memory candidate dedupe: same subtype within this radius = duplicate. */
+  CANDIDATE_DEDUPE_RADIUS_KM: 30,
+  /** News traffic trigger: geofence radius when zone is known (km). */
+  NEWS_GEOFENCE_RADIUS_KM: 20,
+  /** News curfew trigger: geofence radius when zone is country-wide (km). */
+  NEWS_GEOFENCE_RADIUS_KM_COUNTRY: 50,
 } as const;
 
 /** Fraud detection thresholds */
@@ -50,6 +55,11 @@ export const RATE_LIMITS = {
   CRON_PER_HOUR: 5,
   ADMIN_PER_MINUTE: 30,
   DEFAULT_PER_MINUTE: 60,
+} as const;
+
+/** Adjudicator: max triggers processed in parallel (reduces run time when many candidates). */
+export const ADJUDICATOR = {
+  TRIGGER_CONCURRENCY: 3,
 } as const;
 
 /** External API config */

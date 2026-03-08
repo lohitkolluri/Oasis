@@ -35,12 +35,18 @@ In the Vercel project settings, add all variables from `.env.local.example`:
 | `WAQI_API_KEY` | Optional | Ground-station AQI (fallback available) |
 | `STRIPE_SECRET_KEY` | Production | Stripe API key for Checkout |
 | `STRIPE_WEBHOOK_SECRET` | Production | Webhook signing secret |
+| `NEXT_PUBLIC_APP_URL` | Yes (production) | Canonical app URL (e.g. `https://your-app.vercel.app`). Required for Stripe redirects and links |
+| `WEBHOOK_SECRET` | If using webhook | For `POST /api/webhooks/disruption`; no fallback to CRON_SECRET |
 
 :::danger Server-only keys
 `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `OPENROUTER_API_KEY`, and `CRON_SECRET` must **never** be prefixed with `NEXT_PUBLIC_`. They are server-side only and Vercel will not expose them to the browser.
 :::
 
-### 3. Region Configuration
+### 3. Node version
+
+The project pins Node in `package.json` under `engines.node` (e.g. `>=20`). Use the same major version in Vercel (Settings → General → Node.js Version) or ensure your build/runtime matches.
+
+### 4. Region Configuration
 
 `vercel.json` pins deployment to the Mumbai region:
 
@@ -52,14 +58,14 @@ In the Vercel project settings, add all variables from `.env.local.example`:
 }
 ```
 
-This co-locates the serverless functions with the Supabase project (which should also be in the `ap-south-1` region for best latency).
+This co-locates the serverless functions with the Supabase project (use `ap-south-1` for best latency with Mumbai Supabase).
 
 :::note Vercel Hobby and cron
 Vercel Hobby plans allow only **daily** cron jobs. Hourly crons require Pro. Use GitHub Actions (Option A) or Supabase Cron (Option C) for free hourly triggers.
 :::
 
 :::tip Root Directory
-**"No Next.js version detected"** — Set **Root Directory** to *empty* (or `.`) so Vercel uses the repo root where `package.json` includes Next.js. If Root Directory is `docs`, Vercel builds the Astro docs instead, which does not use Next.js.
+**"No Next.js version detected"** - Set **Root Directory** to *empty* (or `.`) so Vercel uses the repo root where `package.json` includes Next.js. If Root Directory is `docs`, Vercel builds the Astro docs instead, which does not use Next.js.
 :::
 
 ---
@@ -70,12 +76,12 @@ Two scheduled jobs keep Oasis running: the adjudicator (hourly) and weekly premi
 
 | Job | Schedule | IST | Purpose |
 |---|---|---|---|
-| `/api/cron/adjudicator` | Every hour | Every hour | Poll weather/news APIs, create disruption events and claims |
-| `/api/cron/weekly-premium` | Sunday 17:30 UTC | Sunday 23:00 IST | Deactivate expired policies, renew for next week |
+| `/api/cron/adjudicator` | Every 15 min | Every 15 min | Poll weather/news APIs, create disruption events and claims |
+| `/api/cron/weekly-premium` | Sunday 17:30 UTC | Sunday 23:00 IST | Compute premium recommendations for next week |
 
 ### Option A: GitHub Actions (recommended for Hobby)
 
-A workflow in `.github/workflows/cron.yml` runs both jobs on GitHub-hosted runners — works with Vercel Hobby.
+A workflow in `.github/workflows/cron.yml` runs both jobs on GitHub-hosted runners - works with Vercel Hobby.
 
 **1. Add repository secrets** (Settings → Secrets and variables → Actions):
 
@@ -91,6 +97,15 @@ Push the workflow file to your default branch. GitHub will run it on schedule. N
 **3. Manual runs**
 
 Go to **Actions → Cron Jobs → Run workflow** and choose `adjudicator` or `weekly-premium` from the dropdown.
+
+**4. Timeouts**
+
+The route handlers use `maxDuration = 120` (adjudicator and weekly-premium). The workflow matches this so the client does not kill the request before the server completes:
+
+- **Adjudicator:** `curl --max-time 120`
+- **Weekly premium:** `curl --max-time 130` (slight buffer over 120s)
+
+Do not reduce these values without also reducing the route `maxDuration` in the API, or long runs will show as failed in Actions while the server may still complete.
 
 :::note Free tier
 GitHub Actions provides 2,000 minutes/month free for private repos; public repos have higher limits. Hourly + weekly crons use well under 1,000 minutes/month.
@@ -173,7 +188,7 @@ In development (`NODE_ENV=development`), the service worker is **disabled** by d
 
 ## Build Output
 
-`next.config.ts` sets `output: "standalone"`. This creates a self-contained Node.js server in `.next/standalone/` — useful for Docker deployments.
+`next.config.ts` sets `output: "standalone"`. This creates a self-contained Node.js server in `.next/standalone/` - useful for Docker deployments.
 
 ### Docker
 
@@ -186,23 +201,42 @@ docker run -p 3000:3000 --env-file .env.local oasis
 
 ---
 
-## Post-Deployment Checklist
+## Post-Deployment Checklist (Production)
 
-- [ ] All migrations applied to the production Supabase database
-- [ ] Storage buckets created: `rider-reports`, `government-ids`, `face-photos`
-- [ ] Supabase Auth site URL + redirect URL set to production domain
-- [ ] `ADMIN_EMAILS` includes at least one admin email
-- [ ] `CRON_SECRET` is set and matches in Vercel env
-- [ ] Stripe webhook: Add endpoint `https://your-app.com/api/payments/webhook`, subscribe to `checkout.session.completed`
-- [ ] Cron jobs configured: GitHub Actions, Vercel Cron (Pro), or Supabase Cron
-- [ ] Test the adjudicator manually: Admin Dashboard → Run Adjudicator
-- [ ] Test payment flow: subscribe to a plan in test mode
-- [ ] Verify PWA install works on Android Chrome
+- [ ] **Secrets:** `CRON_SECRET`, `WEBHOOK_SECRET`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` set and not exposed to client
+- [ ] **KYC (production):** `GOV_ID_ENCRYPTION_KEY` and `FACE_PHOTO_ENCRYPTION_KEY` (32-byte base64) set if storing gov ID / face photos
+- [ ] **Database:** All migrations applied to the production Supabase database (run in timestamp order)
+- [ ] **RLS:** Row Level Security enabled and tested for `profiles`, `weekly_policies`, `parametric_claims`, storage buckets
+- [ ] **Storage buckets:** `rider-reports`, `government-ids`, `face-photos` created (private)
+- [ ] **Supabase Auth:** Site URL and redirect URL set to production domain
+- [ ] **Admin:** `ADMIN_EMAILS` includes at least one admin email
+- [ ] **Cron:** `CRON_SECRET` set and matches the value used by GitHub Actions / Vercel Cron / Supabase Cron
+- [ ] **Stripe webhook:** Endpoint `https://your-app.com/api/payments/webhook` added, subscribed to `checkout.session.completed`, signing secret in env
+- [ ] **Cron schedule:** Adjudicator (hourly) and weekly-premium (Sunday) configured via one of: GitHub Actions, Vercel Cron (Pro), or Supabase Cron
+- [ ] **Smoke tests:** Adjudicator run (Admin → Run Adjudicator), payment flow (subscribe in test mode), PWA install on Android Chrome
+- [ ] **Health:** `GET /api/health` returns 200 when DB is reachable (use for load balancer health checks)
 
 ---
 
-## Monitoring
+## Monitoring and Alerts
 
-- **Admin → System Health** (`/admin/health`) — shows database connectivity, API key status, and the last adjudicator run result.
-- **Admin → Triggers** (`/admin/triggers`) — lists recent `live_disruption_events` with raw API data.
-- **`system_logs` table** — append-only audit log of every adjudicator run.
+- **Admin → System Health** (`/admin/health`) — DB and optional Stripe reachability, last adjudicator run (with `run_id`, `duration_ms`, `error`, `payout_failures`, `log_failures`), external API status, recent `system_logs`.
+- **Public health:** `GET /api/health` — returns 200 when Supabase is reachable, 503 otherwise (no auth). Use for Vercel or load balancer health checks.
+- **`system_logs` table** — One row per adjudicator run: `event_type: 'adjudicator_run'` or `'adjudicator_demo'`, `metadata` includes `run_id`, `duration_ms`, `error`, `payout_failures`, `log_failures`.
+
+### Suggested alert rules
+
+Configure in your monitoring system (e.g. Supabase Dashboard → Logs, Vercel Analytics, or Datadog):
+
+1. **Adjudicator run failure:** Alert when `system_logs` has a row with `event_type = 'adjudicator_run'` and `metadata->>'error' IS NOT NULL` (or `severity = 'error'`).
+2. **Adjudicator slowness:** Alert when `metadata->>'duration_ms'` &gt; threshold (e.g. 300000 for 5 minutes).
+3. **Health endpoint down:** Alert when `GET /api/health` returns 503 or times out (indicates DB unreachable).
+4. **Error spike:** Alert when count of `system_logs` rows with `severity = 'error'` in the last 1h exceeds a threshold.
+
+---
+
+## Rollback
+
+1. **Revert deployment:** In Vercel, use the previous deployment from the Deployments list and “Promote to Production”.
+2. **Migrations:** Supabase migrations are forward-only. If a migration must be undone, add a new migration that reverses the schema change; do not edit existing migration files.
+3. **Env vars:** Restore previous values in Vercel → Settings → Environment Variables if a bad value was pushed.

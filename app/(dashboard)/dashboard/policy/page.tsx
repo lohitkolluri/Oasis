@@ -87,7 +87,7 @@ export default async function PolicyPage({
         <h1 className="text-xl font-semibold text-white">Weekly Policy</h1>
         <Link
           href="/dashboard/policy/docs"
-          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-uber-green transition-colors"
         >
           <FileText className="h-4 w-4" />
           Policy docs

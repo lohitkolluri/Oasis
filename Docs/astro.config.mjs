@@ -1,17 +1,20 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
-import starlightThemeNext from 'starlight-theme-next';
-import starlightImageZoom from 'starlight-image-zoom';
 import starlightUtils from '@lorenzo_lewis/starlight-utils';
+import d2 from 'astro-d2';
+import mermaid from 'astro-mermaid';
+import { defineConfig } from 'astro/config';
+import starlightImageZoom from 'starlight-image-zoom';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
+import { starlightIconsPlugin } from 'starlight-plugin-icons';
+import starlightThemeNext from 'starlight-theme-next';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://oasis-docs.vercel.app',
   integrations: [
+    d2(),
     mermaid({
       theme: 'default',
       autoTheme: true,
@@ -36,6 +39,7 @@ export default defineConfig({
         },
       ],
       plugins: [
+        starlightIconsPlugin(),
         starlightThemeNext(),
         starlightImageZoom(),
         starlightUtils(),
@@ -52,25 +56,55 @@ export default defineConfig({
         ]),
       ],
       sidebar: [
-        { label: 'Introduction', link: '/' },
-        { label: 'Architecture', link: '/architecture' },
-        { label: 'Folder Structure', link: '/folder-structure' },
-        { label: 'Development Setup', link: '/development-setup' },
+        {
+          label: 'Overview',
+          items: [
+            { label: 'Introduction', link: '/' },
+            { label: 'Architecture', link: '/architecture' },
+          ],
+        },
+        {
+          label: 'Getting Started',
+          items: [
+            { label: 'Development Setup', link: '/development-setup' },
+            { label: 'Folder Structure', link: '/folder-structure' },
+          ],
+        },
         {
           label: 'Features',
           items: [
-            { label: 'Onboarding', link: '/features/onboarding' },
-            { label: 'Risk Assessment', link: '/features/risk-assessment' },
-            { label: 'Parametric Triggers', link: '/features/parametric-triggers' },
-            { label: 'Claims Processing', link: '/features/claims-processing' },
-            { label: 'Fraud Detection', link: '/features/fraud-detection' },
-            { label: 'Supabase Integrations', link: '/features/supabase-integrations' },
+            {
+              label: 'User Journey',
+              items: [
+                { label: 'Onboarding', link: '/features/onboarding' },
+                { label: 'Risk Assessment', link: '/features/risk-assessment' },
+              ],
+            },
+            {
+              label: 'Automation',
+              items: [
+                { label: 'Parametric Triggers', link: '/features/parametric-triggers' },
+                { label: 'Claims Processing', link: '/features/claims-processing' },
+              ],
+            },
+            {
+              label: 'Security & Ops',
+              items: [
+                { label: 'Fraud Detection', link: '/features/fraud-detection' },
+                { label: 'Supabase Integrations', link: '/features/supabase-integrations' },
+              ],
+            },
           ],
         },
-        { label: 'Database Schema', link: '/database' },
-        { label: 'API Reference', link: '/api' },
-        ...openAPISidebarGroups,
-        { label: 'Deployment', link: '/deployment' },
+        {
+          label: 'Reference',
+          items: [
+            { label: 'Database Schema', link: '/database' },
+            { label: 'API Reference', link: '/api-overview' },
+            ...openAPISidebarGroups,
+            { label: 'Deployment', link: '/deployment' },
+          ],
+        },
       ],
       customCss: [
         './src/styles/custom.css',
@@ -78,6 +112,23 @@ export default defineConfig({
       components: {
         // Use Starlight defaults
       },
+      head: [
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'preconnect',
+            href: 'https://fonts.googleapis.com',
+          },
+        },
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'preconnect',
+            href: 'https://fonts.gstatic.com',
+            crossorigin: true,
+          },
+        },
+      ],
     }),
   ],
 });

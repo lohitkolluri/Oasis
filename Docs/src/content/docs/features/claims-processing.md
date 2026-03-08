@@ -42,9 +42,9 @@ INSERT live_disruption_events (event_type, severity, geofence, raw_api_data)
 For each active policy in affected geofence:
   ├── Check weekly claim cap (max_claims_per_week from plan_packages)
   ├── runAllFraudChecks() [parallel + sequential]
-  │       ├── checkDuplicateClaim()   — same policy + same event?
-  │       ├── checkRapidClaims()      — ≥ 5 claims in 24h?
-  │       └── checkWeatherMismatch()  — raw data supports trigger?
+  │       ├── checkDuplicateClaim()   - same policy + same event?
+  │       ├── checkRapidClaims()      - ≥ 5 claims in 24h?
+  │       └── checkWeatherMismatch()  - raw data supports trigger?
   └── INSERT parametric_claims (status='paid', payout_amount_inr)
            ↓
 Supabase Realtime fires → RealtimeWallet updates rider UI
@@ -139,7 +139,7 @@ This is accessible via `PATCH /api/admin/review-claim`:
 {
   "claimId": "uuid",
   "isFlagged": false,
-  "reason": "Verified — GPS data confirmed rider was in zone"
+  "reason": "Verified - GPS data confirmed rider was in zone"
 }
 ```
 
@@ -167,4 +167,4 @@ The rider's `/dashboard/claims` page shows:
 - Disruption event type and date
 - Total accumulated payout (wallet balance)
 
-Claims in `status='paid'` are final — parametric insurance has no "pending" state.
+Claims in `status='paid'` are final - parametric insurance has no "pending" state.

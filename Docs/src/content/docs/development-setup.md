@@ -7,7 +7,7 @@ description: Local setup, env vars, migrations
 
 | Tool | Minimum version | Notes |
 |---|---|---|
-| Node.js | 18.x | LTS recommended |
+| Node.js | 20+ | Pinned in `package.json` `engines`; LTS recommended |
 | Yarn | 1.22+ | `npm i -g yarn` |
 | Supabase CLI | Latest | `npm i -g supabase` |
 | Git | Any |  |
@@ -35,12 +35,12 @@ cp .env.local.example .env.local
 ### Required Variables
 
 ```bash
-# Supabase — create a project at supabase.com
+# Supabase - create a project at supabase.com
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
-# Admin access — comma-separated emails
+# Admin access - comma-separated emails
 ADMIN_EMAILS=you@example.com
 
 # Cron job protection
@@ -50,11 +50,11 @@ CRON_SECRET=<random-secure-string>
 ### Weather APIs (for trigger automation)
 
 ```bash
-# Tomorrow.io — heat + rain triggers
-# Free tier: 500 calls/day — https://app.tomorrow.io/
+# Tomorrow.io - heat + rain triggers
+# Free tier: 500 calls/day - https://app.tomorrow.io/
 TOMORROW_IO_API_KEY=
 
-# WAQI — ground-station AQI (optional, Open-Meteo fallback used if empty)
+# WAQI - ground-station AQI (optional, Open-Meteo fallback used if empty)
 # Free token: https://aqicn.org/api/
 WAQI_API_KEY=
 ```
@@ -62,19 +62,19 @@ WAQI_API_KEY=
 ### News & LLM (for curfew/traffic triggers)
 
 ```bash
-# NewsData.io — news-based disruption detection
-# Free tier: 200 calls/day — https://newsdata.io/
+# NewsData.io - news-based disruption detection
+# Free tier: 200 calls/day - https://newsdata.io/
 NEWSDATA_IO_API_KEY=
 
-# OpenRouter — LLM verification of news triggers
-# Free tier available — https://openrouter.ai/
+# OpenRouter - LLM verification of news triggers
+# Free tier available - https://openrouter.ai/
 OPENROUTER_API_KEY=
 ```
 
 ### Payments
 
 ```bash
-# Stripe test keys — https://dashboard.stripe.com/test/apikeys
+# Stripe test keys - https://dashboard.stripe.com/test/apikeys
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...   # From Stripe Dashboard → Developers → Webhooks
 
@@ -109,7 +109,7 @@ Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET
 
 ## 3. Database Setup
 
-### Option A — Supabase Dashboard (recommended for first-time setup)
+### Option A - Supabase Dashboard (recommended for first-time setup)
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
 2. Go to **SQL Editor → New query**
@@ -139,15 +139,23 @@ Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET
 20240313000000_add_face_verification.sql
 ```
 
-### Option B — Supabase CLI
+### Option B - Supabase CLI (or Cursor Supabase plugin)
+
+Migrations are applied with `supabase db push`, which requires the project to be linked. You can link via the **Supabase plugin** (in Cursor: connect your project in the Supabase panel) or via the CLI:
 
 ```bash
-# Link to your project
+# 1. Log in (one-time; or set SUPABASE_ACCESS_TOKEN)
+npx supabase login
+
+# 2. Link to your project (ref = from NEXT_PUBLIC_SUPABASE_URL, e.g. https://<ref>.supabase.co)
 npx supabase link --project-ref <project-ref>
 
-# Apply all migrations
+# 3. Apply all migrations
 yarn db:migrate
+# or: make db-migrate
 ```
+
+If you use the **Supabase plugin** in Cursor, ensure the project is connected; then you can run migrations from the plugin UI or run `yarn db:migrate` in the terminal after linking once via CLI.
 
 ### Storage Bucket Setup
 
@@ -190,7 +198,6 @@ The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
 | Dev server | `yarn dev` | Next.js + Turbopack |
 | Production build | `yarn build` | Full Next.js build with type check |
 | Lint | `yarn lint` | ESLint with Next.js ruleset |
-| Tests | `yarn test` | Vitest unit tests |
 | DB migrate | `yarn db:migrate` | Supabase CLI push |
 | Storage setup | `yarn setup-storage` | Create `rider-reports`, `government-ids`, `face-photos` buckets |
 

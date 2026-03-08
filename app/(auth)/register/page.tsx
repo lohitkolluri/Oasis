@@ -64,7 +64,7 @@ export default function RegisterPage() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green"
               placeholder="Rahul Kumar"
             />
           </div>
@@ -78,7 +78,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green"
               placeholder="you@example.com"
             />
           </div>
@@ -93,7 +93,7 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green"
               placeholder="Min 6 characters"
             />
           </div>
@@ -103,7 +103,7 @@ export default function RegisterPage() {
         </form>
         <p className="mt-6 text-sm text-zinc-400 text-center">
           Already have an account?{' '}
-          <Link href="/login" className="text-emerald-400 hover:underline">
+          <Link href="/login" className="text-uber-green hover:underline">
             Sign in
           </Link>
         </p>

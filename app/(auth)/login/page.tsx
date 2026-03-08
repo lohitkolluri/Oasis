@@ -13,15 +13,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-
   const searchParams = useSearchParams();
   const supabase = createClient();
 
   useEffect(() => {
     const registered = searchParams.get('registered');
-    if (registered === '1') {
-      gooeyToast.success('Account created! Check your email to confirm, then sign in.');
-    }
+    if (registered !== '1') return;
+    const key = 'oasis_registered_toast';
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key) === '1') return;
+    sessionStorage.setItem(key, '1');
+    gooeyToast.success('Account created! Check your email to confirm, then sign in.');
   }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -66,7 +67,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green"
               placeholder="you@example.com"
             />
           </div>
@@ -80,7 +81,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green"
             />
           </div>
           <Button type="submit" disabled={loading} fullWidth size="lg">
@@ -89,7 +90,7 @@ export default function LoginPage() {
         </form>
         <p className="mt-6 text-sm text-zinc-400 text-center">
           Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-emerald-400 hover:underline">
+          <Link href="/register" className="text-uber-green hover:underline">
             Get started
           </Link>
         </p>

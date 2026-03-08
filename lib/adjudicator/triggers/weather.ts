@@ -1,0 +1,247 @@
+/**
+ * Weather-based trigger detection: heat, rain, AQI.
+ * Uses Open-Meteo (and optionally Tomorrow.io, WAQI) with retry and cache.
+ */
+
+import { EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
+import type { TriggerCandidate } from '@/lib/adjudicator/types';
+import { fetchWithRetry } from '@/lib/utils/retry';
+import { toDateString } from '@/lib/utils/date';
+
+export async function fetchCurrentAqi(
+  lat: number,
+  lng: number,
+  waqiKey: string | undefined,
+): Promise<number> {
+  if (waqiKey) {
+    try {
+      const data = await fetchWithRetry<{
+        status?: string;
+        data?: { aqi?: number | string };
+      }>(
+        `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${waqiKey}`,
+        undefined,
+        { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
+      );
+      if (data.status === 'ok' && data.data?.aqi != null) {
+        const aqi = Number(data.data.aqi);
+        if (!isNaN(aqi) && aqi >= 0) return aqi;
+      }
+    } catch {
+      /* fallback to Open-Meteo */
+    }
+  }
+
+  try {
+    const data = await fetchWithRetry<{
+      current?: { us_aqi?: number | null };
+      hourly?: { us_aqi?: (number | null)[] };
+    }>(
+      `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`,
+      undefined,
+      { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
+    );
+    return Number(
+      data.current?.us_aqi ?? (data.hourly?.us_aqi ?? []).find((v) => v != null) ?? 0,
+    );
+  } catch {
+    return 0;
+  }
+}
+
+export async function checkWeatherTriggers(
+  zone: { lat: number; lng: number },
+  tomorrowKey: string | undefined,
+  waqiKey: string | undefined,
+): Promise<TriggerCandidate[]> {
+  const { lat, lng } = zone;
+  const candidates: TriggerCandidate[] = [];
+
+  let heatSustained3h = false;
+  let heatRawData: Record<string, unknown> = {};
+  let precip = 0;
+  let precipRawData: Record<string, unknown> = {};
+
+  try {
+    const forecast = await fetchWithRetry<{
+      hourly?: { time?: string[]; temperature_2m?: (number | null)[] };
+    }>(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m&past_hours=24&forecast_hours=0&timeformat=iso8601`,
+      undefined,
+      { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+    );
+    const times = forecast.hourly?.time ?? [];
+    const temps = forecast.hourly?.temperature_2m ?? [];
+    const now = new Date();
+    const last3: number[] = [];
+    for (let i = times.length - 1; i >= 0 && last3.length < 3; i--) {
+      const t = new Date(times[i]);
+      if (t <= now) {
+        const v = temps[i];
+        if (v != null && typeof v === 'number') last3.push(v);
+      }
+    }
+    if (
+      last3.length >= TRIGGERS.HEAT_SUSTAINED_HOURS &&
+      last3.every((v) => v >= TRIGGERS.HEAT_THRESHOLD_C)
+    ) {
+      heatSustained3h = true;
+      heatRawData = {
+        ...forecast,
+        trigger: 'extreme_heat',
+        source: 'openmeteo_forecast',
+      };
+    }
+  } catch {
+    /* try Tomorrow.io below */
+  }
+
+  if (!heatSustained3h && tomorrowKey) {
+    try {
+      const [data, forecastData] = await Promise.all([
+        fetchWithRetry<{
+          data?: {
+            values?: { temperature?: number; precipitationIntensity?: number };
+          };
+        }>(
+          `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`,
+          undefined,
+          { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+        ),
+        fetchWithRetry<{
+          timelines?: {
+            hourly?: Array<{ values?: { temperature?: number } }>;
+          };
+        }>(
+          `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${tomorrowKey}`,
+          undefined,
+          { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+        ),
+      ]);
+
+      heatRawData = data;
+      precipRawData = data;
+      const vals = data.data?.values ?? {};
+      const temp = vals.temperature ?? 0;
+      precip = vals.precipitationIntensity ?? 0;
+
+      if (temp >= TRIGGERS.HEAT_THRESHOLD_C) {
+        const hourly = forecastData.timelines?.hourly ?? [];
+        let streak = 0;
+        for (const interval of hourly) {
+          const t = interval.values?.temperature ?? 0;
+          streak = t >= TRIGGERS.HEAT_THRESHOLD_C ? streak + 1 : 0;
+          if (streak >= TRIGGERS.HEAT_SUSTAINED_HOURS) break;
+        }
+        heatSustained3h = streak >= TRIGGERS.HEAT_SUSTAINED_HOURS;
+      }
+    } catch {
+      /* skip zone */
+    }
+  }
+
+  if (heatSustained3h) {
+    candidates.push({
+      type: 'weather',
+      subtype: 'extreme_heat',
+      severity: 8,
+      geofence: {
+        type: 'circle',
+        lat,
+        lng,
+        radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+      },
+      raw: { ...heatRawData, trigger: 'extreme_heat' },
+    });
+  }
+
+  if (tomorrowKey && precip >= TRIGGERS.RAIN_THRESHOLD_MM_H) {
+    candidates.push({
+      type: 'weather',
+      subtype: 'heavy_rain',
+      severity: 7,
+      geofence: {
+        type: 'circle',
+        lat,
+        lng,
+        radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+      },
+      raw: { ...precipRawData, trigger: 'heavy_rain' },
+    });
+  }
+
+  try {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDate = toDateString(thirtyDaysAgo);
+    const endDate = toDateString(today);
+
+    const [currentAqi, historical] = await Promise.all([
+      fetchCurrentAqi(lat, lng, waqiKey),
+      fetchWithRetry<{
+        hourly?: { us_aqi?: (number | null)[] };
+      }>(
+        `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&start_date=${startDate}&end_date=${endDate}`,
+        undefined,
+        { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
+      ),
+    ]);
+
+    const historicalValues = (historical.hourly?.us_aqi ?? []).filter(
+      (v): v is number => v != null && v > 0,
+    );
+
+    let adaptiveThreshold = 201;
+    let baseline75 = 0;
+    let baselineMean = 0;
+
+    if (historicalValues.length >= 48) {
+      const sorted = [...historicalValues].sort((a, b) => a - b);
+      baseline75 = sorted[Math.floor(sorted.length * 0.75)];
+      baselineMean = Math.round(
+        historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length,
+      );
+      adaptiveThreshold = Math.min(
+        TRIGGERS.AQI_MAX_THRESHOLD,
+        Math.max(
+          TRIGGERS.AQI_MIN_THRESHOLD,
+          Math.round(baseline75 * TRIGGERS.AQI_EXCESS_MULTIPLIER),
+        ),
+      );
+    }
+
+    if (currentAqi >= adaptiveThreshold) {
+      const excessRatio =
+        baseline75 > 0 ? (currentAqi - baseline75) / baseline75 : 0;
+      const severity = Math.min(10, Math.max(6, Math.round(6 + excessRatio * 8)));
+
+      candidates.push({
+        type: 'weather',
+        subtype: 'severe_aqi',
+        severity,
+        geofence: {
+          type: 'circle',
+          lat,
+          lng,
+          radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+        },
+        raw: {
+          trigger: 'severe_aqi',
+          current_aqi: currentAqi,
+          adaptive_threshold: adaptiveThreshold,
+          baseline_p75: baseline75,
+          baseline_mean: baselineMean,
+          historical_days: Math.round(historicalValues.length / 24),
+          excess_percent: Math.round(
+            ((currentAqi - baseline75) / Math.max(1, baseline75)) * 100,
+          ),
+          source: waqiKey ? 'waqi_ground_station' : 'openmeteo_satellite',
+        },
+      });
+    }
+  } catch {
+    /* skip AQI for this zone */
+  }
+
+  return candidates;
+}

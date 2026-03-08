@@ -5,8 +5,10 @@
 
 import { RATE_LIMITS } from '@/lib/config/constants';
 import { createClient } from '@/lib/supabase/server';
-import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
+import { checkRateLimit, rateLimitKey, sanitizeErrorMessage } from '@/lib/utils/api';
 import { isAdmin } from '@/lib/utils/auth';
+import { getOrCreateRequestId } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 interface AdminContext {
@@ -18,26 +20,32 @@ interface AdminContext {
 /**
  * Wraps an admin API handler with auth + rate-limit checks.
  * Returns 401 if not authenticated, 403 if not admin, 429 if rate limited.
- *
- * Usage:
- *   export const POST = withAdminAuth(async (ctx) => {
- *     // ctx.user, ctx.profile, ctx.supabase available
- *     return NextResponse.json({ ok: true });
- *   });
+ * Catches handler errors and returns 500 without leaking details.
  */
 export function withAdminAuth(
   handler: (ctx: AdminContext, request: Request) => Promise<NextResponse>,
 ) {
   return async (request: Request) => {
-    // Rate limit
     const limitKey = rateLimitKey(request, 'admin');
-    const rateLimited = checkRateLimit(limitKey, {
+    const rateLimited = await checkRateLimit(limitKey, {
       maxRequests: RATE_LIMITS.ADMIN_PER_MINUTE,
     });
     if (rateLimited) return rateLimited;
 
-    // Auth
-    const supabase = await createClient();
+    let supabase: Awaited<ReturnType<typeof createClient>>;
+    try {
+      supabase = await createClient();
+    } catch (err) {
+      logger.error('Admin auth: Supabase not configured', {
+        requestId: getOrCreateRequestId(request),
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return NextResponse.json(
+        { error: 'Service unavailable' },
+        { status: 503 },
+      );
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -56,6 +64,18 @@ export function withAdminAuth(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return handler({ user, profile: profile ?? {}, supabase }, request);
+    try {
+      return await handler({ user, profile: profile ?? {}, supabase }, request);
+    } catch (err) {
+      const requestId = getOrCreateRequestId(request);
+      logger.error('Admin handler error', {
+        requestId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return NextResponse.json(
+        { error: sanitizeErrorMessage(err, 'Internal server error') },
+        { status: 500 },
+      );
+    }
   };
 }

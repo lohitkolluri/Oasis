@@ -1,32 +1,54 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { Avatar } from '@/components/ui/Avatar';
 import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import type { User } from '@supabase/supabase-js';
-import { History, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { PlatformStatus } from './PlatformStatus';
 import { PolicyCard } from './PolicyCard';
 import { PolicyDocumentsLink } from './PolicyDocumentsLink';
 import { PredictiveAlert } from './PredictiveAlert';
-import { RealtimeWallet } from './RealtimeWallet';
-import { ReportDeliverySection } from './ReportDeliverySection';
-import { RiderInsight } from './RiderInsight';
+import { WalletBalanceCard } from './WalletBalanceCard';
+import { KPIGrid } from './KPIGrid';
+import { WeeklyEarningsChart } from './WeeklyEarningsChart';
 import { RiskRadar } from './RiskRadar';
-import { WalletCard } from './WalletCard';
+import { ClaimsPreview } from './ClaimsPreview';
+import { RiderInsightCard } from './RiderInsightCard';
+import { ReportImpactFAB } from './ReportImpactFAB';
 
-interface DashboardContentProps {
+type ClaimWithType = ParametricClaim & {
+  live_disruption_events?: { event_type?: string } | null;
+};
+
+export interface DashboardContentProps {
   user: User;
   profile: { full_name?: string | null; platform?: string | null } | null;
   greeting: string;
   policyIds: string[];
   totalPayouts: number;
   totalClaimCount: number;
-  claimsFiltered: ParametricClaim[];
+  thisWeekEarned: number;
+  weeklyDailyEarnings: number[];
+  riskLevel: 'low' | 'medium' | 'high';
+  claimsFiltered: ClaimWithType[];
   activePolicy: WeeklyPolicy | null;
   planName?: string;
   claimIdsNeedingVerification: string[];
 }
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0 },
+};
 
 export function DashboardContent({
   user,
@@ -35,124 +57,115 @@ export function DashboardContent({
   policyIds,
   totalPayouts,
   totalClaimCount,
+  thisWeekEarned,
+  weeklyDailyEarnings,
+  riskLevel,
   claimsFiltered,
   activePolicy,
   planName,
   claimIdsNeedingVerification,
 }: DashboardContentProps) {
-  const firstName = profile?.full_name?.split(' ')[0] || 'Partner';
+  const firstName = profile?.full_name?.split(' ')[0] || 'Delivery partner';
   const platformLabel = profile?.platform
     ? String(profile.platform).charAt(0).toUpperCase() + String(profile.platform).slice(1)
     : 'Delivery';
 
   return (
-    <div className="space-y-4">
-      {/* M3 Hero — greeting + avatar */}
-      <div className="flex items-center justify-between gap-4 pt-1">
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-4"
+    >
+      {/* Top: greeting + avatar + policy docs */}
+      <motion.div
+        variants={item}
+        className="flex items-center justify-between gap-4 pt-1"
+      >
         <div className="flex items-center gap-3.5 min-w-0">
-          <Avatar seed={user.id} size={46} className="ring-2 ring-[#1e2535] shrink-0" />
+          <Avatar
+            seed={user.id}
+            size={46}
+            className="ring-2 ring-white/10 shrink-0"
+          />
           <div className="min-w-0">
-            <p className="text-[11px] text-[#606880] font-medium tracking-wide">{greeting}</p>
+            <p className="text-[11px] text-zinc-500 font-medium tracking-wide">
+              {greeting}
+            </p>
             <h1 className="text-[17px] font-semibold text-white leading-tight truncate">
               Hi, {firstName}
             </h1>
-            <p className="text-[11px] text-[#606880] mt-0.5">{platformLabel} partner</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">
+              {platformLabel} partner
+            </p>
           </div>
         </div>
         <PolicyDocumentsLink />
-      </div>
+      </motion.div>
 
-      {/* M3 KPI Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Earnings card */}
-        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/12">
-              <TrendingUp className="h-4 w-4 text-emerald-400" />
-            </div>
-          </div>
-          <p className="text-[22px] font-bold text-white tabular-nums tracking-tight leading-none">
-            ₹{totalPayouts.toLocaleString('en-IN')}
-          </p>
-          <p className="text-[11px] text-[#606880] mt-1.5 font-medium">Total earned</p>
-          <p className="text-[10px] text-[#404860] mt-0.5">From payouts</p>
-        </div>
-
-        {/* Claims card */}
-        <div className="rounded-[20px] bg-[#111820] border border-[#1e2535]/70 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-sky-500/12">
-              <History className="h-4 w-4 text-sky-400" />
-            </div>
-          </div>
-          <p className="text-[22px] font-bold text-white tabular-nums tracking-tight leading-none">
-            {totalClaimCount}
-          </p>
-          <p className="text-[11px] text-[#606880] mt-1.5 font-medium">Claims</p>
-          <p className="text-[10px] text-[#404860] mt-0.5">Parametric payouts</p>
-        </div>
-      </div>
-
-      {/* AI insight */}
-      <RiderInsight />
-
-      {/* Platform disruption alert */}
-      <PlatformStatus />
-
-      {/* Predictive risk alert */}
-      <PredictiveAlert />
-
-      {/* Wallet — live balance or static */}
-      {policyIds.length > 0 ? (
-        <RealtimeWallet
-          profileId={user.id}
+      {/* 1. Wallet Balance Card */}
+      <motion.div variants={item}>
+        <WalletBalanceCard
           initialBalance={totalPayouts}
-          initialClaimCount={totalClaimCount}
+          weeklyChange={thisWeekEarned}
           policyIds={policyIds}
-          platform={profile?.platform ?? 'zepto'}
+          sparklineData={
+            weeklyDailyEarnings.some((n) => n > 0)
+              ? weeklyDailyEarnings
+              : undefined
+          }
         />
-      ) : (
-        <WalletCard
-          balance={totalPayouts}
-          platform={profile?.platform ?? 'zepto'}
-          claimCount={totalClaimCount}
+      </motion.div>
+
+      {/* 2. KPI Grid */}
+      <motion.div variants={item}>
+        <KPIGrid
+          totalEarnings={totalPayouts}
+          claimsPaid={totalClaimCount}
+          hasActiveCoverage={activePolicy != null}
+          riskLevel={riskLevel}
+        />
+      </motion.div>
+
+      {/* 3. Weekly Earnings Chart */}
+      <motion.div variants={item}>
+        <WeeklyEarningsChart dailyEarnings={weeklyDailyEarnings} />
+      </motion.div>
+
+      {/* 4. Active Policy Card */}
+      <motion.div variants={item}>
+        <PolicyCard
+          policy={activePolicy}
           profileId={user.id}
+          claims={claimsFiltered}
+          planName={planName}
+          claimIdsNeedingVerification={claimIdsNeedingVerification}
         />
-      )}
+      </motion.div>
 
-      {/* Active policy */}
-      <PolicyCard
-        policy={activePolicy}
-        profileId={user.id}
-        claims={claimsFiltered}
-        planName={planName}
-        claimIdsNeedingVerification={claimIdsNeedingVerification}
-      />
+      {/* Platform status & predictive alert */}
+      <PlatformStatus />
+      <motion.div variants={item}>
+        <PredictiveAlert />
+      </motion.div>
 
-      {/* Live disruption feed */}
-      <RiskRadar />
+      {/* 5. Risk Radar */}
+      <motion.div variants={item}>
+        <RiskRadar />
+      </motion.div>
 
-      {/* View all claims */}
-      {totalClaimCount > 0 && (
-        <Link
-          href="/dashboard/claims"
-          className="flex items-center justify-between gap-3 rounded-[20px] border border-[#1e2535]/70 bg-[#111820] px-5 py-4 hover:bg-[#151d2a] transition-all duration-200 group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-[14px] bg-emerald-500/12 group-hover:bg-emerald-500/18 transition-colors">
-              <History className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div>
-              <span className="text-[13px] font-semibold text-zinc-200 block">All claims</span>
-              <span className="text-[11px] text-[#606880]">{totalClaimCount} total</span>
-            </div>
-          </div>
-          <span className="text-[#404860] group-hover:text-emerald-400 transition-colors text-lg">›</span>
-        </Link>
-      )}
+      {/* 6. Claims Preview */}
+      <motion.div variants={item}>
+        <ClaimsPreview claims={claimsFiltered} />
+      </motion.div>
 
-      {/* Report delivery impact */}
-      <ReportDeliverySection />
-    </div>
+      {/* 7. Rider Insight (Lumo) */}
+      <motion.div variants={item}>
+        <RiderInsightCard />
+      </motion.div>
+
+      {/* Report impact FAB */}
+      <ReportImpactFAB />
+    </motion.div>
   );
 }

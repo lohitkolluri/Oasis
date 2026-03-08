@@ -63,7 +63,10 @@ export default function OnboardingPage() {
   const faceVideoRef = useRef<HTMLVideoElement | null>(null);
   const faceStreamRef = useRef<MediaStream | null>(null);
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>('idle');
+  const [cameraStatus, setCameraStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>('idle');
+  const [isSecureContext, setIsSecureContext] = useState(true);
   const [gesture, setGesture] = useState<string | null>(null);
   const [showFaceCamera, setShowFaceCamera] = useState(false);
   const [faceCameraError, setFaceCameraError] = useState<string | null>(null);
@@ -83,6 +86,35 @@ export default function OnboardingPage() {
       }
     });
   }, [supabase]);
+
+  // Secure context required for geolocation/camera on desktop
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const secure =
+      window.isSecureContext ||
+      window.location?.hostname === 'localhost' ||
+      window.location?.hostname === '127.0.0.1';
+    setIsSecureContext(!!secure);
+  }, []);
+
+  // Optional: pre-check permission state when Permissions API is available (e.g. desktop)
+  useEffect(() => {
+    if (step !== 0 || typeof window === 'undefined') return;
+    const query = (navigator as { permissions?: { query: (o: { name: string }) => Promise<{ state: string }> } }).permissions?.query;
+    if (!query) return;
+    query({ name: 'geolocation' })
+      .then((r) => {
+        if (r.state === 'granted') setLocationStatus('granted');
+        if (r.state === 'denied') setLocationStatus('denied');
+      })
+      .catch(() => {});
+    query({ name: 'camera' })
+      .then((r) => {
+        if (r.state === 'granted') setCameraStatus('granted');
+        if (r.state === 'denied') setCameraStatus('denied');
+      })
+      .catch(() => {});
+  }, [step]);
 
   async function prefillZoneFromCurrentLocation() {
     if (zoneLat != null || zoneLng != null || zone.trim().length > 0) return;
@@ -128,6 +160,34 @@ export default function OnboardingPage() {
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
     );
+  }
+
+  function requestLocationPermission() {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setLocationStatus('unavailable');
+      return;
+    }
+    setLocationStatus('idle');
+    navigator.geolocation.getCurrentPosition(
+      () => setLocationStatus('granted'),
+      () => setLocationStatus('denied'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }
+
+  async function requestCameraPermission() {
+    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setCameraStatus('unavailable');
+      return;
+    }
+    setCameraStatus('idle');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((t) => t.stop());
+      setCameraStatus('granted');
+    } catch {
+      setCameraStatus('denied');
+    }
   }
 
   // Initialize map when coordinates are set
@@ -759,20 +819,135 @@ export default function OnboardingPage() {
           <Logo size={80} />
         </div>
         <h1 className="text-2xl font-bold mb-2 text-center">
-          {step === 1 ? 'Complete your profile' : 'Identity verification'}
+          {step === 0
+            ? 'Required permissions'
+            : step === 1
+              ? 'Complete your profile'
+              : 'Identity verification'}
         </h1>
         <p className="text-zinc-400 mb-8 text-center">
-          {step === 1 ? 'Q-commerce delivery partner setup' : 'Government ID and face verification'}
+          {step === 0
+            ? 'Oasis needs these to set your zone, verify your ID, and report delivery issues.'
+            : step === 1
+              ? 'Q-commerce delivery partner setup'
+              : 'Government ID and face verification'}
         </p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            step === 1 ? handleNext(e) : handleSubmit(e);
+            if (step === 0) setStep(1);
+            else if (step === 1) handleNext(e);
+            else handleSubmit(e);
           }}
           className="space-y-6"
         >
-          {step === 1 ? (
+          {step === 0 ? (
             <>
+              {!isSecureContext && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  Location and camera need a secure connection. Use <strong>https://</strong> or
+                  open this site at <strong>localhost</strong> so your browser can show permission
+                  prompts.
+                </div>
+              )}
+              <p className="text-xs text-zinc-400 text-center">
+                Click each button below. Your browser will show a permission prompt check the
+                address bar (lock icon) or a small popup window.
+              </p>
+              <div className="space-y-4">
+                <div className="rounded-xl border border-zinc-700 bg-zinc-900/50 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full p-2 bg-uber-green-500/20 shrink-0">
+                      <MapPin className="text-uber-green-400" size={20} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-zinc-200">Location (GPS)</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        We use your location to set your delivery zone and attach location to
+                        reports when you can’t deliver.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={requestLocationPermission}
+                        disabled={
+                          !isSecureContext ||
+                          locationStatus === 'granted' ||
+                          locationStatus === 'idle'
+                        }
+                        className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-800/80 disabled:opacity-60"
+                      >
+                        {locationStatus === 'idle'
+                          ? 'Requesting…'
+                          : locationStatus === 'granted'
+                            ? 'Granted'
+                            : locationStatus === 'denied'
+                              ? 'Allow in browser settings'
+                              : locationStatus === 'unavailable'
+                                ? 'Not supported'
+                                : 'Request location'}
+                        {locationStatus === 'granted' && (
+                          <CheckCircle2 className="h-4 w-4 text-uber-green-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-zinc-700 bg-zinc-900/50 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full p-2 bg-uber-green-500/20 shrink-0">
+                      <Camera className="text-uber-green-400" size={20} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-zinc-200">Camera</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        We use the camera for ID verification and when reporting delivery issues
+                        (required photo).
+                      </p>
+                      <button
+                        type="button"
+                        onClick={requestCameraPermission}
+                        disabled={
+                          !isSecureContext ||
+                          cameraStatus === 'granted' ||
+                          cameraStatus === 'idle'
+                        }
+                        className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-800/80 disabled:opacity-60"
+                      >
+                        {cameraStatus === 'idle'
+                          ? 'Requesting…'
+                          : cameraStatus === 'granted'
+                            ? 'Granted'
+                            : cameraStatus === 'denied'
+                              ? 'Allow in browser settings'
+                              : cameraStatus === 'unavailable'
+                                ? 'Not supported'
+                                : 'Request camera'}
+                        {cameraStatus === 'granted' && (
+                          <CheckCircle2 className="h-4 w-4 text-uber-green-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-500 text-center">
+                You can change these later in your browser or device settings. Continuing without
+                granting may limit some features (e.g. “Use current location”, camera capture).
+              </p>
+              <Button type="submit" fullWidth size="lg">
+                Continue
+              </Button>
+            </>
+          ) : step === 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setStep(0)}
+                className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-400 mb-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to permissions
+              </button>
               <div>
                 <label className="block text-sm text-zinc-400 mb-3">
                   Which platform do you deliver for? <span className="text-red-400">*</span>
@@ -785,7 +960,7 @@ export default function OnboardingPage() {
                       onClick={() => setPlatform(p)}
                       className={`flex-1 py-3 px-4 rounded-lg border transition-colors ${
                         platform === p
-                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                          ? 'border-uber-green-500 bg-uber-green-500/10 text-uber-green-400'
                           : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
                       }`}
                     >
@@ -804,7 +979,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green-500"
                   placeholder="As on your government ID"
                   required
                 />
@@ -819,7 +994,7 @@ export default function OnboardingPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green-500"
                   placeholder="10-digit mobile number"
                   inputMode="numeric"
                   pattern="\d{10}"
@@ -839,7 +1014,7 @@ export default function OnboardingPage() {
                   <button
                     type="button"
                     onClick={prefillZoneFromCurrentLocation}
-                    className="text-[11px] text-emerald-400 hover:text-emerald-300"
+                    className="text-[11px] text-uber-green-400 hover:text-uber-green-300"
                   >
                     Use current location
                   </button>
@@ -856,7 +1031,7 @@ export default function OnboardingPage() {
                       value={zone}
                       onChange={(e) => handleZoneChange(e.target.value)}
                       onFocus={() => searchResults.length > 0 && setShowResults(true)}
-                      className="w-full pl-10 pr-10 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full pl-10 pr-10 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-uber-green-500"
                       placeholder="Search Indian area, e.g. Koramangala, Andheri"
                     />
                     {zone && (
@@ -898,7 +1073,7 @@ export default function OnboardingPage() {
                             className="w-full text-left px-4 py-3 hover:bg-zinc-800 active:bg-zinc-700 flex items-center gap-3 text-sm transition-colors border-b border-zinc-700/60 last:border-0"
                           >
                             <MapPin
-                              className="text-emerald-400 shrink-0"
+                              className="text-uber-green-400 shrink-0"
                               style={{ width: 14, height: 14 }}
                             />
                             <div>
@@ -915,10 +1090,10 @@ export default function OnboardingPage() {
 
                 {/* Map preview */}
                 {zoneLat && zoneLng && (
-                  <div className="mt-3 rounded-[16px] overflow-hidden border border-[#1e2535]">
+                  <div className="mt-3 rounded-[16px] overflow-hidden border border-white/10">
                     <div ref={mapRef} className="w-full h-[200px]" />
-                    <div className="bg-[#111820] px-3 py-2 flex items-center gap-2">
-                      <MapPin className="text-emerald-400" style={{ width: 12, height: 12 }} />
+                    <div className="bg-surface-1 px-3 py-2 flex items-center gap-2">
+                      <MapPin className="text-uber-green-400" style={{ width: 12, height: 12 }} />
                       <span className="text-[11px] text-zinc-400">
                         Tap on the map to set the center point of your delivery zone
                       </span>
@@ -947,10 +1122,10 @@ export default function OnboardingPage() {
                 <div>
                   <div className="flex items-center gap-3 mb-3">
                     <div
-                      className={`rounded-full p-2 ${govIdVerified ? 'bg-emerald-500/20' : 'bg-zinc-700'}`}
+                      className={`rounded-full p-2 ${govIdVerified ? 'bg-uber-green-500/20' : 'bg-zinc-700'}`}
                     >
                       <FileCheck
-                        className={govIdVerified ? 'text-emerald-400' : 'text-zinc-500'}
+                        className={govIdVerified ? 'text-uber-green-400' : 'text-zinc-500'}
                         size={20}
                       />
                     </div>
@@ -965,7 +1140,7 @@ export default function OnboardingPage() {
                       </p>
                     </div>
                     {govIdVerified && (
-                      <CheckCircle2 className="text-emerald-400 ml-auto" size={20} />
+                      <CheckCircle2 className="text-uber-green-400 ml-auto" size={20} />
                     )}
                   </div>
                   {!govIdVerified && !govIdVerifying && (
@@ -1000,7 +1175,7 @@ export default function OnboardingPage() {
                         }}
                         className={`w-full px-4 py-4 rounded-lg border border-dashed transition-colors flex items-center justify-center gap-3 cursor-pointer ${
                           govIdFile
-                            ? 'border-emerald-500/50 bg-emerald-500/5 text-emerald-400'
+                            ? 'border-uber-green-500/50 bg-uber-green-500/5 text-uber-green-400'
                             : 'border-zinc-600 bg-zinc-900/50 text-zinc-400 hover:border-zinc-500 hover:bg-zinc-900'
                         }`}
                       >
@@ -1031,7 +1206,7 @@ export default function OnboardingPage() {
                         <button
                           type="button"
                           onClick={() => setShowCamera((v) => !v)}
-                          className={`inline-flex items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-emerald-500 hover:bg-zinc-900/80 hover:text-emerald-400 transition-colors ${showCamera ? 'border-emerald-500 text-emerald-400' : ''}`}
+                          className={`inline-flex items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-900/80 hover:text-uber-green-400 transition-colors ${showCamera ? 'border-uber-green-500 text-uber-green-400' : ''}`}
                           aria-label={showCamera ? 'Close camera' : 'Open camera'}
                         >
                           <Camera className="h-3.5 w-3.5 mr-1.5" />
@@ -1043,7 +1218,7 @@ export default function OnboardingPage() {
                       </div>
                       {showCamera && (
                         <div
-                          className={`mt-3 rounded-lg overflow-hidden transition-colors ${captureReady ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-zinc-950' : 'border border-zinc-700'}`}
+                          className={`mt-3 rounded-lg overflow-hidden transition-colors ${captureReady ? 'ring-2 ring-uber-green-500 ring-offset-2 ring-offset-zinc-950' : 'border border-zinc-700'}`}
                         >
                           <video
                             ref={videoRef}
@@ -1061,7 +1236,7 @@ export default function OnboardingPage() {
                             <button
                               type="button"
                               onClick={capturePhoto}
-                              className="text-xs px-3 py-1 rounded-full bg-emerald-500 text-black font-medium hover:bg-emerald-400"
+                              className="text-xs px-3 py-1 rounded-full bg-uber-green-500 text-black font-medium hover:bg-uber-green-400"
                             >
                               Capture now
                             </button>
@@ -1075,10 +1250,10 @@ export default function OnboardingPage() {
                 <div className="border-t border-zinc-700/60 pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div
-                      className={`rounded-full p-2 ${faceVerified ? 'bg-emerald-500/20' : 'bg-zinc-700'}`}
+                      className={`rounded-full p-2 ${faceVerified ? 'bg-uber-green-500/20' : 'bg-zinc-700'}`}
                     >
                       <User
-                        className={faceVerified ? 'text-emerald-400' : 'text-zinc-500'}
+                        className={faceVerified ? 'text-uber-green-400' : 'text-zinc-500'}
                         size={20}
                       />
                     </div>
@@ -1093,7 +1268,7 @@ export default function OnboardingPage() {
                       </p>
                     </div>
                     {faceVerified && (
-                      <CheckCircle2 className="text-emerald-400 ml-auto" size={20} />
+                      <CheckCircle2 className="text-uber-green-400 ml-auto" size={20} />
                     )}
                   </div>
 
@@ -1101,7 +1276,7 @@ export default function OnboardingPage() {
                     <div className="space-y-3">
                       {gesture && (
                         <p className="text-sm text-zinc-300 bg-zinc-800/60 rounded-lg px-3 py-2">
-                          <span className="text-emerald-400 font-medium">Do this:</span> {gesture}
+                          <span className="text-uber-green-400 font-medium">Do this:</span> {gesture}
                         </p>
                       )}
                       {!showFaceCamera ? (
@@ -1109,7 +1284,7 @@ export default function OnboardingPage() {
                           type="button"
                           onClick={() => setShowFaceCamera(true)}
                           disabled={!gesture}
-                          className="w-full py-3 px-4 rounded-lg border border-zinc-600 bg-zinc-900 text-zinc-300 hover:border-emerald-500 hover:text-emerald-400 transition-colors flex items-center justify-center gap-2"
+                          className="w-full py-3 px-4 rounded-lg border border-zinc-600 bg-zinc-900 text-zinc-300 hover:border-uber-green-500 hover:text-uber-green-400 transition-colors flex items-center justify-center gap-2"
                         >
                           <Camera size={18} />
                           Capture face
@@ -1128,7 +1303,7 @@ export default function OnboardingPage() {
                             className="absolute inset-0 pointer-events-none flex items-center justify-center"
                             aria-hidden
                           >
-                            <div className="w-44 h-56 rounded-[40%] border-2 border-emerald-500/60 border-dashed" />
+                            <div className="w-44 h-56 rounded-[40%] border-2 border-uber-green-500/60 border-dashed" />
                           </div>
                           {faceCameraError && (
                             <p className="text-xs text-red-400 px-3 py-2">{faceCameraError}</p>
@@ -1140,7 +1315,7 @@ export default function OnboardingPage() {
                             <button
                               type="button"
                               onClick={captureFacePhoto}
-                              className="text-xs px-3 py-1.5 rounded-full bg-emerald-500 text-black font-medium hover:bg-emerald-400"
+                              className="text-xs px-3 py-1.5 rounded-full bg-uber-green-500 text-black font-medium hover:bg-uber-green-400"
                             >
                               Capture
                             </button>

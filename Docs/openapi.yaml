@@ -11,8 +11,13 @@ servers:
 paths:
   /api/cron/adjudicator:
     get:
+      tags:
+        - Cron Jobs
       summary: Run adjudicator
-      description: Runs the parametric adjudicator. Triggered hourly by Vercel cron.
+      description: |
+        Runs the parametric adjudicator.
+
+        Triggered automatically **every 15 minutes** (GitHub Actions or Supabase pg_cron). Polls weather, AQI, and news APIs for providers that do not support webhooks. For realtime, use POST /api/webhooks/disruption.
       operationId: getCronAdjudicator
       security:
         - cronSecret: []
@@ -24,16 +29,21 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  triggered_at: { type: string, format: date-time }
-                  candidates_found: { type: integer }
-                  claims_created: { type: integer }
-                  zones_checked: { type: integer }
-                  message: { type: string }
+                  ok: { type: boolean, example: true }
+                  triggered_at: { type: string, format: date-time, example: "2026-03-06T13:00:00Z" }
+                  candidates_found: { type: integer, example: 12 }
+                  claims_created: { type: integer, example: 5 }
+                  zones_checked: { type: integer, example: 8 }
+                  message: { type: string, example: "Hourly processing complete." }
   /api/cron/weekly-premium:
     get:
+      tags:
+        - Cron Jobs
       summary: Weekly premium renewal
-      description: Renews weekly policies every Sunday at 17:30 UTC.
+      description: |
+        Renews active weekly policies.
+
+        Executes exactly at **Sunday 17:30 UTC** to prepare policies for the upcoming week based on individual zone risk scoring.
       operationId: getCronWeeklyPremium
       security:
         - cronSecret: []
@@ -45,21 +55,74 @@ paths:
               schema:
                 type: object
                 properties:
+                  ok: { type: boolean, example: true }
+                  renewed: { type: integer, example: 1250 }
+                  skipped: { type: integer, example: 45 }
+  /api/webhooks/disruption:
+    post:
+      tags:
+        - Webhooks
+      summary: Realtime disruption webhook
+      description: |
+        Accepts a single disruption trigger from providers that support push (e.g. Tomorrow.io Alerts).
+        Runs processSingleTrigger immediately: inserts event, finds eligible policies, fraud checks, creates claims and payouts.
+        Secured with WEBHOOK_SECRET or CRON_SECRET (Authorization Bearer or X-Webhook-Secret).
+      operationId: postWebhooksDisruption
+      security:
+        - webhookSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, lat, lng]
+              properties:
+                type: { type: string, enum: [weather, traffic, social] }
+                subtype: { type: string, example: "extreme_heat" }
+                severity: { type: number, minimum: 0, maximum: 10, default: 7 }
+                lat: { type: number }
+                lng: { type: number }
+                radius_km: { type: number, default: 15 }
+                raw: { type: object }
+      responses:
+        '200':
+          description: Processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
                   ok: { type: boolean }
-                  renewed: { type: integer }
-                  skipped: { type: integer }
+                  eventId: { type: string, format: uuid }
+                  claimsCreated: { type: integer }
+                  payoutsInitiated: { type: integer }
+        '400':
+          description: Invalid body
+        '401':
+          description: Unauthorized
+        '503':
+          description: Webhook or Supabase not configured
   /api/admin/run-adjudicator:
     post:
+      tags:
+        - Admin Operations
       summary: Manually run adjudicator
-      description: Manually trigger the adjudicator on demand.
+      description: |
+        Forces the adjudicator to run on demand outside of the normal cron schedule.
+
+        Requires an authenticated session where the user role is `admin`.
       operationId: postAdminRunAdjudicator
       responses:
         '200':
           description: Success
   /api/admin/demo-trigger:
     post:
+      tags:
+        - Admin Operations
       summary: Inject demo disruption
-      description: Inject a synthetic disruption event for demo purposes.
+      description: |
+        Inject a synthetic, high-severity disruption event into the database to manually trigger payouts for demos or QA testing.
       operationId: postAdminDemoTrigger
       requestBody:
         content:
@@ -71,30 +134,38 @@ paths:
                 eventSubtype:
                   type: string
                   enum: [extreme_heat, heavy_rain, severe_aqi, traffic_gridlock, zone_curfew]
-                lat: { type: number }
-                lng: { type: number }
-                radiusKm: { type: number, default: 15 }
-                severity: { type: number }
+                  example: extreme_heat
+                lat: { type: number, format: float, example: 12.9716 }
+                lng: { type: number, format: float, example: 77.5946 }
+                radiusKm: { type: number, default: 15, example: 10 }
+                severity: { type: number, example: 9 }
       responses:
         '200':
-          description: Success
+          description: Synthetic event injected successfully.
   /api/onboarding/verify-face:
     get:
+      tags:
+        - KYC & Onboarding
       summary: Get face verification gesture
-      description: Returns a random gesture for face liveness verification.
+      description: Returns a random liveness gesture (e.g. `smile`, `look_left`) required for the next face verification step.
       operationId: getVerifyFaceGesture
       responses:
         '200':
-          description: Random gesture
+          description: Random gesture retrieved successfully.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  gesture: { type: string }
+                  gesture: { type: string, example: "smile" }
     post:
+      tags:
+        - KYC & Onboarding
       summary: Verify face photo
-      description: Verifies a face photo against the expected gesture.
+      description: |
+        Validates the user's face photo actively performing the requested gesture.
+
+        This utilizes **OpenRouter Vision Models** to ensure the image satisfies the liveness check criteria before proceeding.
       operationId: postVerifyFace
       requestBody:
         content:
@@ -104,7 +175,7 @@ paths:
               required: [face_photo, expected_gesture]
               properties:
                 face_photo: { type: string, format: binary }
-                expected_gesture: { type: string }
+                expected_gesture: { type: string, example: "smile" }
       responses:
         '200':
           description: Verification result
@@ -113,14 +184,19 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  verified: { type: boolean }
-                  face_photo_url: { type: string }
-                  reason: { type: string }
+                  ok: { type: boolean, example: true }
+                  verified: { type: boolean, example: true }
+                  face_photo_url: { type: string, example: "https://bucket..." }
+                  reason: { type: string, example: "Gesture matched successfully." }
   /api/onboarding/verify-government-id:
     post:
+      tags:
+        - KYC & Onboarding
       summary: Verify government ID
-      description: Uploads government ID and verifies authenticity via LLM vision.
+      description: |
+        Uploads and validates standard Indian government identification using Vision LLMs.
+
+        The model cross-references the `full_name` provided with the legible text on the `aadhaar` card.
       operationId: postVerifyGovernmentId
       requestBody:
         content:
@@ -130,8 +206,8 @@ paths:
               required: [file, full_name, id_type]
               properties:
                 file: { type: string, format: binary }
-                full_name: { type: string }
-                id_type: { type: string, enum: [aadhaar] }
+                full_name: { type: string, example: "Rahul Sharma" }
+                id_type: { type: string, enum: [aadhaar], example: "aadhaar" }
       responses:
         '200':
           description: Verification result
@@ -140,14 +216,16 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  verified: { type: boolean }
-                  government_id_url: { type: string }
-                  reason: { type: string }
+                  ok: { type: boolean, example: true }
+                  verified: { type: boolean, example: true }
+                  government_id_url: { type: string, example: "https://bucket..." }
+                  reason: { type: string, example: "Aadhaar verified and name matched." }
   /api/payments/create-checkout:
     post:
+      tags:
+        - Payments & Subscriptions
       summary: Create Stripe Checkout
-      description: Creates a Stripe Checkout Session for weekly premium payment.
+      description: Initiates a synchronous Stripe Checkout session for activating a weekly delivery risk premium.
       operationId: postCreateCheckout
       requestBody:
         content:
@@ -156,28 +234,30 @@ paths:
               type: object
               required: [planId, weekStart, weekEnd]
               properties:
-                planId: { type: string, format: uuid }
-                weekStart: { type: string, format: date }
-                weekEnd: { type: string, format: date }
+                planId: { type: string, format: uuid, example: "basic-plan-uuid" }
+                weekStart: { type: string, format: date, example: "2026-03-09" }
+                weekEnd: { type: string, format: date, example: "2026-03-15" }
       responses:
         '200':
-          description: Redirect URL
+          description: Redirect URL to Stripe hosted checkout page.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  url: { type: string }
-                  sessionId: { type: string }
-                  policyId: { type: string }
+                  url: { type: string, example: "https://checkout.stripe.com/c/pay/..." }
+                  sessionId: { type: string, example: "cs_test_..." }
+                  policyId: { type: string, format: uuid, example: "policy-uuid..." }
   /api/payments/webhook:
     post:
+      tags:
+        - Payments & Subscriptions
       summary: Stripe webhook
-      description: Handles checkout.session.completed from Stripe.
+      description: Securely handles the asynchronous `checkout.session.completed` event pushed from Stripe servers to finalize policy assignments.
       operationId: postPaymentsWebhook
       responses:
         '200':
-          description: Processed
+          description: Processed Event Successfully
 components:
   securitySchemes:
     cronSecret:
@@ -185,3 +265,8 @@ components:
       in: header
       name: Authorization
       description: Bearer CRON_SECRET
+    webhookSecret:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer WEBHOOK_SECRET or CRON_SECRET (or X-Webhook-Secret)

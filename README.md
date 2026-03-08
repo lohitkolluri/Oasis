@@ -23,6 +23,9 @@ Full developer documentation is in the [`/docs`](./docs) folder (Astro Starlight
 | [Database Schema](./docs/src/content/docs/database.md)                 | All tables, RLS, relationships         |
 | [API Reference](./docs/src/content/docs/api.md)                        | Every endpoint, request/response shapes  |
 | [Deployment](./docs/src/content/docs/deployment.md)                   | Vercel deployment, cron setup            |
+| [Payments (Stripe)](./docs/PAYMENTS.md)                               | Stripe-only; Razorpay deprecated         |
+| [Realtime triggers](./docs/REALTIME-TRIGGERS.md)                     | Webhook + 15-min cron for adjudicator    |
+| [Refactoring roadmap](./docs/REFACTORING-ROADMAP.md)                 | Phased plan for production-grade quality |
 | [Supabase Integrations](./docs/src/content/docs/features/supabase-integrations.md) | Cron, Queues, Stripe options            |
 
 To run the docs site locally:
@@ -42,10 +45,12 @@ The docs include `llms.txt`, `llms-full.txt`, and `llms-small.txt` for AI contex
 git clone https://github.com/lohitkolluri/oasis.git
 cd oasis && yarn install
 
-# 2. Set up environment variables
+# 2. Set up environment variables (do not commit .env.local)
 cp .env.local.example .env.local
-# Fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
-# SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS
+# Required: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+# SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS, TOMORROW_IO_API_KEY, NEWSDATA_IO_API_KEY,
+# STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, CRON_SECRET. Optional: see list below.
+# Run: make configure  (or npx tsx scripts/configure-env.ts) to fill interactively.
 
 # 3. Apply database migrations (Supabase Dashboard → SQL Editor, run in order)
 #    or via CLI: npx supabase link && yarn db:migrate
@@ -57,7 +62,28 @@ yarn setup-storage
 yarn dev
 ```
 
-**For local dev**, add `STRIPE_SECRET_KEY=sk_test_...` and `STRIPE_WEBHOOK_SECRET=whsec_...` to `.env.local` for Stripe Checkout (use [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks locally).
+**Environment variables (do not commit .env.local):**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key |
+| `ADMIN_EMAILS` | Yes | Comma-separated admin emails |
+| `TOMORROW_IO_API_KEY` | Yes | Weather / triggers |
+| `NEWSDATA_IO_API_KEY` | Yes | News / disruption triggers |
+| `STRIPE_SECRET_KEY` | Yes | Stripe API secret (sk_test_...) |
+| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook secret (whsec_...); use [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward locally |
+| `CRON_SECRET` | Yes (prod) | Random string for /api/cron/*; required in production |
+| `WEBHOOK_SECRET` | If using webhook | For POST /api/webhooks/disruption (realtime). No fallback to CRON_SECRET; set when using disruption webhook |
+| `NEXT_PUBLIC_APP_URL` | Yes (prod) | Canonical app URL (e.g. https://your-app.vercel.app). Required in production for Stripe redirects and links |
+| `OPENROUTER_API_KEY` | Yes | LLM (gov ID / face verification) |
+| `WAQI_API_KEY` | No | AQI (optional fallback) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | Stripe publishable key (pk_test_...) |
+| `GOV_ID_ENCRYPTION_KEY` | **Production** | 32-byte base64 key; required in production to store government ID images (KYC). Omit in dev to store unencrypted. |
+| `FACE_PHOTO_ENCRYPTION_KEY` | **Production** | 32-byte base64 key; required in production to store face verification photos. Falls back to `GOV_ID_ENCRYPTION_KEY` if unset. |
+
+Run `make configure` (or `npx tsx scripts/configure-env.ts`) to set these interactively.
 
 See [Development Setup](./docs/src/content/docs/development-setup.md) for the full guide.
 
@@ -95,7 +121,7 @@ Realtime    NewsData.io
 
 1. **Rider onboards** → Step 1: platform (Zepto/Blinkit), name, phone, zone. Step 2: government ID (Aadhaar) + face liveness verification.
 2. **Subscribes weekly** → pays ₹79–₹149/week via Stripe (3 tiers, dynamic pricing).
-3. **Adjudicator runs every hour** → polls weather, AQI, and news APIs across all active rider zones.
+3. **Disruption triggers** → **Realtime:** providers that support push (e.g. Tomorrow.io Alerts) POST to `/api/webhooks/disruption`. **Every 15 min:** cron polls weather, AQI, and news APIs for the rest.
 4. **Disruption detected** → 7-check fraud pipeline → `parametric_claims` inserted with `status='paid'`.
 5. **Rider's wallet updates** in real time via Supabase Realtime — no claim form needed.
 
@@ -145,7 +171,10 @@ yarn db:migrate
 
 ## Cron Jobs
 
-Two scheduled jobs: adjudicator (hourly) and weekly premium (Sunday). **Free option:** use the GitHub Actions workflow in `.github/workflows/cron.yml` — add `CRON_SECRET` and `APP_URL` as repo secrets. See [Deployment → Cron Jobs](docs/docs/deployment.md#cron-jobs) for setup.
+- **Adjudicator:** every **15 minutes** (covers weather/AQI/news that don’t support webhooks). For **realtime**, use `POST /api/webhooks/disruption` for providers that support push (see [Realtime Triggers](./docs/REALTIME-TRIGGERS.md)).
+- **Weekly premium:** Sunday 17:30 UTC.
+
+**Free option:** use the GitHub Actions workflow in `.github/workflows/cron.yml` — add `CRON_SECRET` and `APP_URL` as repo secrets. See [Deployment → Cron Jobs](docs/docs/deployment.md#cron-jobs) for setup.
 
 ---
 

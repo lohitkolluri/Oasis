@@ -80,16 +80,16 @@ export function AdminRiderActions({ riderId, policies, plans }: AdminRiderAction
   const activePolicy = policies.find((p) => p.is_active);
 
   return (
-    <Card variant="outline" padding="md" className="w-full sm:max-w-xs">
-      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+    <Card variant="outline" padding="md" className="w-full sm:max-w-xs border-white/5">
+      <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-3">
         Quick actions
       </p>
-      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+      {error && <p className="text-sm text-uber-red mb-3">{error}</p>}
       {activePolicy ? (
         <div className="space-y-3">
           {plans.length > 0 && (
             <div>
-              <p className="text-xs text-zinc-500 mb-2">Change plan</p>
+              <p className="text-[11px] text-zinc-500 mb-2">Change plan</p>
               <div className="flex flex-wrap gap-1.5">
                 {plans.map((plan) => {
                   const isCurrent = activePolicy.plan_id === plan.id;
@@ -102,8 +102,8 @@ export function AdminRiderActions({ riderId, policies, plans }: AdminRiderAction
                       disabled={!!loading || isCurrent}
                       className={`text-xs py-1.5 px-2.5 rounded-lg border transition-colors disabled:opacity-50 flex items-center gap-1 ${
                         isCurrent
-                          ? 'bg-zinc-700 border-zinc-600 text-zinc-400'
-                          : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-emerald-500/50 hover:text-emerald-400'
+                          ? 'bg-white/5 border-white/10 text-zinc-400'
+                          : 'bg-transparent border-white/10 text-zinc-300 hover:border-uber-green/50 hover:text-uber-green'
                       }`}
                     >
                       {loading === key ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
@@ -118,7 +118,7 @@ export function AdminRiderActions({ riderId, policies, plans }: AdminRiderAction
             type="button"
             onClick={() => deactivatePolicy(activePolicy.id)}
             disabled={!!loading}
-            className="w-full text-sm py-2 px-3 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full text-sm py-2.5 px-3 rounded-xl bg-uber-yellow/10 text-uber-yellow hover:bg-uber-yellow/15 border border-uber-yellow/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
           >
             {loading === activePolicy.id ? (
               <Loader2 className="h-4 w-4 animate-spin" />

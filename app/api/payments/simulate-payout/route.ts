@@ -7,17 +7,12 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { simulatePayoutSchema } from '@/lib/validations/schemas';
+import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-
-interface PayoutRequest {
-  claim_id: string;
-  profile_id: string;
-  amount_inr: number;
-  payout_method?: string;
-}
 
 /**
  * Simulate an instant payout. Called internally by the adjudicator after
@@ -25,19 +20,14 @@ interface PayoutRequest {
  */
 export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'payout');
-  const rateLimited = checkRateLimit(limitKey, { maxRequests: 20 });
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
   if (rateLimited) return rateLimited;
 
   try {
-    const body = (await request.json()) as PayoutRequest;
-    const { claim_id, profile_id, amount_inr, payout_method } = body;
-
-    if (!claim_id || !profile_id || !amount_inr) {
-      return NextResponse.json(
-        { error: 'Missing claim_id, profile_id, or amount_inr' },
-        { status: 400 },
-      );
-    }
+    const body = await request.json();
+    const parsed = parseWithSchema(simulatePayoutSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { claim_id, profile_id, amount_inr, payout_method } = parsed.data;
 
     const admin = createAdminClient();
 
@@ -52,7 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
 
-    // Generate a mock UPI reference (simulating Razorpay/Cashfree payout)
+    // Generate a mock UPI reference (simulated instant payout for demo)
     const mockUpiRef = `OASIS_UPI_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     // Simulate processing delay (200-800ms for realistic demo)

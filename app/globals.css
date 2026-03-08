@@ -3,40 +3,50 @@
 @tailwind utilities;
 
 :root {
-  /* Core surfaces — M3-inspired dark */
-  --background: #0b0e14;
+  /* Uber palette */
+  --uber-black: #000000;
+  --uber-blue: #276EF1;
+  --uber-green: #3AA76D;
+  --uber-yellow: #FFC043;
+  --uber-red: #D44333;
+  --uber-orange: #ED6E33;
+  --uber-purple: #7356BF;
+  --uber-brown: #99644C;
+
+  /* Core surfaces — Uber black + dark grays */
+  --background: #000000;
   --foreground: #ffffff;
 
-  /* Surface hierarchy (M3 tonal elevation) */
-  --surface-1: #111820;
-  --surface-2: #151e2a;
-  --surface-3: #1a2436;
-  --surface-4: #1e2840;
-  --surface-5: #252e48;
+  /* Surface hierarchy */
+  --surface-1: #0f0f0f;
+  --surface-2: #171717;
+  --surface-3: #1a1a1a;
+  --surface-4: #262626;
+  --surface-5: #2d2d2d;
 
   /* Borders */
-  --border: #1e2535;
-  --border-strong: #2a3347;
+  --border: #262626;
+  --border-strong: #333333;
 
   /* Text */
   --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
 
-  /* Brand accent — emerald */
-  --primary: #10b981;
+  /* Brand — Uber Green primary, Uber Blue safety, Uber Yellow warning */
+  --primary: #3AA76D;
   --primary-foreground: #ffffff;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --muted: #14191f;
-  --muted-foreground: #6b7280;
+  --success: #3AA76D;
+  --warning: #FFC043;
+  --danger: #D44333;
+  --muted: #0a0a0a;
+  --muted-foreground: #737373;
 
   /* Accent glows */
-  --neon-emerald: #10b981;
-  --neon-emerald-glow: rgba(16, 185, 129, 0.25);
-  --neon-violet: #a78bfa;
-  --neon-violet-glow: rgba(167, 139, 250, 0.25);
+  --neon-emerald: #3AA76D;
+  --neon-emerald-glow: rgba(58, 167, 109, 0.25);
+  --neon-violet: #7356BF;
+  --neon-violet-glow: rgba(115, 86, 191, 0.25);
 }
 
 html {
@@ -55,6 +65,11 @@ body {
 /* M3 safe-area bottom padding */
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-br {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Scrollbar */

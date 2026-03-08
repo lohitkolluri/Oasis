@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: "#3AA76D",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -53,7 +53,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} ${mono.variable} font-sans antialiased min-h-screen bg-[#0f0f0f] text-white`}
+        className={`${inter.variable} ${mono.variable} font-sans antialiased min-h-screen bg-black text-white`}
       >
         {children}
         <GoeyToaster />
