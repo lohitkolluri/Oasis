@@ -1,9 +1,9 @@
 ---
 title: Claims Processing
-description: Zero-touch parametric claims, geofence eligibility, real-time wallet
+description: Automated parametric claims, geofence confirmation, real-time wallet
 ---
 
-Fully automated, zero-touch claims. No forms, photos, or helplines. When a threshold is crossed, eligible riders receive payouts automatically.
+Oasis uses automated parametric claims. No claim form, adjuster handoff, or document chase is required. When a threshold is crossed, eligible riders receive a claim automatically and the payout is released after lightweight geofence confirmation.
 
 ## What Makes It "Parametric"
 
@@ -15,8 +15,9 @@ Traditional insurance requires the policyholder to:
 
 Parametric insurance replaces all of this with **objective trigger thresholds**:
 - The trigger condition (temperature ≥ 43°C for 3+ hours) is verified by a third-party API
-- If the threshold is crossed, all eligible policyholders in the affected zone automatically receive a payout
-- No manual verification, no claims form, no waiting
+- If the threshold is crossed, all eligible policyholders in the affected zone automatically receive a claim
+- Oasis uses GPS confirmation plus fraud checks before releasing payout funds
+- No manual claims form and no adjuster review in the normal flow
 
 ---
 
@@ -28,8 +29,9 @@ flowchart LR
     B --> C[For each policy]
     C --> D[Cap OK?]
     D --> E[Fraud checks]
-    E --> F[INSERT claims]
-    F --> G[Realtime wallet]
+    E --> F[INSERT pending_verification claim]
+    F --> G[GPS confirmation]
+    G --> H[Mark paid + wallet update]
 ```
 
 **Flow:**
@@ -45,9 +47,13 @@ For each active policy in affected geofence:
   │       ├── checkDuplicateClaim()   - same policy + same event?
   │       ├── checkRapidClaims()      - ≥ 5 claims in 24h?
   │       └── checkWeatherMismatch()  - raw data supports trigger?
-  └── INSERT parametric_claims (status='paid', payout_amount_inr)
+  └── INSERT parametric_claims (status='pending_verification', payout_amount_inr)
            ↓
-Supabase Realtime fires → RealtimeWallet updates rider UI
+Mobile app auto-verifies GPS when possible; otherwise rider taps verify
+           ↓
+On successful verification → claim updated to status='paid'
+           ↓
+Supabase Realtime fires → wallet UI updates immediately
 ```
 
 ---
@@ -105,7 +111,7 @@ The `gateway_transaction_id` field stores a deterministic ID in the format `oasi
 
 ## Real-Time Wallet Update
 
-After a claim is inserted, Supabase Realtime pushes the change to all connected clients subscribed to that policy's claims. The `RealtimeWallet` component accumulates the total payout:
+After a verified claim is marked `paid`, Supabase Realtime pushes the change to connected clients subscribed to that policy's claims. The `RealtimeWallet` component accumulates the payout:
 
 ```typescript
 // components/rider/RealtimeWallet.tsx
@@ -145,17 +151,18 @@ This is accessible via `PATCH /api/admin/review-claim`:
 
 ---
 
-## Location Verification (Optional)
+## Location Confirmation
 
-Riders can optionally submit a GPS verification to confirm they were in the disruption zone. This is displayed as a prompt in the dashboard after a claim is created.
+Claims are created in `pending_verification` state. Oasis then asks for GPS confirmation to ensure the rider was in the disruption zone before releasing funds. On mobile, this can happen automatically from the in-app notification flow; otherwise the rider can confirm manually from the dashboard.
 
 The `ClaimVerificationPrompt` component:
 1. Requests browser geolocation
 2. POSTs to `/api/claims/verify-location`
 3. The server checks `isWithinCircle()` against the event geofence
-4. Records the result in `claim_verifications` as `within_geofence` or `outside_geofence`
+4. Records the result in `claim_verifications` as `inside_geofence` or `outside_geofence`
+5. If inside the geofence, releases payout and marks the claim `paid`
 
-If verification records `outside_geofence`, the fraud detector's `checkLocationVerification()` will flag future claims for that rider.
+If verification records `outside_geofence`, the claim is flagged and the fraud detector's `checkLocationVerification()` can flag future claims for that rider.
 
 ---
 
@@ -167,4 +174,4 @@ The rider's `/dashboard/claims` page shows:
 - Disruption event type and date
 - Total accumulated payout (wallet balance)
 
-Claims in `status='paid'` are final - parametric insurance has no "pending" state.
+Claims typically move through `pending_verification` to `paid`. Demo-mode claims may be auto-paid immediately so recordings and judge demos can show the full wallet-credit flow without waiting for device GPS.

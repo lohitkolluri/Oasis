@@ -14,8 +14,27 @@ interface Event {
   event_type: string;
   severity_score: number;
   verified_by_llm?: boolean;
+  geofence_polygon?: Record<string, unknown> | null;
   raw_api_data?: Record<string, unknown> | null;
   created_at: string;
+}
+
+function formatZone(geofence: Record<string, unknown> | null | undefined) {
+  const lat = typeof geofence?.lat === 'number' ? geofence.lat : null;
+  const lng = typeof geofence?.lng === 'number' ? geofence.lng : null;
+  const radiusKm = typeof geofence?.radius_km === 'number' ? geofence.radius_km : null;
+
+  if (lat == null || lng == null) return 'Zone unavailable';
+
+  const coords = `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+  return radiusKm != null ? `${coords} · ${radiusKm} km` : coords;
+}
+
+function formatSource(raw: Record<string, unknown> | null | undefined) {
+  const source = typeof raw?.source === 'string' ? raw.source : null;
+  if (!source) return null;
+
+  return source.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
 function severityStatus(score: number): { label: string; badge: string; dot: string } {
@@ -119,6 +138,7 @@ export function TriggersList({ events }: { events: Event[] }) {
       <div className="divide-y divide-[#2d2d2d]">
         {events.map((e, i) => {
           const sev = severityStatus(e.severity_score);
+          const sourceLabel = formatSource(e.raw_api_data);
           return (
             <motion.div
               key={e.id}
@@ -136,11 +156,14 @@ export function TriggersList({ events }: { events: Event[] }) {
                   <span className="text-sm font-medium text-white capitalize">{e.event_type}</span>
                 </div>
                 <TriggerSubtitle raw={e.raw_api_data} />
+                {sourceLabel && <p className="text-[10px] text-[#3a3a3a] mt-1">Source: {sourceLabel}</p>}
                 <AQIBadge raw={e.raw_api_data} />
               </div>
 
-              {/* Zone placeholder */}
-              <span className="text-xs text-[#666666] mt-0.5">—</span>
+              {/* Zone */}
+              <span className="text-xs text-[#666666] mt-0.5 max-w-[160px] leading-relaxed">
+                {formatZone(e.geofence_polygon)}
+              </span>
 
               {/* Severity badge */}
               <div className="mt-0.5">

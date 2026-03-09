@@ -114,12 +114,25 @@ export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'defa
                     <p className="text-[13px] font-medium text-zinc-200 truncate">
                       {type}
                     </p>
-                    <p className="text-[11px] text-zinc-500">
-                      {formatFullDate(c.created_at)}
+                    <p className="text-[11px] text-zinc-500">{formatFullDate(c.created_at)}</p>
+                    <p className="text-[10px] mt-0.5">
+                      <span
+                        className={
+                          c.status === 'paid'
+                            ? 'text-uber-green font-semibold'
+                            : 'text-amber-400 font-semibold'
+                        }
+                      >
+                        {c.status === 'paid' ? 'Paid' : 'Pending verification'}
+                      </span>
                     </p>
                   </div>
-                  <span className="text-[14px] font-bold text-uber-green tabular-nums shrink-0">
-                    +₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                  <span
+                    className={`text-[14px] font-bold tabular-nums shrink-0 ${
+                      c.status === 'paid' ? 'text-uber-green' : 'text-zinc-400'
+                    }`}
+                  >
+                    {c.status === 'paid' ? '+' : ''}₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
                   </span>
                 </Link>
               );

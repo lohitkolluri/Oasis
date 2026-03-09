@@ -7,8 +7,8 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
 import { simulatePayoutSchema } from '@/lib/validations/schemas';
+import { withAdminAuth } from '@/lib/utils/admin-guard';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
@@ -19,16 +19,10 @@ export const dynamic = 'force-dynamic';
  * Simulate an instant payout. Called internally by the adjudicator after
  * a claim is marked as 'paid'. Can also be called by admin for manual payouts.
  */
-export async function POST(request: Request) {
+export const POST = withAdminAuth(async (_ctx, request) => {
   const limitKey = rateLimitKey(request, 'payout');
   const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
   if (rateLimited) return rateLimited;
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   try {
     const body = await request.json();
@@ -38,7 +32,7 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient();
 
-    // Verify the claim exists and belongs to this profile
+    // Verify the claim exists and the provided profile matches the linked policy owner.
     const { data: claim } = await admin
       .from('parametric_claims')
       .select('id, policy_id, status')
@@ -47,6 +41,19 @@ export async function POST(request: Request) {
 
     if (!claim) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+    }
+
+    const { data: policy } = await admin
+      .from('weekly_policies')
+      .select('profile_id')
+      .eq('id', claim.policy_id)
+      .single();
+
+    if (!policy || policy.profile_id !== profile_id) {
+      return NextResponse.json(
+        { error: 'Claim does not belong to the provided profile' },
+        { status: 400 },
+      );
     }
 
     // Generate a mock UPI reference (simulated instant payout for demo)
@@ -100,4 +107,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return errorResponse(err, 'Payout simulation failed');
   }
-}
+});

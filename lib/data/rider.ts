@@ -132,10 +132,11 @@ export function deriveWalletStats(
   weeklyDailyEarnings: number[];
 } {
   const { wallet, claims } = result;
+  const paidClaims = claims.filter((c) => c.status === "paid");
   const totalPayouts = wallet
     ? Number(wallet.total_earned_inr)
-    : claims.reduce((sum, c) => sum + Number(c.payout_amount_inr), 0);
-  const totalClaimCount = wallet ? Number(wallet.total_claims) : claims.length;
+    : paidClaims.reduce((sum, c) => sum + Number(c.payout_amount_inr), 0);
+  const totalClaimCount = wallet ? Number(wallet.total_claims) : paidClaims.length;
   const thisWeekEarned =
     wallet?.this_week_earned_inr != null ? Number(wallet.this_week_earned_inr) : 0;
 
@@ -149,7 +150,7 @@ export function deriveWalletStats(
   weekEnd.setDate(weekStart.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
   const weeklyDailyEarnings = [0, 0, 0, 0, 0, 0, 0];
-  for (const c of claims) {
+  for (const c of paidClaims) {
     const d = new Date(c.created_at);
     if (d < weekStart || d > weekEnd) continue;
     const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;

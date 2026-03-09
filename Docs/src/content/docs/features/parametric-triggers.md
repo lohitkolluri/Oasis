@@ -3,7 +3,7 @@ title: Parametric Triggers & Adjudicator
 description: Five trigger types, zone discovery, deduplication
 ---
 
-The parametric adjudicator is the core engine. It runs hourly, polls external APIs, evaluates five trigger types, and creates claims for eligible riders.
+The parametric adjudicator is the core engine. It runs hourly, polls external APIs, evaluates five trigger types, and creates pending claims for eligible riders.
 
 ## Adjudicator Lifecycle
 
@@ -39,7 +39,7 @@ runAdjudicator()
 │       ├── Find active policies with riders inside geofence
 │       ├── Check plan weekly claim cap (max_claims_per_week)
 │       ├── runAllFraudChecks()
-│       └── INSERT parametric_claims (status='paid')
+│       └── INSERT parametric_claims (status='pending_verification')
 │
 └── 4. Log result to system_logs
 ```
@@ -204,7 +204,7 @@ interface DemoTriggerOptions {
 }
 ```
 
-The demo path bypasses all external API calls and creates the disruption event and claims directly. The `raw_api_data` is marked with `"demo": true, "source": "admin_demo_mode"`.
+The demo path bypasses all external API calls and creates the disruption event and claims directly. To keep demos reliable, demo claims can be auto-paid immediately after insertion so the wallet and payout ledger update without waiting for GPS. The `raw_api_data` is marked with `"demo": true, "source": "admin_demo_mode"`.
 
 ---
 

@@ -26,6 +26,8 @@ export function PolicyCard({
   planName,
   claimIdsNeedingVerification = [],
 }: PolicyCardProps) {
+  const recentClaims = claims.slice(0, 3);
+
   if (!policy) {
     return (
       <div className="rounded-2xl bg-surface-1 border border-white/10 p-4">
@@ -87,21 +89,34 @@ export function PolicyCard({
         </div>
       </div>
 
-      {/* Recent payouts — only if any */}
-      {claims.length > 0 && (
+      {/* Recent claim activity */}
+      {recentClaims.length > 0 && (
         <div className="px-4 pb-4 border-t border-white/10 pt-3">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-            Recent payouts
+            Recent claim activity
           </p>
           <div className="space-y-1.5">
-            {claims.slice(0, 3).map((c) => (
+            {recentClaims.map((c) => (
               <div key={c.id} className="space-y-1">
                 <div className="flex items-center justify-between rounded-lg bg-white/5 border border-white/10 px-3 py-2">
-                  <span className="text-[11px] text-zinc-500 tabular-nums">
-                    {formatDate(c.created_at)}
-                  </span>
-                  <span className="text-[13px] font-semibold text-uber-green tabular-nums">
-                    +₹{Number(c.payout_amount_inr).toLocaleString("en-IN")}
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-zinc-500 tabular-nums">{formatDate(c.created_at)}</p>
+                    <p className="text-[10px] mt-0.5">
+                      <span
+                        className={
+                          c.status === "paid" ? "text-uber-green font-semibold" : "text-amber-400 font-semibold"
+                        }
+                      >
+                        {c.status === "paid" ? "Paid" : "Pending verification"}
+                      </span>
+                    </p>
+                  </div>
+                  <span
+                    className={`text-[13px] font-semibold tabular-nums ${
+                      c.status === "paid" ? "text-uber-green" : "text-zinc-400"
+                    }`}
+                  >
+                    {c.status === "paid" ? "+" : ""}₹{Number(c.payout_amount_inr).toLocaleString("en-IN")}
                   </span>
                 </div>
                 {claimIdsNeedingVerification.includes(c.id) && (

@@ -39,7 +39,26 @@ export function RealtimeWallet({
           filter: `policy_id=in.(${policyIds.join(",")})`,
         },
         (payload) => {
-          const newClaim = payload.new as { payout_amount_inr: number };
+          const newClaim = payload.new as { payout_amount_inr: number; status?: string };
+          if (newClaim.status !== "paid") return;
+          setBalance((b) => b + Number(newClaim.payout_amount_inr));
+          setClaimCount((c) => c + 1);
+          setJustUpdated(true);
+          setTimeout(() => setJustUpdated(false), 2500);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "parametric_claims",
+          filter: `policy_id=in.(${policyIds.join(",")})`,
+        },
+        (payload) => {
+          const oldClaim = payload.old as { status?: string } | null;
+          const newClaim = payload.new as { payout_amount_inr: number; status?: string };
+          if (oldClaim?.status === "paid" || newClaim.status !== "paid") return;
           setBalance((b) => b + Number(newClaim.payout_amount_inr));
           setClaimCount((c) => c + 1);
           setJustUpdated(true);

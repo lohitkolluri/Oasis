@@ -2,7 +2,7 @@
 
 **AI-powered parametric wage protection for India's Q-commerce delivery partners.**
 
-Oasis safeguards gig workers (Zepto, Blinkit) against income loss caused by external disruptions — extreme weather, zone lockdowns, and traffic gridlock — through automated, zero-touch payouts and weekly pricing aligned to their earnings cycle.
+Oasis safeguards gig workers (Zepto, Blinkit) against income loss caused by external disruptions — extreme weather, zone lockdowns, and traffic gridlock — through automated trigger detection, fast payout release, and weekly pricing aligned to their earnings cycle.
 
 > Coverage is strictly for **loss of income only** — no health, life, accident, or vehicle repair coverage.
 
@@ -121,8 +121,8 @@ Realtime    NewsData.io
 1. **Rider onboards** → Step 1: platform (Zepto/Blinkit), name, phone, zone. Step 2: government ID (Aadhaar) + face liveness verification.
 2. **Subscribes weekly** → pays ₹79–₹149/week via Stripe (3 tiers, dynamic pricing).
 3. **Disruption triggers** → **Realtime:** providers that support push (e.g. Tomorrow.io Alerts) POST to `/api/webhooks/disruption`. **Every 15 min:** cron polls weather, AQI, and news APIs for the rest.
-4. **Disruption detected** → 7-check fraud pipeline → `parametric_claims` inserted with `status='paid'`.
-5. **Rider's wallet updates** in real time via Supabase Realtime — no claim form needed.
+4. **Disruption detected** → 7-check fraud pipeline → `parametric_claims` inserted with `status='pending_verification'`.
+5. **Payout release** → rider completes lightweight GPS verification (automatically when possible on mobile), then the claim is marked `paid` and the wallet updates in real time. No manual claims form required.
 
 ---
 
