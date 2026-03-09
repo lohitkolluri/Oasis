@@ -80,6 +80,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Claim not found" }, { status: 404 });
   }
 
+  if (claim.status === "paid") {
+    return NextResponse.json({
+      verified: true,
+      status: "already_paid",
+      payout_initiated: false,
+      message: "This claim has already been verified and paid.",
+    });
+  }
+
   // Reject verifications submitted outside the allowed window
   const claimAge =
     (Date.now() - new Date(claim.created_at).getTime()) / (1000 * 60 * 60);
@@ -155,6 +164,11 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   if (isDemoEvent) {
+    await admin
+      .from("parametric_claims")
+      .update({ is_flagged: false, flag_reason: null })
+      .eq("id", claimId);
+  } else if (inside) {
     await admin
       .from("parametric_claims")
       .update({ is_flagged: false, flag_reason: null })

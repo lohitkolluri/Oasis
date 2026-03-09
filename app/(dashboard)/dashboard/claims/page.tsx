@@ -75,7 +75,7 @@ export default async function ClaimsHistoryPage() {
   );
 
   const totalPaid = (claims ?? [])
-    .filter((c) => !c.is_flagged)
+    .filter((c) => c.status === "paid" && !c.is_flagged)
     .reduce((s, c) => s + Number(c.payout_amount_inr), 0);
 
   return (
@@ -153,9 +153,13 @@ export default async function ClaimsHistoryPage() {
                       <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-uber-yellow/12">
                         <AlertCircle className="text-uber-yellow" style={{ width: 16, height: 16 }} />
                       </div>
-                    ) : (
+                    ) : claim.status === "paid" ? (
                       <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-uber-green/12">
                         <CheckCircle className="text-uber-green" style={{ width: 16, height: 16 }} />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-[#1a2030]">
+                        <Clock className="text-[#7b88a8]" style={{ width: 16, height: 16 }} />
                       </div>
                     )}
                   </div>
@@ -163,8 +167,12 @@ export default async function ClaimsHistoryPage() {
                   <div className="flex-1 min-w-0">
                     {/* Amount + date */}
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-[15px] font-bold text-white tabular-nums">
-                        +₹{Number(claim.payout_amount_inr).toLocaleString("en-IN")}
+                      <p
+                        className={`text-[15px] font-bold tabular-nums ${
+                          claim.status === "paid" ? "text-white" : "text-zinc-400"
+                        }`}
+                      >
+                        {claim.status === "paid" ? "+" : ""}₹{Number(claim.payout_amount_inr).toLocaleString("en-IN")}
                       </p>
                       <p className="text-[11px] text-[#404860] shrink-0 tabular-nums">
                         {new Date(claim.created_at).toLocaleString("en-IN", {
@@ -191,6 +199,24 @@ export default async function ClaimsHistoryPage() {
                       </div>
                     )}
 
+                    <p className="text-[11px] mb-1">
+                      <span
+                        className={
+                          claim.is_flagged
+                            ? "text-uber-yellow font-medium"
+                            : claim.status === "paid"
+                              ? "text-uber-green font-medium"
+                              : "text-amber-400 font-medium"
+                        }
+                      >
+                        {claim.is_flagged
+                          ? "Under review"
+                          : claim.status === "paid"
+                            ? "Paid"
+                            : "Pending verification"}
+                      </span>
+                    </p>
+
                     {/* Policy badge */}
                     {policy && (
                       <p className="text-[10px] text-[#404860]">
@@ -209,7 +235,7 @@ export default async function ClaimsHistoryPage() {
                           Under review: {claim.flag_reason}
                         </p>
                         <p className="text-[10px] text-zinc-400">
-                          Re-verify your location from the Dashboard (Recent Payouts) or contact support for payout.
+                          Re-verify your location from the dashboard or contact support for payout.
                         </p>
                       </div>
                     )}

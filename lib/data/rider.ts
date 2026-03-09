@@ -87,9 +87,10 @@ export async function getRiderPoliciesAndWallet(
           const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { data: recentClaims } = await supabase
             .from("parametric_claims")
-            .select("id, created_at")
+            .select("id, created_at, status")
             .in("policy_id", policyIds)
-            .gte("created_at", dayAgo);
+            .gte("created_at", dayAgo)
+            .eq("status", "pending_verification");
           const recentClaimIds = (recentClaims ?? []).map((c) => c.id);
           if (recentClaimIds.length === 0) return { data: [] as string[] };
           const { data: verifications } = await supabase

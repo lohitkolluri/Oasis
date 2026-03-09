@@ -118,12 +118,14 @@ export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'defa
                     <p className="text-[10px] mt-0.5">
                       <span
                         className={
-                          c.status === 'paid'
+                          c.is_flagged
+                            ? 'text-uber-yellow font-semibold'
+                            : c.status === 'paid'
                             ? 'text-uber-green font-semibold'
                             : 'text-amber-400 font-semibold'
                         }
                       >
-                        {c.status === 'paid' ? 'Paid' : 'Pending verification'}
+                        {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending verification'}
                       </span>
                     </p>
                   </div>
@@ -156,7 +158,7 @@ export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'defa
                     ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
                   </span>
                   <span className="text-[10px] font-semibold text-uber-green/80 bg-uber-green/10 px-2 py-0.5 rounded-full">
-                    {c.status === 'paid' ? 'Paid' : 'Triggered'}
+                    {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending'}
                   </span>
                 </div>
               </div>

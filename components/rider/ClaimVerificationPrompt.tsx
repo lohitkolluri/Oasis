@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isMobileForGps } from "@/lib/utils/device";
+import { useRouter } from "next/navigation";
 import { MapPin, Loader2, CheckCircle, AlertCircle, Smartphone } from "lucide-react";
 
 interface ClaimVerificationPromptProps {
@@ -10,17 +11,52 @@ interface ClaimVerificationPromptProps {
 }
 
 export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone" }: ClaimVerificationPromptProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [verifiedOutside, setVerifiedOutside] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoAttempted, setAutoAttempted] = useState(false);
 
-  const onVerifySuccess = (data: { status?: string }) => {
+  const onVerifySuccess = (data: { status?: string; payout_initiated?: boolean }) => {
     if (data.status === "outside_geofence") {
       setVerifiedOutside(true);
-    } else {
+      router.refresh();
+      return;
+    }
+
+    if (data.status === "already_paid" || data.payout_initiated) {
+      router.refresh();
+    }
+
+    if (data.status === "inside_geofence" || data.status === "already_paid") {
       setDone(true);
     }
+  };
+
+  const submitVerification = async (proof?: File) => {
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+    });
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    const formData = new FormData();
+    formData.set("claim_id", claimId);
+    formData.set("lat", String(lat));
+    formData.set("lng", String(lng));
+    formData.set("declaration", "true");
+    if (proof) formData.append("proof", proof);
+
+    const res = await fetch("/api/claims/verify-location", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error ?? "Verification failed");
+    }
+    onVerifySuccess(data);
   };
 
   const handleVerify = async () => {
@@ -32,30 +68,12 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
     setError(null);
     setVerifiedOutside(false);
     try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-      });
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      const formData = new FormData();
-      formData.set("claim_id", claimId);
-      formData.set("lat", String(lat));
-      formData.set("lng", String(lng));
-      formData.set("declaration", "true");
-
-      const res = await fetch("/api/claims/verify-location", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Verification failed");
-        return;
-      }
-      onVerifySuccess(data);
+      await submitVerification();
     } catch (err) {
-      const msg = (err as { code?: number })?.code === 1 ? "Location access denied" : "Verification failed";
+      const msg =
+        (err as { code?: number; message?: string })?.code === 1
+          ? "Location access denied"
+          : (err as { message?: string })?.message ?? "Verification failed";
       setError(msg);
     } finally {
       setLoading(false);
@@ -74,31 +92,12 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
     setError(null);
     setVerifiedOutside(false);
     try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-      });
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      const formData = new FormData();
-      formData.set("claim_id", claimId);
-      formData.set("lat", String(lat));
-      formData.set("lng", String(lng));
-      formData.set("declaration", "true");
-      formData.append("proof", file);
-
-      const res = await fetch("/api/claims/verify-location", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Verification failed");
-        return;
-      }
-      onVerifySuccess(data);
+      await submitVerification(file);
     } catch (err) {
-      const msg = (err as { code?: number })?.code === 1 ? "Location access denied" : "Verification failed";
+      const msg =
+        (err as { code?: number; message?: string })?.code === 1
+          ? "Location access denied"
+          : (err as { message?: string })?.message ?? "Verification failed";
       setError(msg);
     } finally {
       setLoading(false);
@@ -144,6 +143,24 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
   const fileInputId = `claim-verify-proof-${claimId}`;
   const isMobile =
     typeof navigator !== "undefined" ? isMobileForGps(navigator.userAgent) : true;
+
+  useEffect(() => {
+    if (!isMobile || loading || done || verifiedOutside || autoAttempted) return;
+
+    // Try once automatically when the rider opens the dashboard with a pending claim.
+    const storageKey = `oasis-auto-verify:${claimId}`;
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(storageKey) === "1") {
+      setAutoAttempted(true);
+      return;
+    }
+
+    setAutoAttempted(true);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(storageKey, "1");
+    }
+
+    handleVerify();
+  }, [autoAttempted, claimId, done, isMobile, loading, verifiedOutside]);
 
   return (
     <div className="rounded-xl border border-uber-yellow/30 bg-uber-yellow/5 p-3 space-y-2">
