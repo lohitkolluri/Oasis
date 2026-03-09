@@ -75,9 +75,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
   const [claims, setClaims] = useState(initialClaims);
 
   function handleReviewed(id: string, action: 'approved' | 'rejected') {
-    setClaims((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, admin_review_status: action } : c)),
-    );
+    setClaims((prev) => prev.map((c) => (c.id === id ? { ...c, admin_review_status: action } : c)));
   }
 
   if (!claims || claims.length === 0) {
@@ -99,13 +97,13 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-[#161616]/80 backdrop-blur border border-[#f59e0b]/20 rounded-2xl overflow-hidden"
-          style={{ boxShadow: '0 0 20px rgba(255,255,255,0.03), 0 0 20px rgba(245, 158, 11, 0.06)' }}
+          style={{
+            boxShadow: '0 0 20px rgba(255,255,255,0.03), 0 0 20px rgba(245, 158, 11, 0.06)',
+          }}
         >
           <div className="px-5 py-3.5 border-b border-[#2d2d2d] flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
-            <p className="text-xs font-semibold text-[#f59e0b]">
-              Pending Review
-            </p>
+            <p className="text-xs font-semibold text-[#f59e0b]">Pending Review</p>
             <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b]">
               {pending.length}
             </span>
@@ -116,7 +114,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                 key={c.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ delay: Math.min(i * 0.05, 0.5) }}
                 className="px-5 py-4 flex items-start gap-4 hover:bg-[#1e1e1e] transition-colors"
               >
                 <div className="flex-1 min-w-0 space-y-1.5">
@@ -164,7 +162,10 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
           </div>
           <div className="divide-y divide-[#2d2d2d]">
             {reviewed.map((c) => (
-              <div key={c.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-[#1e1e1e] transition-colors">
+              <div
+                key={c.id}
+                className="px-5 py-3.5 flex items-center gap-4 hover:bg-[#1e1e1e] transition-colors"
+              >
                 <span className="font-mono text-[10px] text-[#3a3a3a] tabular-nums bg-[#262626] px-2 py-0.5 rounded">
                   {c.id.slice(0, 8)}
                 </span>

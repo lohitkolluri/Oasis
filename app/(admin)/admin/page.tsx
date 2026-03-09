@@ -35,7 +35,9 @@ export default async function AdminDashboardPage() {
       .select('id', { count: 'exact', head: true })
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
     reportsCount = count ?? 0;
-  } catch { /* Table may not exist */ }
+  } catch {
+    /* Table may not exist */
+  }
 
   const totalPremiums = policies?.reduce((sum, p) => sum + Number(p.weekly_premium_inr), 0) ?? 0;
   const totalPayouts = claims?.reduce((sum, c) => sum + Number(c.payout_amount_inr), 0) ?? 0;
@@ -112,8 +114,12 @@ export default async function AdminDashboardPage() {
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">Dashboard</p>
-          <h1 className="text-3xl font-semibold font-display tracking-tight text-white">Overview</h1>
+          <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">
+            Dashboard
+          </p>
+          <h1 className="text-3xl font-semibold font-display tracking-tight text-white">
+            Overview
+          </h1>
           <p className="text-sm text-[#666666] mt-1">Platform analytics and operational controls</p>
         </div>
         {reportsCount > 0 && (
@@ -125,7 +131,9 @@ export default async function AdminDashboardPage() {
 
       {/* KPI row */}
       <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">Key Metrics</p>
+        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
+          Key Metrics
+        </p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
             title="Weekly Premiums"
@@ -136,7 +144,6 @@ export default async function AdminDashboardPage() {
           />
           <KPICard
             title="Active Riders"
-            count={ridersCount ?? 0}
             label="Registered"
             value={ridersCount ?? 0}
             accent="violet"
@@ -144,7 +151,6 @@ export default async function AdminDashboardPage() {
           />
           <KPICard
             title="Policies Active"
-            count={activePoliciesCount}
             label="This week"
             value={activePoliciesCount}
             accent="blue"
@@ -163,9 +169,11 @@ export default async function AdminDashboardPage() {
       {/* Adjudicator control */}
       <RunAdjudicatorButton />
 
-      {/* Intelligence section */}
+      {/* Operations brief */}
       <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">Intelligence</p>
+        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
+          Operations Brief
+        </p>
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <AdminInsights />
@@ -180,11 +188,15 @@ export default async function AdminDashboardPage() {
                 <div>
                   <p className="text-sm font-semibold font-display text-white">Next Week</p>
                   <p className="text-[10px] text-[#666666]">
-                    {nextWeekPrediction.source === 'forecast' ? 'Weather forecast' : 'Historical data'}
+                    {nextWeekPrediction.source === 'forecast'
+                      ? 'Weather forecast'
+                      : 'Historical data'}
                   </p>
                 </div>
               </div>
-              <p className={`text-4xl font-bold font-display tabular-nums tracking-tight leading-none ${riskValueColor[nextWeekPrediction.riskLevel]}`}>
+              <p
+                className={`text-4xl font-bold font-display tabular-nums tracking-tight leading-none ${riskValueColor[nextWeekPrediction.riskLevel]}`}
+              >
                 {nextWeekPrediction.expectedClaimsRange}
               </p>
               <p className="text-xs text-[#666666] mt-1.5">expected claims</p>
@@ -202,49 +214,55 @@ export default async function AdminDashboardPage() {
 
       {/* Quick links grid */}
       <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">Sections</p>
+        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
+          Sections
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {quickLinks.map(({ href, label, description, icon: Icon, alert, meta, accentColor }, i) => (
-            <Link
-              key={href}
-              href={href}
-              className="group bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] hover:shadow-[0_0_22px_rgba(125,211,252,0.1)] transition-all duration-200 flex flex-col gap-4"
-              style={{ animationDelay: `${i * 0.05}s` }}
-            >
-              <div className="flex items-start justify-between">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all"
-                  style={{
-                    background: alert ? 'rgba(239, 68, 68, 0.1)' : `${accentColor}14`,
-                    border: `1px solid ${alert ? 'rgba(239, 68, 68, 0.2)' : `${accentColor}28`}`,
-                  }}
-                >
-                  <Icon
-                    className="h-4 w-4 transition-colors"
-                    style={{ color: alert ? '#ef4444' : accentColor }}
-                  />
-                </div>
-                {meta && (
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
+          {quickLinks.map(
+            ({ href, label, description, icon: Icon, alert, meta, accentColor }, i) => (
+              <Link
+                key={href}
+                href={href}
+                className="group bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] hover:shadow-[0_0_22px_rgba(125,211,252,0.1)] transition-all duration-200 flex flex-col gap-4"
+                style={{ animationDelay: `${i * 0.05}s` }}
+              >
+                <div className="flex items-start justify-between">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all"
                     style={{
                       background: alert ? 'rgba(239, 68, 68, 0.1)' : `${accentColor}14`,
-                      color: alert ? '#ef4444' : accentColor,
+                      border: `1px solid ${alert ? 'rgba(239, 68, 68, 0.2)' : `${accentColor}28`}`,
                     }}
                   >
-                    {meta}
-                  </span>
-                )}
-              </div>
-              <div>
-                <p className={`text-sm font-semibold ${alert ? 'text-[#ef4444]' : 'text-white'} group-hover:text-white transition-colors`}>
-                  {label}
-                </p>
-                <p className="text-xs text-[#666666] mt-0.5">{description}</p>
-              </div>
-              <ChevronRight className="h-3.5 w-3.5 text-[#3a3a3a] group-hover:text-[#666666] group-hover:translate-x-0.5 transition-all mt-auto self-end" />
-            </Link>
-          ))}
+                    <Icon
+                      className="h-4 w-4 transition-colors"
+                      style={{ color: alert ? '#ef4444' : accentColor }}
+                    />
+                  </div>
+                  {meta && (
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        background: alert ? 'rgba(239, 68, 68, 0.1)' : `${accentColor}14`,
+                        color: alert ? '#ef4444' : accentColor,
+                      }}
+                    >
+                      {meta}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p
+                    className={`text-sm font-semibold ${alert ? 'text-[#ef4444]' : 'text-white'} group-hover:text-white transition-colors`}
+                  >
+                    {label}
+                  </p>
+                  <p className="text-xs text-[#666666] mt-0.5">{description}</p>
+                </div>
+                <ChevronRight className="h-3.5 w-3.5 text-[#3a3a3a] group-hover:text-[#666666] group-hover:translate-x-0.5 transition-all mt-auto self-end" />
+              </Link>
+            ),
+          )}
         </div>
       </section>
     </div>

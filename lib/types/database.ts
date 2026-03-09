@@ -1,6 +1,6 @@
 export type PlatformType = "zepto" | "blinkit";
 export type DisruptionEventType = "weather" | "traffic" | "social";
-export type ClaimStatus = "triggered" | "paid";
+export type ClaimStatus = "triggered" | "paid" | "pending_verification";
 
 export interface Profile {
   id: string;

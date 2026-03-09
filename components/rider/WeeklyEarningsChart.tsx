@@ -1,15 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  Tooltip,
-  Cell,
-} from 'recharts';
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -34,6 +26,7 @@ export function WeeklyEarningsChart({
 
   const maxEarnings = Math.max(...safeEarnings, 1);
   const hasData = total > 0;
+  const tooltipCursor = { fill: 'rgba(255,255,255,0.04)' };
 
   return (
     <motion.div
@@ -43,9 +36,7 @@ export function WeeklyEarningsChart({
       className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden"
     >
       <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
-        <h3 className="text-[12px] font-semibold text-zinc-200">
-          Earnings this week
-        </h3>
+        <h3 className="text-[12px] font-semibold text-zinc-200">Earnings this week</h3>
         <span className="text-[13px] font-bold text-uber-green tabular-nums">
           ₹{total.toLocaleString('en-IN')}
         </span>
@@ -53,9 +44,7 @@ export function WeeklyEarningsChart({
       <div className="w-full min-w-0 h-[160px] px-3 pb-3">
         {!hasData ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-4">
-            <p className="text-[13px] text-zinc-400 font-medium">
-              No earnings this week yet
-            </p>
+            <p className="text-[13px] text-zinc-400 font-medium">No earnings this week yet</p>
             <p className="text-[11px] text-zinc-500 max-w-[220px] leading-relaxed">
               Payouts will appear here when disruptions trigger in your zone
             </p>
@@ -77,19 +66,21 @@ export function WeeklyEarningsChart({
                 tickLine={false}
                 tick={{ fill: '#737373', fontSize: 11, fontWeight: 500 }}
               />
-              <YAxis
-                hide
-                domain={[0, maxEarnings * 1.2]}
-              />
+              <YAxis hide domain={[0, maxEarnings * 1.2]} />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'var(--surface-1)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
+                cursor={tooltipCursor}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+
+                  return (
+                    <div className="rounded-xl border border-white/10 bg-[#0f0f10]/95 px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur">
+                      <p className="text-xs font-medium text-zinc-300">{label}</p>
+                      <p className="mt-1 text-sm font-semibold text-zinc-100">
+                        Earnings: ₹{Number(payload[0]?.value ?? 0).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                  );
                 }}
-                labelStyle={{ color: '#9ca3af' }}
-                formatter={(value) => [`₹${Number(value ?? 0).toLocaleString('en-IN')}`, 'Earnings']}
-                labelFormatter={(label) => label}
               />
               <Bar
                 dataKey="earnings"
@@ -100,11 +91,7 @@ export function WeeklyEarningsChart({
                 animationEasing="ease-out"
               >
                 {data.map((entry) => (
-                  <Cell
-                    key={entry.day}
-                    fill="#3AA76D"
-                    opacity={entry.isCurrent ? 1 : 0.85}
-                  />
+                  <Cell key={entry.day} fill="#3AA76D" opacity={entry.isCurrent ? 1 : 0.85} />
                 ))}
               </Bar>
             </BarChart>

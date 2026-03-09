@@ -4,7 +4,11 @@ import { motion } from 'framer-motion';
 import { Activity, AlertCircle, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-interface ApiCheck { name: string; ok: boolean; status: number; }
+interface ApiCheck {
+  name: string;
+  ok: boolean;
+  status: number;
+}
 
 interface HealthData {
   status: 'healthy' | 'degraded' | 'warning' | 'unhealthy';
@@ -30,12 +34,33 @@ interface HealthData {
   }>;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; border: string }> = {
-  healthy:   { label: 'Healthy',   dot: 'bg-[#22c55e]', text: 'text-[#22c55e]', border: 'border-[#22c55e]/20' },
-  warning:   { label: 'Warning',   dot: 'bg-[#f59e0b]', text: 'text-[#f59e0b]', border: 'border-[#f59e0b]/20' },
-  degraded:  { label: 'Degraded',  dot: 'bg-[#ef4444]', text: 'text-[#ef4444]', border: 'border-[#ef4444]/20' },
-  unhealthy: { label: 'Unhealthy', dot: 'bg-[#ef4444]', text: 'text-[#ef4444]', border: 'border-[#ef4444]/20' },
-};
+const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; border: string }> =
+  {
+    healthy: {
+      label: 'Healthy',
+      dot: 'bg-[#22c55e]',
+      text: 'text-[#22c55e]',
+      border: 'border-[#22c55e]/20',
+    },
+    warning: {
+      label: 'Warning',
+      dot: 'bg-[#f59e0b]',
+      text: 'text-[#f59e0b]',
+      border: 'border-[#f59e0b]/20',
+    },
+    degraded: {
+      label: 'Degraded',
+      dot: 'bg-[#ef4444]',
+      text: 'text-[#ef4444]',
+      border: 'border-[#ef4444]/20',
+    },
+    unhealthy: {
+      label: 'Unhealthy',
+      dot: 'bg-[#ef4444]',
+      text: 'text-[#ef4444]',
+      border: 'border-[#ef4444]/20',
+    },
+  };
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -52,11 +77,14 @@ export function SystemHealth() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function load(isRefresh = false) {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const res = await fetch('/api/admin/system-health');
       if (res.ok) setData(await res.json());
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -99,7 +127,9 @@ export function SystemHealth() {
           <span className="text-sm font-semibold text-white">System Health</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${s.border} bg-transparent`}>
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${s.border} bg-transparent`}
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${s.dot} shrink-0`} />
             <span className={`text-[10px] font-semibold ${s.text}`}>{s.label}</span>
           </div>
@@ -122,14 +152,21 @@ export function SystemHealth() {
           {data.lastAdjudicatorRun ? (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-white">{timeAgo(data.lastAdjudicatorRun.at)}</span>
+                <span className="text-sm font-semibold text-white">
+                  {timeAgo(data.lastAdjudicatorRun.at)}
+                </span>
                 {data.lastAdjudicatorRun.runId && (
-                  <span className="text-[10px] font-mono text-[#666666] truncate max-w-[180px]" title={data.lastAdjudicatorRun.runId}>
+                  <span
+                    className="text-[10px] font-mono text-[#666666] truncate max-w-[180px]"
+                    title={data.lastAdjudicatorRun.runId}
+                  >
                     {data.lastAdjudicatorRun.runId.slice(0, 8)}…
                   </span>
                 )}
                 {data.lastAdjudicatorRun.severity === 'error' && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ef4444]/10 text-[#ef4444]">Run error</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ef4444]/10 text-[#ef4444]">
+                    Run error
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
@@ -142,14 +179,20 @@ export function SystemHealth() {
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666666]">
                   {data.lastAdjudicatorRun.durationMs}ms
                 </span>
-                {((data.lastAdjudicatorRun.payoutFailures ?? 0) > 0 || (data.lastAdjudicatorRun.logFailures ?? 0) > 0) && (
+                {((data.lastAdjudicatorRun.payoutFailures ?? 0) > 0 ||
+                  (data.lastAdjudicatorRun.logFailures ?? 0) > 0) && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b]">
-                    {(data.lastAdjudicatorRun.payoutFailures ?? 0) + (data.lastAdjudicatorRun.logFailures ?? 0)} failures
+                    {(data.lastAdjudicatorRun.payoutFailures ?? 0) +
+                      (data.lastAdjudicatorRun.logFailures ?? 0)}{' '}
+                    failures
                   </span>
                 )}
               </div>
               {data.lastAdjudicatorRun.error && (
-                <p className="text-[10px] text-[#ef4444] truncate max-w-full" title={data.lastAdjudicatorRun.error}>
+                <p
+                  className="text-[10px] text-[#ef4444] truncate max-w-full"
+                  title={data.lastAdjudicatorRun.error}
+                >
                   {data.lastAdjudicatorRun.error}
                 </p>
               )}
@@ -162,7 +205,9 @@ export function SystemHealth() {
         {/* Errors */}
         <div className="flex items-center justify-between py-3 border-t border-[#2d2d2d]">
           <p className="text-xs font-medium text-[#9ca3af]">Errors (24h)</p>
-          <span className={`text-sm font-bold tabular-nums ${data.errors24h > 0 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+          <span
+            className={`text-sm font-bold tabular-nums ${data.errors24h > 0 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}
+          >
             {data.errors24h}
           </span>
         </div>
@@ -177,10 +222,14 @@ export function SystemHealth() {
               <div key={api.name} className="flex items-center justify-between">
                 <span className="text-xs text-[#9ca3af]">{api.name}</span>
                 <div className="flex items-center gap-1.5">
-                  {api.ok
-                    ? <CheckCircle className="h-3.5 w-3.5 text-[#22c55e]" />
-                    : <XCircle className="h-3.5 w-3.5 text-[#ef4444]" />}
-                  <span className={`text-[10px] font-semibold ${api.ok ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                  {api.ok ? (
+                    <CheckCircle className="h-3.5 w-3.5 text-[#22c55e]" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 text-[#ef4444]" />
+                  )}
+                  <span
+                    className={`text-[10px] font-semibold ${api.ok ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}
+                  >
                     {api.ok ? 'OK' : 'DOWN'}
                   </span>
                 </div>
@@ -198,12 +247,16 @@ export function SystemHealth() {
             <div className="space-y-1.5">
               {data.recentLogs.slice(0, 5).map((log, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs">
-                  {log.severity === 'error'
-                    ? <XCircle className="h-3 w-3 text-[#ef4444] shrink-0" />
-                    : log.severity === 'warning'
-                    ? <AlertCircle className="h-3 w-3 text-[#f59e0b] shrink-0" />
-                    : <CheckCircle className="h-3 w-3 text-[#666666] shrink-0" />}
-                  <span className="text-[#666666] flex-1 truncate">{log.event_type.replace(/_/g, ' ')}</span>
+                  {log.severity === 'error' ? (
+                    <XCircle className="h-3 w-3 text-[#ef4444] shrink-0" />
+                  ) : log.severity === 'warning' ? (
+                    <AlertCircle className="h-3 w-3 text-[#f59e0b] shrink-0" />
+                  ) : (
+                    <CheckCircle className="h-3 w-3 text-[#666666] shrink-0" />
+                  )}
+                  <span className="text-[#666666] flex-1 truncate">
+                    {log.event_type.replace(/_/g, ' ')}
+                  </span>
                   <span className="text-[#3a3a3a] shrink-0">{timeAgo(log.created_at)}</span>
                 </div>
               ))}

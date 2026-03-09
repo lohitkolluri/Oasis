@@ -64,7 +64,15 @@ const accentMap: Record<string, { value: string; icon: string; bar: string; badg
   },
 };
 
-export function StatCard({ label, value, icon, accent = 'default', delay = 0, subtext, trend }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  icon,
+  accent = 'default',
+  delay = 0,
+  subtext,
+  trend,
+}: StatCardProps) {
   const Icon = iconMap[icon] ?? TrendingUp;
   const styles = accentMap[accent] ?? accentMap.default;
 
@@ -82,13 +90,19 @@ export function StatCard({ label, value, icon, accent = 'default', delay = 0, su
       )}
 
       <div className="flex items-start justify-between mb-4">
-        <span className="text-[11px] font-medium text-[#666666] tracking-wide uppercase">{label}</span>
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${styles.icon}`}>
+        <span className="text-[11px] font-medium text-[#666666] tracking-wide uppercase">
+          {label}
+        </span>
+        <div
+          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${styles.icon}`}
+        >
           <Icon className="h-3.5 w-3.5" />
         </div>
       </div>
 
-      <p className={`text-3xl font-bold font-display tabular-nums tracking-tight leading-none ${styles.value}`}>
+      <p
+        className={`text-3xl font-bold font-display tabular-nums tracking-tight leading-none ${styles.value}`}
+      >
         {value}
       </p>
 
@@ -99,9 +113,11 @@ export function StatCard({ label, value, icon, accent = 'default', delay = 0, su
           </span>
         )}
         {trend && (
-          <span className={`flex items-center gap-0.5 text-[10px] font-medium ${
-            trend.direction === 'up' ? 'text-[#22c55e]' : 'text-[#ef4444]'
-          }`}>
+          <span
+            className={`flex items-center gap-0.5 text-[10px] font-medium ${
+              trend.direction === 'up' ? 'text-[#22c55e]' : 'text-[#ef4444]'
+            }`}
+          >
             {trend.direction === 'up' ? (
               <TrendingUp className="h-3 w-3" />
             ) : (

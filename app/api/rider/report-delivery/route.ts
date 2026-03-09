@@ -64,6 +64,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!message || message.length < 10) {
+    return NextResponse.json(
+      { error: "Add a short description with enough detail for strict AI review." },
+      { status: 400 },
+    );
+  }
+
   if (photo.size > MAX_PHOTO_SIZE) {
     return NextResponse.json({ error: "Photo must be under 5MB" }, { status: 400 });
   }
@@ -155,7 +162,7 @@ export async function POST(request: Request) {
             {
               role: "system",
               content:
-                "You verify delivery disruption reports. Reply ONLY with valid JSON: {\"verified\": true or false, \"reason\": \"brief explanation\"}. Be strict: reject if the image looks like a screenshot, uploaded file, or not a real live photo of a disruption (weather, road, curfew, etc.).",
+                "You verify rider delivery disruption reports for a parametric income-protection product. Reply ONLY with valid JSON: {\"verified\": true or false, \"reason\": \"brief explanation\"}. Be extremely strict. Approve only when the image and rider note clearly show a real, current delivery-blocking disruption such as severe weather, road blockade, curfew, strike, or unsafe crowd conditions. Reject screenshots, downloaded images, normal traffic, low-light ambiguity, indoor photos, unrelated selfies, staged scenes, accidents, health issues, vehicle repair issues, or anything that does not clearly prove a covered disruption.",
             },
             {
               role: "user",
@@ -164,7 +171,7 @@ export async function POST(request: Request) {
                   type: "text",
                   text: `Rider says: "${message || "Delivery disrupted in my zone."}"
 
-Rules: Set verified true ONLY if (1) the image shows a plausible real-world delivery disruption (weather, road block, crowd, etc.) AND (2) it looks like a live camera photo (not a screenshot, not a downloaded image). Reject if unclear or fake. Reply ONLY with JSON: {"verified": true/false, "reason": "..."}`,
+Rules: Set verified true ONLY if (1) the image shows a plausible real-world delivery disruption that blocks deliveries, (2) it looks like a genuine live camera photo captured on scene, and (3) the text description is consistent with the image. Reject if unclear, fake, unrelated, or outside covered disruption categories. Reply ONLY with JSON: {"verified": true/false, "reason": "..."}`,
                 },
                 { type: "image_url", image_url: { url: dataUrl } },
               ],
@@ -192,6 +199,7 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
   }
 
   let payout_created = false;
+  let payout_initiated = false;
 
   if (verified) {
     const today = toDateString(new Date());
@@ -248,6 +256,8 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
             .single();
 
           if (!claimErr && claimRow) {
+            payout_created = true;
+            payout_initiated = true;
             // Payout only after rider verifies location (see verify-location API)
             try {
               await admin.from("rider_notifications").insert({
@@ -272,5 +282,6 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
     verified,
     reason: verifyReason,
     payout_created,
+    payout_initiated,
   });
 }

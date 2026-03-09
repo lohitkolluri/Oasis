@@ -1,14 +1,16 @@
 'use client';
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { adminNavItems } from "./AdminNav";
+import { adminNavItems } from './AdminNav';
 
 export function AdminSearch() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
+  const [focused, setFocused] = useState(false);
   const router = useRouter();
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const trimmed = query.trim().toLowerCase();
 
@@ -19,40 +21,53 @@ export function AdminSearch() {
         : adminNavItems.filter(
             (item: { label: string; href: string }) =>
               item.label.toLowerCase().includes(trimmed) ||
-              item.href.toLowerCase().includes(trimmed)
+              item.href.toLowerCase().includes(trimmed),
           ),
-    [trimmed]
+    [trimmed],
   );
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setFocused(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const goTo = (href: string) => {
     if (!href) return;
     router.push(href);
-    setQuery("");
+    setQuery('');
+    setFocused(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       if (suggestions[0]) {
         goTo(suggestions[0].href);
       }
     }
-    if (e.key === "Escape") {
-      setQuery("");
+    if (e.key === 'Escape') {
+      setQuery('');
+      setFocused(false);
     }
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       <Search className="h-3.5 w-3.5 text-[#666666] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => setFocused(true)}
         onKeyDown={handleKeyDown}
         placeholder="Search admin..."
         className="w-56 bg-[#1e1e1e] border border-[#2d2d2d] rounded-full pl-8 pr-5 py-2 text-sm text-white placeholder-[#666666] focus:outline-none focus:border-[#7dd3fc]/40 focus:shadow-[0_0_12px_rgba(125,211,252,0.1)] transition-all duration-200"
       />
-      {suggestions.length > 0 && (
+      {focused && suggestions.length > 0 && (
         <div className="absolute mt-1 w-64 bg-[#161616] border border-[#2d2d2d] rounded-2xl shadow-xl overflow-hidden z-20">
           <div className="px-3 py-2 border-b border-[#2d2d2d]">
             <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em]">
@@ -68,11 +83,9 @@ export function AdminSearch() {
                 // onMouseDown so click works before input loses focus
                 onMouseDown={() => goTo(item.href)}
               >
-                <span className="text-[11px] text-[#737373]">
-                  {item.label}
-                </span>
+                <span className="text-[11px] text-[#737373]">{item.label}</span>
                 <span className="ml-auto text-[11px] text-[#404040]">
-                  {item.href.replace("/admin", "admin:")}
+                  {item.href.replace('/admin', 'admin:')}
                 </span>
               </button>
             ))}

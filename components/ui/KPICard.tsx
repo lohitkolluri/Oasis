@@ -4,14 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
-export type KPICardAccent =
-  | 'amber'
-  | 'purple'
-  | 'emerald'
-  | 'blue'
-  | 'red'
-  | 'cyan'
-  | 'violet';
+export type KPICardAccent = 'amber' | 'purple' | 'emerald' | 'blue' | 'red' | 'cyan' | 'violet';
 
 const cardBgStyles: Record<KPICardAccent, string> = {
   amber: 'bg-[#c17d3a]/25 border-amber-500/20',
@@ -59,15 +52,11 @@ export function KPICard({
     <>
       <p className="text-sm font-medium text-white/95">
         {title}
-        {count !== undefined && (
-          <span className="text-white/80 font-normal"> ({count})</span>
-        )}
+        {count !== undefined && <span className="text-white/80 font-normal"> ({count})</span>}
       </p>
       <p className="text-xs text-white/60 mt-0.5">{label}</p>
       <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-        <p className="text-xl font-bold text-white tabular-nums tracking-tight">
-          {value}
-        </p>
+        <p className="text-xl font-bold text-white tabular-nums tracking-tight">{value}</p>
         {href ? (
           <Link
             href={href}

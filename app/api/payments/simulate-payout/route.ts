@@ -7,6 +7,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { simulatePayoutSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
@@ -22,6 +23,12 @@ export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'payout');
   const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
   if (rateLimited) return rateLimited;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     const body = await request.json();

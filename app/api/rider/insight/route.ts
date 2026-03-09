@@ -18,7 +18,7 @@ export async function GET() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ insight: null });
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Fetch all context data in parallel
   const [profileRes, policyRes, activePoliciesRes, eventsRes] = await Promise.all([

@@ -2,12 +2,16 @@ import { AdminRiderActions } from '@/components/admin/AdminRiderActions';
 import { RiderGovernmentIdAvatar } from '@/components/admin/RiderGovernmentIdAvatar';
 import { RoleSelector } from '@/components/admin/RoleSelector';
 import { Card } from '@/components/ui/Card';
-import { ZoneMap } from '@/components/ui/ZoneMap';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reverseGeocode } from '@/lib/utils/geo';
 import { ArrowLeft, FileCheck, Inbox, MapPin, Phone, Shield, User } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+
+const ZoneMap = dynamic(() => import('@/components/ui/ZoneMap').then((m) => m.ZoneMap), {
+  loading: () => <div className="h-72 rounded-xl bg-[#161616] animate-pulse" />,
+});
 
 const GOVERNMENT_IDS_BUCKET = 'government-ids';
 
@@ -19,74 +23,61 @@ export default async function AdminRiderDetailPage({
   const { id } = await params;
   const supabase = createAdminClient();
 
-  // Single fetch for profile; passed to all children (actions, role selector, cards, map).
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
-
   if (!profile) notFound();
 
-  const { data: policies } = await supabase
-    .from('weekly_policies')
-    .select(
-      `
-      id,
-      plan_id,
-      week_start_date,
-      week_end_date,
-      weekly_premium_inr,
-      is_active,
-      created_at,
-      plan_packages(name, slug, payout_per_claim_inr)
-    `,
-    )
-    .eq('profile_id', id)
-    .order('week_start_date', { ascending: false })
-    .limit(20);
+  const [policiesRes, plansRes] = await Promise.all([
+    supabase
+      .from('weekly_policies')
+      .select(
+        `id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, created_at, plan_packages(name, slug, payout_per_claim_inr)`,
+      )
+      .eq('profile_id', id)
+      .order('week_start_date', { ascending: false })
+      .limit(20),
+    supabase
+      .from('plan_packages')
+      .select('id, name, slug, weekly_premium_inr, payout_per_claim_inr')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true }),
+  ]);
 
-  const { data: plans } = await supabase
-    .from('plan_packages')
-    .select('id, name, slug, weekly_premium_inr, payout_per_claim_inr')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
+  const policies = policiesRes.data ?? [];
+  const plans = plansRes.data ?? [];
+  const policyIds = policies.map((p) => p.id);
 
-  const { data: claims } = await supabase
-    .from('parametric_claims')
-    .select(
-      `
-      id,
-      payout_amount_inr,
-      status,
-      is_flagged,
-      flag_reason,
-      created_at
-    `,
-    )
-    .in('policy_id', policies?.map((p) => p.id) ?? [])
-    .order('created_at', { ascending: false })
-    .limit(20);
+  const hasCoords = profile.zone_latitude != null && profile.zone_longitude != null;
+  const govIdPath = (profile as { government_id_url?: string | null }).government_id_url;
+
+  const [claimsRes, geocodedAddressRes, signedUrlRes] = await Promise.all([
+    policyIds.length > 0
+      ? supabase
+          .from('parametric_claims')
+          .select('id, payout_amount_inr, status, is_flagged, flag_reason, created_at')
+          .in('policy_id', policyIds)
+          .order('created_at', { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+    hasCoords
+      ? reverseGeocode(profile.zone_latitude!, profile.zone_longitude!)
+      : Promise.resolve(null),
+    govIdPath && typeof govIdPath === 'string'
+      ? supabase.storage.from(GOVERNMENT_IDS_BUCKET).createSignedUrl(govIdPath, 3600)
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const claims = claimsRes.data ?? [];
+  const geocodedAddress = geocodedAddressRes;
+  let governmentIdImageUrl: string | null = null;
+  if (signedUrlRes.data?.signedUrl) governmentIdImageUrl = signedUrlRes.data.signedUrl;
 
   const zoneData = profile.primary_zone_geofence as {
     zone_name?: string;
     coordinates?: unknown;
   } | null;
 
-  // Reverse-geocode zone coordinates to a human-readable address
-  const hasCoords =
-    profile.zone_latitude != null && profile.zone_longitude != null;
-  const geocodedAddress = hasCoords
-    ? await reverseGeocode(profile.zone_latitude!, profile.zone_longitude!)
-    : null;
-
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-
-  const govIdPath = (profile as { government_id_url?: string | null }).government_id_url;
-  let governmentIdImageUrl: string | null = null;
-  if (govIdPath && typeof govIdPath === 'string') {
-    const { data } = await supabase.storage
-      .from(GOVERNMENT_IDS_BUCKET)
-      .createSignedUrl(govIdPath, 3600);
-    if (data?.signedUrl) governmentIdImageUrl = data.signedUrl;
-  }
 
   const sortedPolicies = [...(policies ?? [])].sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
@@ -126,8 +117,12 @@ export default async function AdminRiderDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-stretch gap-3 sm:flex-nowrap">
-          <AdminRiderActions riderId={id} policies={policies ?? []} plans={plans ?? []} />
-          <Card variant="outline" padding="md" className="w-full sm:w-auto min-w-[140px] border-white/5">
+          <AdminRiderActions riderId={id} policies={policies} plans={plans} />
+          <Card
+            variant="outline"
+            padding="md"
+            className="w-full sm:w-auto min-w-[140px] border-white/5"
+          >
             <RoleSelector
               profileId={id}
               currentRole={(profile as { role?: string }).role === 'admin' ? 'admin' : 'rider'}
@@ -209,7 +204,8 @@ export default async function AdminRiderDetailPage({
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-zinc-100">
-                        {plan?.name ?? 'Legacy'} · ₹{Number(p.weekly_premium_inr).toLocaleString()}/wk
+                        {plan?.name ?? 'Legacy'} · ₹{Number(p.weekly_premium_inr).toLocaleString()}
+                        /wk
                       </p>
                       <p className="text-xs text-zinc-500 mt-0.5">
                         {formatDate(p.week_start_date)} – {formatDate(p.week_end_date)}
@@ -255,9 +251,7 @@ export default async function AdminRiderDetailPage({
                 <span className="text-zinc-500 text-xs">
                   {new Date(c.created_at).toLocaleDateString('en-IN')}
                 </span>
-                {c.is_flagged && (
-                  <span className="text-[11px] text-uber-yellow">Flagged</span>
-                )}
+                {c.is_flagged && <span className="text-[11px] text-uber-yellow">Flagged</span>}
               </li>
             ))}
           </ul>
@@ -265,7 +259,9 @@ export default async function AdminRiderDetailPage({
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <Inbox className="h-10 w-10 text-zinc-600 mb-3" />
             <p className="text-sm text-zinc-500">No claims yet</p>
-            <p className="text-xs text-zinc-600 mt-1">Claims will appear here when payouts are made</p>
+            <p className="text-xs text-zinc-600 mt-1">
+              Claims will appear here when payouts are made
+            </p>
           </div>
         )}
       </Card>

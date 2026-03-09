@@ -1,8 +1,8 @@
 import { AdminNav } from '@/components/admin/AdminNav';
 import { AdminSearch } from '@/components/admin/AdminSearch';
 import { Logo } from '@/components/ui/Logo';
-import { isAdmin } from '@/lib/utils/auth';
 import { createClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/utils/auth';
 import { Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -61,7 +61,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         {/* Topbar */}
         <header className="sticky top-0 z-10 h-[56px] border-b border-[#2d2d2d] bg-[#0f0f0f]/90 backdrop-blur-xl px-6 lg:px-8 flex items-center justify-between shrink-0">
           {/* Mobile brand */}
-          <Link href="/admin" className="md:hidden flex items-center gap-2 text-sm font-semibold text-white">
+          <Link
+            href="/admin"
+            className="md:hidden flex items-center gap-2 text-sm font-semibold text-white"
+          >
             <Logo size={28} />
             Oasis Admin
           </Link>
@@ -84,9 +87,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
         </header>
 
-        <main className="flex-1 px-6 py-8 lg:px-8 max-w-[1400px] w-full mx-auto">
-          {children}
-        </main>
+        <main className="flex-1 px-6 py-8 lg:px-8 max-w-[1400px] w-full mx-auto">{children}</main>
       </div>
     </div>
   );

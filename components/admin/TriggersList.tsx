@@ -19,16 +19,18 @@ interface Event {
 }
 
 function severityStatus(score: number): { label: string; badge: string; dot: string } {
-  if (score >= 8) return {
-    label: 'High',
-    badge: 'bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20',
-    dot: 'bg-[#a78bfa] animate-violet-pulse',
-  };
-  if (score >= 5) return {
-    label: 'Medium',
-    badge: 'bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20',
-    dot: 'bg-[#7dd3fc] animate-neon-pulse',
-  };
+  if (score >= 8)
+    return {
+      label: 'High',
+      badge: 'bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20',
+      dot: 'bg-[#a78bfa] animate-violet-pulse',
+    };
+  if (score >= 5)
+    return {
+      label: 'Medium',
+      badge: 'bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20',
+      dot: 'bg-[#7dd3fc] animate-neon-pulse',
+    };
   return {
     label: 'Low',
     badge: 'bg-[#262626] text-[#737373] border border-[#3a3a3a]',
@@ -105,7 +107,12 @@ export function TriggersList({ events }: { events: Event[] }) {
       {/* Column headers */}
       <div className="px-5 py-3 border-b border-[#2d2d2d] grid grid-cols-[1fr_auto_auto_auto_auto] gap-4">
         {['Event', 'Zone', 'Severity', 'Verified', 'Time'].map((h) => (
-          <span key={h} className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em]">{h}</span>
+          <span
+            key={h}
+            className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em]"
+          >
+            {h}
+          </span>
         ))}
       </div>
 
@@ -117,7 +124,7 @@ export function TriggersList({ events }: { events: Event[] }) {
               key={e.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.04 }}
+              transition={{ delay: Math.min(i * 0.04, 0.4) }}
               className="px-5 py-4 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-start hover:bg-[#1e1e1e] transition-colors"
             >
               {/* Event */}
@@ -137,11 +144,15 @@ export function TriggersList({ events }: { events: Event[] }) {
 
               {/* Severity badge */}
               <div className="mt-0.5">
-                <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full ${sev.badge}`}>
+                <span
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full ${sev.badge}`}
+                >
                   <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sev.dot}`} />
                   {sev.label}
                 </span>
-                <p className="text-[10px] text-[#666666] mt-1 tabular-nums">{e.severity_score}/10</p>
+                <p className="text-[10px] text-[#666666] mt-1 tabular-nums">
+                  {e.severity_score}/10
+                </p>
               </div>
 
               {/* Verified */}

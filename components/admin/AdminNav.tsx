@@ -1,7 +1,5 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Activity,
   BarChart2,
@@ -11,17 +9,19 @@ import {
   ShieldAlert,
   Users,
   Zap,
-} from "lucide-react";
+} from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export const adminNavItems = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
-  { href: "/admin/riders", label: "Riders", icon: Users },
-  { href: "/admin/policies", label: "Policies", icon: FileCheck },
-  { href: "/admin/triggers", label: "Triggers", icon: Zap },
-  { href: "/admin/demo", label: "Demo", icon: FlaskConical },
-  { href: "/admin/fraud", label: "Fraud Queue", icon: ShieldAlert },
-  { href: "/admin/health", label: "System Health", icon: Activity },
+  { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+  { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
+  { href: '/admin/riders', label: 'Riders', icon: Users },
+  { href: '/admin/policies', label: 'Policies', icon: FileCheck },
+  { href: '/admin/triggers', label: 'Triggers', icon: Zap },
+  { href: '/admin/demo', label: 'Demo', icon: FlaskConical },
+  { href: '/admin/fraud', label: 'Fraud Queue', icon: ShieldAlert },
+  { href: '/admin/health', label: 'System Health', icon: Activity },
 ];
 
 export function AdminNav() {
@@ -34,8 +34,8 @@ export function AdminNav() {
       </p>
       {adminNavItems.map(({ href, label, icon: Icon }) => {
         const isActive =
-          href === "/admin"
-            ? pathname === "/admin" || pathname === "/admin/"
+          href === '/admin'
+            ? pathname === '/admin' || pathname === '/admin/'
             : pathname.startsWith(href);
         return (
           <Link
@@ -43,13 +43,13 @@ export function AdminNav() {
             href={href}
             className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
               isActive
-                ? "bg-[#1e1e1e] text-white border-l-2 border-[#7dd3fc] pl-[10px]"
-                : "text-[#737373] hover:text-white hover:bg-[#1e1e1e]"
+                ? 'bg-[#1e1e1e] text-white border-l-2 border-[#7dd3fc] pl-[10px]'
+                : 'text-[#737373] hover:text-white hover:bg-[#1e1e1e]'
             }`}
           >
             <Icon
               className={`h-4 w-4 shrink-0 transition-colors ${
-                isActive ? "text-[#7dd3fc]" : "text-[#666666] group-hover:text-white"
+                isActive ? 'text-[#7dd3fc]' : 'text-[#666666] group-hover:text-white'
               }`}
             />
             <span>{label}</span>

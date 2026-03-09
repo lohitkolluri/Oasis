@@ -44,3 +44,5 @@ next-env.d.ts
 docs/node_modules/
 docs/dist/
 docs/.astro/
+# heroui-agents-md
+.heroui-docs/

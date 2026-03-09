@@ -4,10 +4,22 @@
  */
 import { NextResponse } from "next/server";
 import { checkRoute } from "@/lib/routing/osrm";
+import { checkRateLimit, rateLimitKey } from "@/lib/utils/api";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const limitKey = rateLimitKey(req, "routing");
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 30 });
+  if (rateLimited) return rateLimited;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const fromLat = searchParams.get("from_lat");
   const fromLng = searchParams.get("from_lng");

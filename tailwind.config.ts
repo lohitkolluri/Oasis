@@ -8,7 +8,15 @@ export default {
       fontFamily: {
         sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         display: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        mono: [
+          'var(--font-mono)',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
+        ],
       },
       colors: {
         background: 'var(--background)',
@@ -59,7 +67,7 @@ export default {
         'neon-violet': '0 0 20px rgba(167, 139, 250, 0.25)',
         'neon-cyan-sm': '0 0 8px rgba(125, 211, 252, 0.2)',
         'neon-violet-sm': '0 0 8px rgba(167, 139, 250, 0.2)',
-        'card': '0 1px 3px rgba(0,0,0,0.4)',
+        card: '0 1px 3px rgba(0,0,0,0.4)',
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',

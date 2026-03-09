@@ -40,18 +40,14 @@ export async function getRiderPoliciesAndWallet(
     includeRisk = true,
   } = options;
 
-  const { data: policies } = await supabase
-    .from("weekly_policies")
-    .select("*, plan_packages(name)")
-    .eq("profile_id", profileId)
-    .eq("is_active", true)
-    .order("week_start_date", { ascending: false })
-    .limit(5);
-
-  const policyIds = (policies ?? []).map((p) => p.id);
-  const activePolicy = policies?.[0] ?? null;
-
-  const [walletRes, claimsRes, riskRes, verificationRes] = await Promise.all([
+  const [policiesRes, walletRes] = await Promise.all([
+    supabase
+      .from("weekly_policies")
+      .select("*, plan_packages(name)")
+      .eq("profile_id", profileId)
+      .eq("is_active", true)
+      .order("week_start_date", { ascending: false })
+      .limit(5),
     (async () => {
       try {
         return await supabase
@@ -63,6 +59,13 @@ export async function getRiderPoliciesAndWallet(
         return { data: null };
       }
     })(),
+  ]);
+
+  const policies = policiesRes.data ?? null;
+  const policyIds = (policies ?? []).map((p) => p.id);
+  const activePolicy = policies?.[0] ?? null;
+
+  const [claimsRes, riskRes, verificationRes] = await Promise.all([
     includeClaims && policyIds.length > 0
       ? supabase
           .from("parametric_claims")
@@ -109,7 +112,7 @@ export async function getRiderPoliciesAndWallet(
       : [];
 
   return {
-    policies: policies ?? null,
+    policies,
     policyIds,
     activePolicy: activePolicy ?? null,
     wallet: walletRes.data as RiderPoliciesAndWalletResult["wallet"],

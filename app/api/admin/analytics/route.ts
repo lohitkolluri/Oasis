@@ -145,7 +145,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
   // ── Predictive analytics (next week) ──────────────────────────────────
   let prediction = null;
   try {
-    prediction = await getNextWeekPrediction(ctx.supabase);
+    prediction = await getNextWeekPrediction(admin);
   } catch {
     // Skip prediction if it fails
   }
