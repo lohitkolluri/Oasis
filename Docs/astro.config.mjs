@@ -10,11 +10,13 @@ import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 import { starlightIconsPlugin } from 'starlight-plugin-icons';
 import starlightThemeNext from 'starlight-theme-next';
 
+const enableD2 = process.env.VERCEL !== '1';
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://oasis-docs.vercel.app',
   integrations: [
-    d2(),
+    enableD2 && d2(),
     mermaid({
       theme: 'default',
       autoTheme: true,
@@ -130,5 +132,5 @@ export default defineConfig({
         },
       ],
     }),
-  ],
+  ].filter(Boolean),
 });
