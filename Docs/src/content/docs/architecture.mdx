@@ -40,62 +40,50 @@ flowchart TB
 
 ### Dashboard Load
 
-```text
-Dashboard Load
-│
-├── 1. Request
-│      └── Middleware (session refresh)
-│
-├── 2. Render Layout
-│      ├── Fetch Profile
-│      ├── Fetch Policy
-│      └── Fetch Claims
-│
-└── 3. Initialize Subscription
-       └── Supabase Realtime (Wallet updates)
+```mermaid
+flowchart TB
+    RQ["1. Request"] --> MW["Middleware\n(session refresh)"]
+    MW --> RL["2. Render layout"]
+    RL --> FP["Fetch profile"]
+    RL --> FPol["Fetch policy"]
+    RL --> FC["Fetch claims"]
+    RL --> SUB["3. Initialize subscription"]
+    SUB --> RT["Supabase Realtime\n(wallet updates)"]
 ```
 
 ### Premium Subscription
 
-```text
-Premium Subscription
-│
-├── 1. User Initialization
-│      └── POST create-checkout
-│
-├── 2. Payment Processing
-│      └── Stripe Checkout
-│
-└── 3. Post-Payment (Webhook)
-       ├── INSERT weekly_policies
-       └── Redirect
+```mermaid
+flowchart TB
+    UI["1. User init\n(rider selects plan + week)"] --> CC["POST /api/payments/create-checkout"]
+    CC --> SC["2. Stripe Checkout"]
+    SC --> WH["3. Webhook\n/api/payments/webhook"]
+    WH --> WP["INSERT weekly_policies"]
+    WH --> PT["INSERT payment_transactions"]
+    WH --> RD["Redirect back to app"]
 ```
 
 ### Adjudicator (Hourly)
 
-```text
-runAdjudicator()
-│
-├── 1. Discover active zones
-│      └── Query weekly_policies + profiles → cluster ~11 km grid
-│
-├── 2. Check triggers per zone (parallel, batch of 5)
-│      ├── checkZoneTriggers(zone)
-│      │   ├── Trigger 1: Extreme heat (Open-Meteo → Tomorrow.io fallback)
-│      │   ├── Trigger 2: Heavy rain (Tomorrow.io)
-│      │   ├── Trigger 3: AQI adaptive (WAQI → Open-Meteo fallback)
-│      │   ├── Trigger 4: Traffic gridlock (NewsData + LLM)
-│      │   └── Trigger 5: Zone curfew/strike (NewsData + LLM + geocoding)
-│      └── Deduplicate: skip if same trigger type within 30 km
-│
-├── 3. For each trigger candidate:
-│      ├── INSERT live_disruption_events
-│      ├── Find active policies with riders inside geofence
-│      ├── Check plan weekly claim cap (max_claims_per_week)
-│      ├── runAllFraudChecks()
-│      └── INSERT parametric_claims (status='paid')
-│
-└── 4. Log result to system_logs
+```mermaid
+flowchart TB
+    Start["runAdjudicator()"] --> Z["1. Discover active zones\nweekly_policies + profiles\ncluster ~11 km grid"]
+    Z --> T["2. Check triggers per zone\n(parallel, batch of 5)"]
+    T --> Heat["Extreme heat\n(Open-Meteo → Tomorrow.io)"]
+    T --> Rain["Heavy rain\n(Tomorrow.io)"]
+    T --> AQI["AQI adaptive\n(WAQI → Open-Meteo)"]
+    T --> Traffic["Traffic gridlock\n(NewsData + LLM)"]
+    T --> Curfew["Curfew / strike\n(NewsData + LLM + geocoding)"]
+    T --> DD["Deduplicate\n(skip same trigger type within 30 km)"]
+
+    DD --> Loop["3. For each trigger candidate"]
+    Loop --> Evt["INSERT live_disruption_events"]
+    Loop --> Pol["Find active policies in geofence"]
+    Loop --> Cap["Check weekly claim cap\n(max_claims_per_week)"]
+    Loop --> Fraud["runAllFraudChecks()"]
+    Loop --> Claims["INSERT parametric_claims\n(status = 'pending_verification')"]
+
+    Claims --> Log["4. Log result to system_logs"]
 ```
 
 

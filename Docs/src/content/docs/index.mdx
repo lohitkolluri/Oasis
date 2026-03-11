@@ -65,35 +65,18 @@ By removing the human element from the claims process, Oasis creates a highly sc
 
 ## How It Works
 
-```d2
-direction: right
-
-Onboard: {
-  shape: cylinder
-}
-Subscribe Weekly
-Pay Premium
-Parametric Engine: {
-  shape: cylinder
-}
-Hourly Poll
-Disruption?: {
-  shape: diamond
-}
-Fraud Checks
-Auto-Payout
-Realtime Wallet: {
-  shape: cylinder
-}
-
-Onboard -> Subscribe Weekly
-Subscribe Weekly -> Pay Premium
-Pay Premium -> Parametric Engine
-Parametric Engine -> Hourly Poll
-Hourly Poll -> Disruption?
-Disruption? -> Fraud Checks: Yes
-Fraud Checks -> Auto-Payout
-Auto-Payout -> Realtime Wallet
+```mermaid
+flowchart LR
+    O[Onboard\nPlatform · Zone · KYC] --> S[Subscribe weekly\n₹79–₹149]
+    S --> P[Pay premium\nStripe Checkout]
+    P --> E[Parametric engine\n(adjudicator)]
+    E --> H[Hourly / 15-min poll\nWeather · AQI · News]
+    H --> Q{Disruption threshold\ncrossed?}
+    Q -->|No| E
+    Q -->|Yes| F[Fraud checks\n7-step pipeline]
+    F --> A[Auto-claim\nparametric_claims\nstatus='pending_verification']
+    A --> V[Location verification\nGPS / mobile]
+    V --> W[Realtime wallet\nSupabase Realtime]
 ```
 
 <CardGrid>
