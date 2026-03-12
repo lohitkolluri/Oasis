@@ -235,7 +235,8 @@ export async function POST(request: Request) {
   // LLM verification: genuine disruption + live photo (no screenshot/upload)
   const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
   let verified = false;
-  let verifyReason = "Verification unavailable";
+  let verifyReason = "";
+  let llmAvailable = false;
 
   if (openRouterKey) {
     try {
@@ -281,8 +282,9 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
         const match = content.match(/\{[\s\S]*\}/);
         if (match) {
           const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
+          llmAvailable = true;
           verified = parsed.verified === true;
-          verifyReason = parsed.reason ?? verifyReason;
+          verifyReason = parsed.reason ?? "";
         }
       }
     } catch (e) {
@@ -292,12 +294,21 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
 
   // Cross-check self-report against real weather/traffic data at report GPS
   let corroborationResult: { corroborated: boolean; details: Record<string, unknown> } | null = null;
-  if (verified && zoneLat != null && zoneLng != null) {
+  if (zoneLat != null && zoneLng != null) {
     corroborationResult = await corroborateSelfReport(zoneLat, zoneLng);
-    if (!corroborationResult.corroborated) {
-      verified = false;
-      verifyReason = "External data contradicts report: no severe weather or traffic at location.";
-    }
+  }
+
+  if (verified && corroborationResult && !corroborationResult.corroborated) {
+    verified = false;
+    verifyReason = "External data contradicts report: no severe weather or traffic at location.";
+  }
+
+  // Fallback: if LLM was unavailable, use corroboration as primary verification
+  if (!llmAvailable && corroborationResult?.corroborated) {
+    verified = true;
+    verifyReason = "Verified via external weather/traffic data (AI vision unavailable).";
+  } else if (!llmAvailable && !corroborationResult?.corroborated) {
+    verifyReason = "Could not verify: AI vision unavailable and no external disruption data confirms the report.";
   }
 
   let payout_created = false;
