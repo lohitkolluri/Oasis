@@ -97,7 +97,8 @@ Reply with ONLY the sentence, no quotes or punctuation at the end.`;
     content = content.replace(/\s*—\s*/g, '. ');
 
     return NextResponse.json({ insight: content });
-  } catch {
+  } catch (err) {
+    console.error("Rider insight generation failed:", err);
     return NextResponse.json({ insight: null });
   }
 }

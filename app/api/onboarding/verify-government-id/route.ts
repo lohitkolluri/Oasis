@@ -275,7 +275,7 @@ Rules:
           choices?: Array<{ message?: { content?: string } }>;
         };
         const content = data.choices?.[0]?.message?.content ?? '';
-        const match = content.match(/\{[\s\S]*\}/);
+        const match = content.match(/\{[\s\S]*?\}/);
         if (match) {
           const parsed = JSON.parse(match[0]) as VerificationResult & {
             aadhaar_number?: string;

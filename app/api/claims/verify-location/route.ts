@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { simulatePayout } from "@/lib/adjudicator/payouts";
 import { isMobileForGps } from "@/lib/utils/device";
 import { isWithinCircle } from "@/lib/utils/geo";
-import { FRAUD } from "@/lib/config/constants";
+import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from "@/lib/config/constants";
 import {
   runExtendedFraudChecks,
   checkGpsAccuracy,
@@ -146,8 +146,8 @@ export async function POST(request: Request) {
     .single();
 
   const gf = event?.geofence_polygon as { lat?: number; lng?: number; radius_km?: number } | undefined;
-  const centerLat = gf?.lat ?? 12.9716;
-  const centerLng = gf?.lng ?? 77.5946;
+  const centerLat = gf?.lat ?? DEFAULT_ZONE.lat;
+  const centerLng = gf?.lng ?? DEFAULT_ZONE.lng;
   const radiusKm = gf?.radius_km ?? 10;
   const raw = event?.raw_api_data as { demo?: boolean; source?: string } | undefined;
   const isDemoEvent = raw?.demo === true || raw?.source === "admin_demo_mode";
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
   // Payout only after location verification (inside_geofence); prevents scam
   let payoutInitiated = false;
   if (inside && claim?.status === "pending_verification" && policy?.profile_id) {
-    const amountInr = claim.payout_amount_inr != null ? Number(claim.payout_amount_inr) : 400;
+    const amountInr = claim.payout_amount_inr != null ? Number(claim.payout_amount_inr) : PAYOUT_FALLBACK_INR;
     const txId = `oasis_verify_${Date.now()}_${claimId.slice(0, 8)}_${Math.random().toString(36).slice(2, 8)}`;
     const payoutOk = await simulatePayout(admin, claimId, policy.profile_id, amountInr);
     if (payoutOk) {

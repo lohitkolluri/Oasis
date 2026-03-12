@@ -146,8 +146,8 @@ export const GET = withAdminAuth(async (ctx, request) => {
   let prediction = null;
   try {
     prediction = await getNextWeekPrediction(admin);
-  } catch {
-    // Skip prediction if it fails
+  } catch (err) {
+    console.warn("Next-week prediction failed:", err);
   }
 
   return NextResponse.json({

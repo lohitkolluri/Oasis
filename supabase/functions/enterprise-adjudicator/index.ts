@@ -357,7 +357,7 @@ Deno.serve(async (req: Request) => {
             if (llmRes.ok) {
               const llmData = await llmRes.json();
               const content = llmData.choices?.[0]?.message?.content ?? '{}';
-              const m = content.match(/\{[\s\S]*\}/);
+              const m = content.match(/\{[\s\S]*?\}/);
               if (m) {
                 try {
                   const p = JSON.parse(m[0]);
@@ -403,7 +403,7 @@ Deno.serve(async (req: Request) => {
             if (llmRes.ok) {
               const llmData = await llmRes.json();
               const content = llmData.choices?.[0]?.message?.content ?? '{}';
-              const m = content.match(/\{[\s\S]*\}/);
+              const m = content.match(/\{[\s\S]*?\}/);
               if (m) {
                 try {
                   const p = JSON.parse(m[0]);
@@ -502,7 +502,7 @@ Deno.serve(async (req: Request) => {
           max_claims_per_week?: number;
         } | null;
         const payoutAmount =
-          plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : 400;
+          plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : 300;
         const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
         const { data: profile } = await supabase

@@ -53,8 +53,8 @@ export const POST = withAdminAuth(async (ctx, request) => {
           reviewed_by: ctx.user.email ?? ctx.user.id,
         },
       });
-    } catch {
-      // Log table may not exist
+    } catch (err) {
+      console.warn("Audit log insert failed (table may not exist):", err);
     }
 
     return NextResponse.json({ ok: true, claimId, action });

@@ -127,9 +127,9 @@ flowchart LR
 **How it works:**
 
 1. **Rider onboards** → Step 1: platform (Zepto/Blinkit), name, phone, zone. Step 2: government ID (Aadhaar) + face liveness verification.
-2. **Subscribes weekly** → pays ₹79–₹149/week via Stripe (3 tiers, dynamic pricing).
+2. **Subscribes weekly** → pays ₹49–₹199/week via Stripe (3 tiers, dynamic pricing).
 3. **Disruption triggers** → **Realtime:** providers that support push (e.g. Tomorrow.io Alerts) POST to `/api/webhooks/disruption`. **Every 15 min:** cron polls weather, AQI, and news APIs for the rest.
-4. **Disruption detected** → 7-check fraud pipeline → `parametric_claims` inserted with `status='pending_verification'`.
+4. **Disruption detected** → 11-check fraud pipeline → `parametric_claims` inserted with `status='pending_verification'`.
 5. **Payout release** → rider completes lightweight GPS verification (automatically when possible on mobile), then the claim is marked `paid` and the wallet updates in real time. No manual claims form required.
 
 ---
@@ -142,7 +142,7 @@ flowchart LR
   - Scenario: Rahul is a Zepto rider in Bangalore. A week of heavy rain and local flooding cuts his active delivery slots in half.
   - Workflow:
     1. Registers and completes onboarding (platform, zone, KYC).
-    2. Buys a **weekly** Oasis plan (₹79–₹149 depending on risk tier).
+    2. Buys a **weekly** Oasis plan (₹49–₹199 depending on risk tier).
     3. Continues working as usual; Oasis runs in the background.
     4. When a disruption crosses a parametric trigger in Rahul’s zone, Oasis auto‑creates a claim.
     5. Rahul gets a notification, confirms GPS location (1‑tap or auto on mobile), and his wallet balance updates instantly when the claim moves to `paid`.
@@ -168,9 +168,9 @@ flowchart LR
 
 - **Model**
   - Three plans in `plan_packages`:
-    - `Basic`: ₹79/week → ₹300 per claim, up to 2 claims/week.
-    - `Standard`: ₹99/week → ₹400 per claim, up to 2 claims/week.
-    - `Premium`: ₹149/week → ₹600 per claim, up to 3 claims/week.
+    - `Basic`: ₹49/week → ₹300 per claim, up to 1 claim/week.
+    - `Standard`: ₹99/week → ₹700 per claim, up to 2 claims/week.
+    - `Premium`: ₹199/week → ₹1,500 per claim, up to 3 claims/week.
   - Pricing is derived from:
     - Historical disruption frequency per zone (heat/rain/AQI/lockdown/traffic).
     - Target loss ratio bands (e.g., 60–80%).

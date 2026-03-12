@@ -7,6 +7,9 @@ export const DEFAULT_ZONE = {
   name: 'Bangalore',
 } as const;
 
+/** Safest fallback payout (Basic tier) when plan_packages data is missing */
+export const PAYOUT_FALLBACK_INR = 300;
+
 /** Premium pricing bounds (INR) — actuarially modeled for ₹7K/week rider income */
 export const PREMIUM = {
   BASE: 49,

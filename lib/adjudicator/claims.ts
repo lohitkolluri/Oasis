@@ -2,7 +2,7 @@
  * Policy matching, fraud checks, claim creation and payouts for a single disruption event.
  */
 
-import { DEFAULT_ZONE, FRAUD, TRIGGERS } from '@/lib/config/constants';
+import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR, TRIGGERS } from '@/lib/config/constants';
 import {
   preloadFraudData,
   runAllFraudChecks,
@@ -116,7 +116,7 @@ export async function processClaimsForEvent(
     const payoutAmount =
       plan?.payout_per_claim_inr != null
         ? Number(plan.payout_per_claim_inr)
-        : 400;
+        : PAYOUT_FALLBACK_INR;
     const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
     const profile = profileMap.get(policy.profile_id);

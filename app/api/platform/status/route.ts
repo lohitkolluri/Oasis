@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isWithinCircle } from "@/lib/utils/geo";
+import { DEFAULT_ZONE } from "@/lib/config/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,8 @@ export async function GET() {
     .eq("id", user.id)
     .single();
 
-  const zoneLat = profile?.zone_latitude ?? 12.9716;
-  const zoneLng = profile?.zone_longitude ?? 77.5946;
+  const zoneLat = profile?.zone_latitude ?? DEFAULT_ZONE.lat;
+  const zoneLng = profile?.zone_longitude ?? DEFAULT_ZONE.lng;
 
   // Single cutoff used for both disruption events and self-reports
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();

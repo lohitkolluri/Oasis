@@ -69,7 +69,7 @@ export async function checkNewsTriggers(
       });
 
       const content = llmData.choices?.[0]?.message?.content ?? '{}';
-      const match = content.match(/\{[\s\S]*\}/);
+      const match = content.match(/\{[\s\S]*?\}/);
       if (match) {
         try {
           const parsed = JSON.parse(match[0]) as {
@@ -146,7 +146,7 @@ export async function checkNewsTriggers(
       });
 
       const content = llmData.choices?.[0]?.message?.content ?? '{}';
-      const match = content.match(/\{[\s\S]*\}/);
+      const match = content.match(/\{[\s\S]*?\}/);
       if (match) {
         try {
           const parsed = JSON.parse(match[0]) as {

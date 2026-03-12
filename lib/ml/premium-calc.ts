@@ -91,7 +91,7 @@ export function calculateWeeklyPremium(input: PremiumInput): number {
 /**
  * LLM-assisted premium calculation.
  * Sends risk context to the LLM for an intelligent pricing recommendation,
- * then clamps the result within the allowed ₹79-₹149 range.
+ * then clamps the result within the allowed ₹49–₹199 range.
  */
 export async function calculatePremiumWithLlm(
   input: PremiumInput,
@@ -158,7 +158,7 @@ Reply JSON only: {"premium": <number>, "reasoning": "<one sentence>"}`,
     });
 
     const content = llmData.choices?.[0]?.message?.content ?? '{}';
-    const match = content.match(/\{[\s\S]*\}/);
+    const match = content.match(/\{[\s\S]*?\}/);
     if (match) {
       const parsed = JSON.parse(match[0]) as {
         premium?: number;

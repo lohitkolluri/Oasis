@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isMobileForGps } from "@/lib/utils/device";
 import { currentWeekMonday } from "@/lib/utils/geo";
 import { toDateString } from "@/lib/utils/date";
-import { EXTERNAL_APIS, FRAUD, TRIGGERS } from "@/lib/config/constants";
+import { DEFAULT_ZONE, EXTERNAL_APIS, FRAUD, PAYOUT_FALLBACK_INR, TRIGGERS } from "@/lib/config/constants";
 import { checkRapidClaims } from "@/lib/fraud/detector";
 import { fetchWithRetry } from "@/lib/utils/retry";
 
@@ -54,7 +54,7 @@ async function corroborateSelfReport(
       ) {
         weatherSevere = true;
       }
-    } catch { /* skip */ }
+    } catch (err) { console.warn("Corroboration: weather check failed:", err); }
   }
 
   // Check traffic at report location
@@ -82,7 +82,7 @@ async function corroborateSelfReport(
       ) {
         trafficSevere = true;
       }
-    } catch { /* skip */ }
+    } catch (err) { console.warn("Corroboration: traffic check failed:", err); }
   }
 
   details.weather_severe = weatherSevere;
@@ -279,7 +279,7 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
           choices?: Array<{ message?: { content?: string } }>;
         };
         const content = data.choices?.[0]?.message?.content ?? "";
-        const match = content.match(/\{[\s\S]*\}/);
+        const match = content.match(/\{[\s\S]*?\}/);
         if (match) {
           const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
           llmAvailable = true;
@@ -330,7 +330,7 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
 
     if (policy) {
       const plan = policy.plan_packages as { payout_per_claim_inr?: number; max_claims_per_week?: number } | null;
-      const payoutAmount = plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : 400;
+      const payoutAmount = plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : PAYOUT_FALLBACK_INR;
       const maxClaims = plan?.max_claims_per_week ?? 3;
 
       // Fraud check: rapid claims detection (blocks if 5+ claims in 24h)
@@ -353,8 +353,8 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
         .gte("created_at", weekStart);
 
       if ((weekClaimCount ?? 0) < maxClaims) {
-        const lat = zoneLat ?? 12.9716;
-        const lng = zoneLng ?? 77.5946;
+        const lat = zoneLat ?? DEFAULT_ZONE.lat;
+        const lng = zoneLng ?? DEFAULT_ZONE.lng;
 
         const { data: eventRow } = await admin
           .from("live_disruption_events")
