@@ -35,7 +35,7 @@ The core `runAllFraudChecks()` runs before each claim insert. If any check retur
 | Check | When | Threshold | Config constant |
 |-------|------|-----------|-----------------|
 | checkDuplicateClaim | Core (parallel) | Same policy + same event → skip | — |
-| checkRapidClaims | Core (parallel) | ≥ 5 claims in 24h → flag | — |
+| checkRapidClaims | Core (parallel) | ≥ 3 claims in 24h → flag | `FRAUD.RAPID_CLAIMS_THRESHOLD` |
 | checkWeatherMismatch | Core (sync) | Raw API data doesn't support trigger → flag | — |
 | checkGpsAccuracy | Extended (verify-location) | GPS accuracy > 100m → reject | `FRAUD.GPS_MAX_ACCURACY_METERS` |
 | checkImpossibleTravel | Extended (verify-location) | > 50 km in < 30 min → reject | `FRAUD.IMPOSSIBLE_TRAVEL_KM/MINUTES` |

@@ -46,7 +46,7 @@ For each active policy in affected geofence:
   ├── Check weekly claim cap (max_claims_per_week from plan_packages)
   ├── runAllFraudChecks() [parallel + sequential]
   │       ├── checkDuplicateClaim()   - same policy + same event?
-  │       ├── checkRapidClaims()      - ≥ 5 claims in 24h?
+  │       ├── checkRapidClaims()      - ≥ 3 claims in 24h?
   │       └── checkWeatherMismatch()  - raw data supports trigger?
   └── INSERT parametric_claims (status='pending_verification', payout_amount_inr)
            ↓

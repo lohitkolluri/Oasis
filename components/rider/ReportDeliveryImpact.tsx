@@ -27,6 +27,9 @@ export function ReportDeliveryImpact({
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? onOpenChange : setInternalOpen;
   const [message, setMessage] = useState('');
+  const [category, setCategory] = useState<'bad_weather' | 'traffic' | 'curfew' | 'unsafe_crowd' | 'other'>(
+    'bad_weather',
+  );
   const [photo, setPhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -115,6 +118,7 @@ export function ReportDeliveryImpact({
     try {
       const formData = new FormData();
       formData.set('type', 'cant_deliver');
+      formData.set('category', category);
       if (message.trim()) formData.set('message', message.trim());
       formData.append('photo', photo);
 
@@ -237,6 +241,35 @@ export function ReportDeliveryImpact({
                             verified strictly by AI, and payout is initiated only when the report is
                             judged to be genuine.
                           </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm text-zinc-500 mb-1">
+                            Category <span className="text-red-400">(required)</span>
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { id: 'bad_weather', label: 'Bad Weather (rain/heat)' },
+                              { id: 'traffic', label: 'Road Blocked / Traffic' },
+                              { id: 'curfew', label: 'Curfew / Strike' },
+                              { id: 'unsafe_crowd', label: 'Unsafe Crowd' },
+                              { id: 'other', label: 'Other external issue' },
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() =>
+                                  setCategory(opt.id as typeof category)
+                                }
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium border min-h-[32px] ${
+                                  category === opt.id
+                                    ? 'border-uber-yellow bg-uber-yellow/20 text-uber-yellow'
+                                    : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                         <div>
                           <label htmlFor="msg" className="block text-sm text-zinc-500 mb-1">

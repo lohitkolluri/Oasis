@@ -135,6 +135,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const type = (formData.get("type") as string) ?? null;
+  const categoryRaw = (formData.get("category") as string | null) ?? null;
   const message = (formData.get("message") as string)?.trim() ?? null;
   const photo = formData.get("photo") as File | null;
   const gpsLatRaw = formData.get("gps_lat");
@@ -148,6 +149,12 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  type SelfReportCategory = "bad_weather" | "traffic" | "curfew" | "unsafe_crowd" | "other";
+  const allowedCategories: SelfReportCategory[] = ["bad_weather", "traffic", "curfew", "unsafe_crowd", "other"];
+  const category: SelfReportCategory = allowedCategories.includes(categoryRaw as SelfReportCategory)
+    ? (categoryRaw as SelfReportCategory)
+    : "other";
 
   if (!photo || photo.size === 0) {
     return NextResponse.json(
@@ -255,7 +262,7 @@ export async function POST(request: Request) {
             {
               role: "system",
               content:
-                "You verify rider delivery disruption reports for a parametric income-protection product. Reply ONLY with valid JSON: {\"verified\": true or false, \"reason\": \"brief explanation\"}. Be extremely strict. Approve only when the image and rider note clearly show a real, current delivery-blocking disruption such as severe weather, road blockade, curfew, strike, or unsafe crowd conditions. Reject screenshots, downloaded images, normal traffic, low-light ambiguity, indoor photos, unrelated selfies, staged scenes, accidents, health issues, vehicle repair issues, or anything that does not clearly prove a covered disruption.",
+                "You verify rider delivery disruption reports for a parametric income-protection product. Reply ONLY with valid JSON: {\"verified\": true or false, \"reason\": \"brief explanation\"}. Be EXTREMELY strict. Approve ONLY when the image AND rider note clearly show a real, current delivery-blocking disruption such as severe weather, flooded roads, obvious road blockades, curfew enforcement on streets, protests blocking roads, or unsafe outdoor crowd conditions.\n\nIf the scene appears even partially INDOOR (doors, sofas, interior walls, ceilings, furniture) or does not clearly show an outdoor road/streetscape or visible environmental conditions (rain, flood water, barricades, crowds on the road), you MUST set \"verified\": false. Reject screenshots, downloaded images, normal/slow traffic, low-light ambiguity, indoor photos, unrelated selfies, staged scenes, accidents, health issues, vehicle repair issues, or anything that does not clearly prove a covered disruption in an outdoor public delivery context.",
             },
             {
               role: "user",
@@ -264,7 +271,9 @@ export async function POST(request: Request) {
                   type: "text",
                   text: `Rider says: "${message || "Delivery disrupted in my zone."}"
 
-Rules: Set verified true ONLY if (1) the image shows a plausible real-world delivery disruption that blocks deliveries, (2) it looks like a genuine live camera photo captured on scene, and (3) the text description is consistent with the image. Reject if unclear, fake, unrelated, or outside covered disruption categories. Reply ONLY with JSON: {"verified": true/false, "reason": "..."}`,
+Category selected: "${category}".
+
+Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on or near a road/streetscape, (2) there is a plausible real-world disruption that blocks deliveries (e.g. flooded road, road completely blocked, visible curfew enforcement, protest blocking the street), (3) it looks like a genuine live camera photo captured on scene (not a screenshot or stock image), and (4) the text description is consistent with the image and the selected category. If the scene looks like a room/indoor environment (door, sofa, interior wall, furniture) or you cannot confidently see a covered disruption, you MUST set verified false. Reply ONLY with JSON: {"verified": true/false, "reason": "..."}`,
                 },
                 { type: "image_url", image_url: { url: dataUrl } },
               ],
@@ -281,10 +290,14 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
         const content = data.choices?.[0]?.message?.content ?? "";
         const match = content.match(/\{[\s\S]*?\}/);
         if (match) {
-          const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
-          llmAvailable = true;
-          verified = parsed.verified === true;
-          verifyReason = parsed.reason ?? "";
+          try {
+            const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
+            llmAvailable = true;
+            verified = parsed.verified === true;
+            verifyReason = parsed.reason ?? "";
+          } catch (parseErr) {
+            console.error("LLM verify JSON parse error:", parseErr, "content:", content);
+          }
         }
       }
     } catch (e) {
@@ -303,12 +316,14 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
     verifyReason = "External data contradicts report: no severe weather or traffic at location.";
   }
 
-  // Fallback: if LLM was unavailable, use corroboration as primary verification
-  if (!llmAvailable && corroborationResult?.corroborated) {
-    verified = true;
-    verifyReason = "Verified via external weather/traffic data (AI vision unavailable).";
-  } else if (!llmAvailable && !corroborationResult?.corroborated) {
-    verifyReason = "Could not verify: AI vision unavailable and no external disruption data confirms the report.";
+  // If the vision model was unavailable or failed, do NOT auto-approve based on corroboration alone.
+  // Require a successful AI vision verdict for any self-report based claim.
+  if (!llmAvailable) {
+    verified = false;
+    if (!verifyReason) {
+      verifyReason =
+        "AI verification unavailable or failed. Report could not be safely verified for an eligible disruption.";
+    }
   }
 
   let payout_created = false;
