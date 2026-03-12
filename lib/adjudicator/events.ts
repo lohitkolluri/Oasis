@@ -59,6 +59,7 @@ export async function insertDisruptionEvent(
     .from('live_disruption_events')
     .insert({
       event_type: candidate.type,
+      event_subtype: candidate.subtype ?? null,
       severity_score: candidate.severity,
       geofence_polygon: candidate.geofence ?? {},
       verified_by_llm:

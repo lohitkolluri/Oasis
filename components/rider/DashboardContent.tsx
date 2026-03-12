@@ -37,14 +37,21 @@ const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.06 },
+    transition: { staggerChildren: 0.05 },
   },
 };
 
 const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
 };
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export function DashboardContent({
   user,
@@ -60,16 +67,28 @@ export function DashboardContent({
   planName,
   claimIdsNeedingVerification,
 }: DashboardContentProps) {
+  const firstName = profile?.full_name?.split(' ')[0] ?? '';
+
   return (
     <motion.div
       variants={container}
       initial="hidden"
       animate="show"
-      className="space-y-3"
+      className="space-y-3 pb-2"
     >
-      {/* Policy docs — compact */}
+      {/* Greeting — personal touch */}
+      <motion.div variants={item} className="pt-1 pb-1">
+        <h2 className="text-lg font-bold text-white tracking-tight">
+          {getGreeting()}{firstName ? `, ${firstName}` : ''}
+        </h2>
+        <p className="text-[13px] text-zinc-500 mt-0.5">
+          {activePolicy ? 'Your coverage is active' : 'Subscribe to get covered'}
+        </p>
+      </motion.div>
+
+      {/* Urgent: predictive alert at the top when active */}
       <motion.div variants={item}>
-        <PolicyDocumentsLink />
+        <PredictiveAlert />
       </motion.div>
 
       {/* Wallet + KPIs — at a glance */}
@@ -103,7 +122,7 @@ export function DashboardContent({
         />
       </motion.div>
 
-      {/* Policy + Earnings + Claims — core content */}
+      {/* Policy + Earnings — core content */}
       <motion.div variants={item}>
         <PolicyCard
           policy={activePolicy}
@@ -120,15 +139,17 @@ export function DashboardContent({
         <ClaimsPreview claims={claimsFiltered} />
       </motion.div>
 
-      {/* Alerts + insight — compact */}
-      <motion.div variants={item}>
-        <PredictiveAlert />
-      </motion.div>
+      {/* Risk + Insight — secondary info */}
       <motion.div variants={item}>
         <RiskRadar />
       </motion.div>
       <motion.div variants={item}>
         <RiderInsightCard />
+      </motion.div>
+
+      {/* Policy docs — quick access at bottom */}
+      <motion.div variants={item}>
+        <PolicyDocumentsLink />
       </motion.div>
     </motion.div>
   );

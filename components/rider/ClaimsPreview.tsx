@@ -77,7 +77,7 @@ export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'defa
         </div>
         <Link
           href="/dashboard/claims"
-          className="text-[11px] font-semibold text-uber-green hover:underline flex items-center gap-0.5"
+          className="text-[11px] font-semibold text-uber-green hover:underline active:opacity-70 flex items-center gap-0.5 min-h-[36px] px-1"
         >
           View all
           <ChevronRight className="h-3 w-3" />
@@ -143,7 +143,7 @@ export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'defa
             return (
               <div
                 key={c.id}
-                className="flex items-center gap-3 rounded-lg bg-black/40 border border-white/10 px-3 py-2.5"
+                className="flex items-center gap-3 rounded-xl bg-black/40 border border-white/10 px-3 py-3 active:bg-white/5 transition-colors"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-zinc-200 truncate">

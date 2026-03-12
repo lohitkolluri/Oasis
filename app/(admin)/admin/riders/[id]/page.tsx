@@ -5,13 +5,9 @@ import { Card } from '@/components/ui/Card';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reverseGeocode } from '@/lib/utils/geo';
 import { ArrowLeft, FileCheck, Inbox, MapPin, Phone, Shield, User } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import { ZoneMapLazy } from '@/components/ui/ZoneMapLazy';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-
-const ZoneMap = dynamic(() => import('@/components/ui/ZoneMap').then((m) => m.ZoneMap), {
-  loading: () => <div className="h-72 rounded-xl bg-[#161616] animate-pulse" />,
-});
 
 const GOVERNMENT_IDS_BUCKET = 'government-ids';
 
@@ -271,7 +267,7 @@ export default async function AdminRiderDetailPage({
           <h2 className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-4">
             Delivery zone
           </h2>
-          <ZoneMap
+          <ZoneMapLazy
             centerLat={profile.zone_latitude!}
             centerLng={profile.zone_longitude!}
             radiusKm={15}

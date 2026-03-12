@@ -2,7 +2,7 @@
  * Policy matching, fraud checks, claim creation and payouts for a single disruption event.
  */
 
-import { DEFAULT_ZONE, TRIGGERS } from '@/lib/config/constants';
+import { DEFAULT_ZONE, FRAUD, TRIGGERS } from '@/lib/config/constants';
 import {
   preloadFraudData,
   runAllFraudChecks,
@@ -168,6 +168,7 @@ export async function processClaimsForEvent(
         claimData.id,
         eventId,
         undefined,
+        policy.profile_id,
       );
 
       // Demo mode: auto-record payout so ledger has a row and demo shows "1 payout(s)"
@@ -214,12 +215,35 @@ export async function processClaimsForEvent(
           : `Claim created — verify location`,
         body: isDemo
           ? `${eventLabel} (demo). Payout recorded to your wallet.`
-          : `${eventLabel} in your zone. Verify your location in the app to receive ₹${payoutAmount}.`,
+          : `${eventLabel} in your zone. Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
         type: 'payout',
         metadata: { claim_id: claimData.id, amount_inr: payoutAmount, subtype: candidate.subtype },
       });
       if (notifErr) {
         // Table may not exist yet or RLS; don't fail the claim
+      }
+
+      // Schedule verification reminder notifications at 12h and 20h after claim creation
+      if (!isDemo) {
+        const reminders = [
+          { hours: 12, title: 'Reminder: verify your location', body: `You have ${FRAUD.VERIFY_WINDOW_HOURS - 12}h left to verify your location for ₹${payoutAmount} payout.` },
+          { hours: 20, title: 'Urgent: verify location soon', body: `Only ${FRAUD.VERIFY_WINDOW_HOURS - 20}h remaining to verify your location and claim ₹${payoutAmount}.` },
+        ];
+        for (const reminder of reminders) {
+          const scheduledAt = new Date(Date.now() + reminder.hours * 60 * 60 * 1000).toISOString();
+          await supabase.from('rider_notifications').insert({
+            profile_id: policy.profile_id,
+            title: reminder.title,
+            body: reminder.body,
+            type: 'reminder',
+            metadata: {
+              claim_id: claimData.id,
+              amount_inr: payoutAmount,
+              scheduled_for: scheduledAt,
+              reminder_hours: reminder.hours,
+            },
+          }).then(() => {}, () => {});
+        }
       }
     }
   }

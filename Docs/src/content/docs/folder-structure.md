@@ -36,10 +36,10 @@ oasis/
 │   ├── adjudicator/
 │   │   └── run.ts              # Parametric adjudicator engine (675 lines)
 │   ├── fraud/
-│   │   └── detector.ts         # 7-check fraud detection
+│   │   └── detector.ts         # 11-check fraud detection
 │   ├── ml/
 │   │   ├── next-week-risk.ts   # Predictive claims forecast
-│   │   └── premium-calc.ts     # Dynamic weekly premium (₹79–₹149)
+│   │   └── premium-calc.ts     # Dynamic weekly premium (₹49–₹199)
 │   ├── routing/
 │   │   └── osrm.ts             # OSRM routing client
 │   ├── supabase/
@@ -62,7 +62,8 @@ oasis/
 ├── docs/                       # This Starlight docs site
 │
 ├── scripts/
-│   └── setup-storage.ts        # One-time Supabase storage bucket setup
+│   ├── setup-storage.ts        # One-time Supabase storage bucket setup
+│   └── seed-demo-data.sql      # Idempotent demo data seed (5 riders, events, claims)
 │
 ├── public/                     # Static assets (PWA icons)
 ├── middleware.ts               # Next.js edge middleware (session refresh)
@@ -110,7 +111,7 @@ Pure business logic. Nothing in `lib/` imports React or Next.js framework code -
 | Module | Responsibility |
 |---|---|
 | `adjudicator/run.ts` | Discover zones → check triggers → run fraud checks → insert claims |
-| `fraud/detector.ts` | Seven independent fraud check functions + `runAllFraudChecks()` orchestrator |
+| `fraud/detector.ts` | Eleven independent fraud check functions + `runAllFraudChecks()` orchestrator |
 | `ml/premium-calc.ts` | Stateless premium formula + DB helpers for historical event count |
 | `ml/next-week-risk.ts` | Forecast-based or historical claims prediction for admin dashboard |
 | `supabase/*.ts` | Context-appropriate Supabase client factories |
@@ -124,7 +125,7 @@ Pure business logic. Nothing in `lib/` imports React or Next.js framework code -
 
 | Directory | Contents |
 |---|---|
-| `ui/` | Design system atoms: `Button`, `Card`, `GlassCard`, `MetricCard`, `StatusBadge`, `DataTable`, `ZoneMap`, `GoeyToaster` |
+| `ui/` | Design system atoms: `Button`, `Card`, `GlassCard`, `MetricCard`, `StatusBadge`, `DataTable`, `ZoneMap`, `ZoneMapLazy`, `GoeyToaster` |
 | `rider/` | Domain components: `DashboardContent`, `PolicyCard`, `WalletBalanceCard`, `RealtimeWallet`, `RiskRadar`, `PredictiveAlert`, `ClaimVerificationPrompt` |
 | `admin/` | Admin-specific: `AnalyticsCharts`, `FraudList`, `TriggersList`, `DemoTriggerPanel`, `SystemHealth`, `RunAdjudicatorButton` |
 | `auth/` | `AuthBackground` - animated gradient for auth pages |

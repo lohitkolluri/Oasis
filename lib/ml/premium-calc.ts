@@ -14,6 +14,25 @@ import { isWithinCircle } from '@/lib/utils/geo';
 import { fetchWithRetry } from '@/lib/utils/retry';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/**
+ * Month-based seasonal risk multiplier for Indian weather patterns.
+ * Based on IMD historical data for metros.
+ */
+export const SEASONAL_RISK_MULTIPLIER: Record<number, number> = {
+  0: 0.85,  // January — winter, low disruption
+  1: 0.85,  // February — winter
+  2: 1.0,   // March — transition
+  3: 1.25,  // April — pre-monsoon heat waves
+  4: 1.25,  // May — peak heat wave season
+  5: 1.4,   // June — monsoon onset
+  6: 1.4,   // July — peak monsoon
+  7: 1.4,   // August — monsoon
+  8: 1.4,   // September — monsoon retreating
+  9: 1.15,  // October — post-monsoon cyclone season
+  10: 1.15, // November — cyclone season
+  11: 0.85, // December — winter
+};
+
 export interface PremiumInput {
   zoneName?: string | null;
   zoneLatitude?: number | null;
@@ -24,43 +43,48 @@ export interface PremiumInput {
   socialRiskFactor?: number; // 0–1
   platform?: string | null;
   avgDailyDeliveries?: number | null;
+  claimCountLast4Weeks?: number;
 }
 
 /**
  * Calculate weekly premium with multi-factor risk model.
- * Uses LLM for intelligent pricing when available, falls back to formula.
+ * Includes seasonal adjustment (Indian weather patterns) and claim frequency factor.
  */
 export function calculateWeeklyPremium(input: PremiumInput): number {
   const events = input.historicalEventCount ?? 0;
   const forecastFactor = input.forecastRiskFactor ?? 0;
-  const aqiFactor = input.aqiRiskFactor ?? 0;
   const socialFactor = input.socialRiskFactor ?? 0;
 
-  // Multi-factor risk from events
   const riskFromEvents = Math.min(
     events * PREMIUM.RISK_PER_EVENT,
     PREMIUM.MAX - PREMIUM.BASE,
   );
 
-  // Combined forecast risk from weather + AQI + social (M2 fix)
+  // Forecast risk already combines weather (70%) + AQI (30%) in getForecastRiskFactor
   const riskFromForecast = forecastFactor * PREMIUM.FORECAST_WEIGHT;
-  const riskFromAqi = aqiFactor * 10;
   const riskFromSocial = socialFactor * 8;
 
-  // Platform/volume elasticity (M5 fix)
+  // Platform/volume elasticity
   let volumeMultiplier = 1.0;
   if (input.avgDailyDeliveries != null && input.avgDailyDeliveries > 0) {
-    // Higher delivery volume = more income at risk = slightly higher premium
     volumeMultiplier = 1.0 + Math.min(0.15, (input.avgDailyDeliveries - 10) * 0.005);
-    volumeMultiplier = Math.max(0.9, volumeMultiplier); // Don't discount below 90%
+    volumeMultiplier = Math.max(0.9, volumeMultiplier);
   }
 
+  // Seasonal risk multiplier based on Indian monsoon/heat patterns
+  const seasonalMultiplier = SEASONAL_RISK_MULTIPLIER[new Date().getMonth()] ?? 1.0;
+
+  // Claim frequency factor: riders with high claim rates see actuarial pressure
+  const claims4w = input.claimCountLast4Weeks ?? 0;
+  const claimFreqMultiplier = 1.0 + Math.min(0.2, claims4w * 0.04);
+
   const totalRisk = Math.min(
-    riskFromEvents + riskFromForecast + riskFromAqi + riskFromSocial,
+    riskFromEvents + riskFromForecast + riskFromSocial,
     PREMIUM.MAX - PREMIUM.BASE,
   );
 
-  const rawPremium = (PREMIUM.BASE + totalRisk) * volumeMultiplier;
+  const rawPremium =
+    (PREMIUM.BASE + totalRisk) * volumeMultiplier * seasonalMultiplier * claimFreqMultiplier;
   return Math.min(PREMIUM.MAX, Math.max(PREMIUM.BASE, Math.round(rawPremium)));
 }
 
@@ -77,7 +101,7 @@ export async function calculatePremiumWithLlm(
   if (!openRouterKey) {
     return {
       premium: calculateWeeklyPremium(input),
-      reasoning: 'Formula-based calculation (LLM unavailable)',
+      reasoning: 'Formula-based: multi-factor risk model (LLM unavailable)',
       source: 'formula',
     };
   }
@@ -108,7 +132,7 @@ export async function calculatePremiumWithLlm(
         messages: [
           {
             role: 'system',
-            content: `You are an actuarial pricing model for parametric gig-worker insurance. Given risk factors, recommend a weekly premium between ₹${PREMIUM.BASE} and ₹${PREMIUM.MAX}. Only respond with valid JSON.`,
+            content: `You are an actuarial pricing model for parametric gig-worker income-loss insurance in India. Indian Q-commerce riders earn ₹6,000–₹8,000/week net. Premiums must stay affordable at 0.7–2.8% of weekly income. Given risk factors, recommend a weekly premium between ₹${PREMIUM.BASE} and ₹${PREMIUM.MAX}. Only respond with valid JSON.`,
           },
           {
             role: 'user',
@@ -162,6 +186,47 @@ Reply JSON only: {"premium": <number>, "reasoning": "<one sentence>"}`,
     reasoning: 'Formula-based calculation (LLM fallback)',
     source: 'formula',
   };
+}
+
+/**
+ * Get social risk factor (0–1) for a zone from news/social events in the last 4 weeks.
+ */
+export async function getSocialRiskFactor(
+  supabase: SupabaseClient,
+  zoneLatitude?: number | null,
+  zoneLongitude?: number | null,
+): Promise<number> {
+  const since = new Date();
+  since.setDate(since.getDate() - PREMIUM.WEEKS_LOOKBACK * 7);
+
+  const { data } = await supabase
+    .from('live_disruption_events')
+    .select('id, geofence_polygon')
+    .eq('event_type', 'social')
+    .gte('created_at', since.toISOString());
+
+  const events = data ?? [];
+  if (events.length === 0) return 0;
+
+  const lat = zoneLatitude ?? DEFAULT_ZONE.lat;
+  const lng = zoneLongitude ?? DEFAULT_ZONE.lng;
+
+  let zoneMatchCount = 0;
+  for (const ev of events) {
+    const gf = ev?.geofence_polygon as
+      | { lat?: number; lng?: number; radius_km?: number }
+      | undefined;
+    if (!gf?.lat || !gf?.lng) {
+      zoneMatchCount++;
+      continue;
+    }
+    if (isWithinCircle(lat, lng, gf.lat, gf.lng, gf.radius_km ?? 10)) {
+      zoneMatchCount++;
+    }
+  }
+
+  // Normalize: 5+ social events in 4 weeks = factor of 1.0
+  return Math.min(1, zoneMatchCount / 5);
 }
 
 /**

@@ -78,7 +78,7 @@ export function KPICard({
     </>
   );
 
-  const cardClass = `relative rounded-2xl border p-4 min-h-[120px] flex flex-col ${cardBgStyles[accent]} ${className}`;
+  const cardClass = `relative rounded-2xl border p-3.5 min-h-[110px] flex flex-col active:scale-[0.98] transition-transform duration-150 ${cardBgStyles[accent]} ${className}`;
 
   return (
     <motion.div

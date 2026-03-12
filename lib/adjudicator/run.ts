@@ -137,6 +137,7 @@ export async function runAdjudicator(
       const newsCandidates = await checkNewsTriggers(
         openRouterKey,
         newsDataKey,
+        zones,
       );
       allCandidates.push(...newsCandidates);
     }

@@ -110,7 +110,7 @@ export function RiskRadar() {
           <p className="text-[11px] text-zinc-500 mt-0.5">No active disruptions in your area</p>
         </div>
       ) : (
-        <div className="px-3 pb-3 space-y-1.5">
+        <div className="px-3 pb-3 space-y-1.5 max-h-[280px] overflow-y-auto scrollbar-thin">
           <AnimatePresence mode="popLayout" initial={false}>
             {events.map((e, i) => (
               <motion.div
@@ -120,7 +120,7 @@ export function RiskRadar() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center gap-2.5 rounded-lg bg-black/40 border border-white/10 px-3 py-2.5"
+                className="flex items-center gap-2.5 rounded-xl bg-black/40 border border-white/10 px-3 py-3 active:bg-white/5 transition-colors"
               >
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-700/40 text-zinc-400 shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">
                 {typeIcons[e.event_type] ?? <MapPin className="h-3.5 w-3.5" />}

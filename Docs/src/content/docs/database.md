@@ -69,9 +69,9 @@ CREATE TABLE plan_packages (
 
 | slug | Weekly Premium | Payout/Claim | Max Claims |
 |---|---|---|---|
-| `basic` | ₹79 | ₹300 | 2 |
-| `standard` | ₹99 | ₹400 | 2 |
-| `premium` | ₹149 | ₹600 | 3 |
+| `basic` | ₹49 | ₹300 | 1 |
+| `standard` | ₹99 | ₹700 | 2 |
+| `premium` | ₹199 | ₹1,500 | 3 |
 
 ---
 
@@ -108,6 +108,7 @@ Created by the adjudicator when a trigger threshold is crossed. One row per dete
 CREATE TABLE live_disruption_events (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type       disruption_event_type NOT NULL,  -- 'weather' | 'traffic' | 'social'
+  event_subtype    TEXT,                             -- 'extreme_heat' | 'heavy_rain' | 'severe_aqi' | 'traffic_gridlock' | 'zone_curfew'
   severity_score   NUMERIC(4, 2) NOT NULL CHECK (severity_score BETWEEN 0 AND 10),
   geofence_polygon JSONB,        -- { type: 'circle', lat, lng, radius_km }
   verified_by_llm  BOOLEAN DEFAULT false,
@@ -115,6 +116,8 @@ CREATE TABLE live_disruption_events (
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+The `event_subtype` column (added via migration `20240323000000_add_event_subtype.sql`) provides granular trigger classification beyond the three broad `event_type` enum values. An index on `event_subtype` supports efficient analytics queries.
 
 The `geofence_polygon` field uses a custom JSON format:
 ```json
@@ -132,7 +135,7 @@ The `geofence_polygon` field uses a custom JSON format:
 
 ### `parametric_claims`
 
-Auto-inserted by the adjudicator when a rider is eligible for a payout. Status goes directly to `'paid'` - no manual approval step.
+Auto-inserted by the adjudicator when a rider is eligible for a payout. Status starts as `pending_verification` and transitions to `paid` after GPS confirmation.
 
 ```sql
 CREATE TABLE parametric_claims (
@@ -140,7 +143,8 @@ CREATE TABLE parametric_claims (
   policy_id               UUID NOT NULL REFERENCES weekly_policies(id),
   disruption_event_id     UUID NOT NULL REFERENCES live_disruption_events(id),
   payout_amount_inr       NUMERIC(10, 2) NOT NULL,
-  status                  claim_status DEFAULT 'triggered',  -- 'triggered' | 'paid'
+  status                  claim_status DEFAULT 'pending_verification',
+                          -- 'pending_verification' | 'paid' | 'triggered'
   gateway_transaction_id  TEXT,      -- 'oasis_payout_<timestamp>_<policyId>'
   is_flagged              BOOLEAN DEFAULT false,
   flag_reason             TEXT,
@@ -256,10 +260,29 @@ CREATE TABLE payment_transactions (
 
 ---
 
+## Migrations
+
+Migrations are in `supabase/migrations/` and should be applied in timestamp order. Key additions:
+
+| Migration | Description |
+|---|---|
+| `20240314000000_adjudicator_every_15min.sql` | Changes cron schedule from hourly to every 15 minutes |
+| `20240315000000_stripe_webhook_idempotency.sql` | Adds idempotency key tracking for Stripe webhooks |
+| `20240316000000_rate_limit_store.sql` | Creates rate limit storage table |
+| `20240317000000_stripe_webhook_atomic.sql` | Atomic webhook processing for payment reliability |
+| `20240318000000_rider_notifications.sql` | Rider notification preferences and history |
+| `20240319000000_payout_after_location_verification.sql` | Enforces location verification before payout |
+| `20240320000000_payout_ledger_standalone.sql` | Standalone payout ledger for accounting audit trail |
+| `20240321000000_claim_verifications_rls_update.sql` | Updated RLS policies for claim verifications |
+| `20240322000000_update_plan_pricing.sql` | Updates plan payouts: Basic ₹300/1, Standard ₹700/2, Premium ₹1,500/3 |
+| `20240323000000_add_event_subtype.sql` | Adds `event_subtype TEXT` column to `live_disruption_events` with index |
+
+---
+
 ## Type Enums
 
 ```sql
 CREATE TYPE platform_type AS ENUM ('zepto', 'blinkit');
 CREATE TYPE disruption_event_type AS ENUM ('weather', 'traffic', 'social');
-CREATE TYPE claim_status AS ENUM ('triggered', 'paid');
+CREATE TYPE claim_status AS ENUM ('triggered', 'pending_verification', 'paid');
 ```

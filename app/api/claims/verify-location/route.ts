@@ -13,13 +13,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { simulatePayout } from "@/lib/adjudicator/payouts";
 import { isMobileForGps } from "@/lib/utils/device";
 import { isWithinCircle } from "@/lib/utils/geo";
+import { FRAUD } from "@/lib/config/constants";
+import {
+  runExtendedFraudChecks,
+  checkGpsAccuracy,
+  checkImpossibleTravel,
+} from "@/lib/fraud/detector";
 
 export const dynamic = "force-dynamic";
 
 const BUCKET = "rider-reports";
 const MAX_PROOF_SIZE = 5 * 1024 * 1024;
 const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const VERIFY_WINDOW_HOURS = 24;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -44,6 +49,8 @@ export async function POST(request: Request) {
   let lng: number | null = null;
   let declaration = false;
   let proof: File | null = null;
+  let deviceFingerprint: string | null = null;
+  let gpsAccuracy: number | null = null;
 
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
@@ -55,17 +62,31 @@ export async function POST(request: Request) {
     lng = lngS != null ? parseFloat(String(lngS)) : null;
     declaration = formData.get("declaration") === "true" || formData.get("declaration") === "1";
     proof = formData.get("proof") as File | null;
+    deviceFingerprint = formData.get("device_fingerprint") as string | null;
+    const accS = formData.get("accuracy");
+    gpsAccuracy = accS != null ? parseFloat(String(accS)) : null;
   } else {
     const body = await request.json().catch(() => ({}));
     claimId = body.claim_id ?? null;
     lat = body.lat != null ? parseFloat(body.lat) : null;
     lng = body.lng != null ? parseFloat(body.lng) : null;
     declaration = body.declaration === true || body.declaration === "true";
+    deviceFingerprint = body.device_fingerprint ?? null;
+    gpsAccuracy = body.accuracy != null ? parseFloat(body.accuracy) : null;
   }
 
   if (!claimId || lat == null || !Number.isFinite(lat) || lng == null || !Number.isFinite(lng)) {
     return NextResponse.json(
       { error: "Missing or invalid claim_id, lat, lng" },
+      { status: 400 }
+    );
+  }
+
+  // GPS accuracy validation: reject readings >100m (likely spoofed)
+  const gpsCheck = checkGpsAccuracy(gpsAccuracy);
+  if (gpsCheck.isFlagged) {
+    return NextResponse.json(
+      { error: gpsCheck.reason, flagged: true },
       { status: 400 }
     );
   }
@@ -89,13 +110,22 @@ export async function POST(request: Request) {
     });
   }
 
-  // Reject verifications submitted outside the allowed window
+  // Reject verifications submitted outside the allowed window (48h)
   const claimAge =
     (Date.now() - new Date(claim.created_at).getTime()) / (1000 * 60 * 60);
-  if (claimAge > VERIFY_WINDOW_HOURS) {
+  if (claimAge > FRAUD.VERIFY_WINDOW_HOURS) {
     return NextResponse.json(
-      { error: `Verification window expired (${VERIFY_WINDOW_HOURS}h after claim creation)` },
+      { error: `Verification window expired (${FRAUD.VERIFY_WINDOW_HOURS}h after claim creation)` },
       { status: 410 }
+    );
+  }
+
+  // Impossible travel check: flag if verified at distant location too recently
+  const travelCheck = await checkImpossibleTravel(supabase, user.id, lat, lng);
+  if (travelCheck.isFlagged) {
+    return NextResponse.json(
+      { error: travelCheck.reason, flagged: true },
+      { status: 400 }
     );
   }
 
@@ -181,6 +211,17 @@ export async function POST(request: Request) {
         flag_reason: "Location verification: rider GPS outside event geofence",
       })
       .eq("id", claimId);
+  }
+
+  // Run post-verification extended fraud checks (cluster, baseline, device, cross-profile)
+  if (inside && claim?.disruption_event_id) {
+    await runExtendedFraudChecks(
+      admin,
+      claimId,
+      claim.disruption_event_id,
+      deviceFingerprint ?? undefined,
+      user.id,
+    );
   }
 
   // Payout only after location verification (inside_geofence); prevents scam

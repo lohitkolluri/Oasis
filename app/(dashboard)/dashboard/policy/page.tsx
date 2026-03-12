@@ -79,10 +79,10 @@ export default async function PolicyPage({
     .order("sort_order", { ascending: true });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors min-h-[44px] -ml-1 px-1"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to dashboard
@@ -121,7 +121,7 @@ export default async function PolicyPage({
             </div>
             <Link
               href="/dashboard/policy/docs"
-              className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-uber-green transition-colors shrink-0"
+              className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-uber-green active:text-uber-green transition-colors shrink-0 min-h-[44px] px-1"
             >
               <FileText className="h-4 w-4" />
               Policy docs

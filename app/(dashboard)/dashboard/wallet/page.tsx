@@ -32,10 +32,10 @@ export default async function WalletPage() {
   const firstName = profile?.full_name?.split(/\s+/)[0] ?? "there";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors min-h-[44px] -ml-1 px-1"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to dashboard

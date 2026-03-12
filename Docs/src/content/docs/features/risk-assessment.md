@@ -1,38 +1,99 @@
 ---
 title: Risk Assessment & Premium Calculation
-description: Dynamic weekly premium based on zone history and forecast
+description: Dynamic weekly premium with seasonal adjustments, social risk, and claim frequency
 ---
 
-Weekly premium is computed per rider from zone history and weather forecast. Strictly weekly - computed every Sunday, covers Monday through Sunday.
+Weekly premium is computed per rider from zone history, weather forecast, seasonal patterns, social disruption risk, and individual claim frequency. Strictly weekly — computed every Sunday, covers Monday through Sunday.
 
 ## Premium Formula
 
 ```
 premium = BASE_PREMIUM + min(risk_adjustment, MAX_PREMIUM - BASE_PREMIUM)
 
-risk_adjustment = risk_from_events + risk_from_forecast
-
-risk_from_events  = min(historical_event_count × ₹8, ₹70)
-risk_from_forecast = forecast_factor × ₹15
+risk_adjustment = (risk_from_events + risk_from_forecast + risk_from_social)
+                  × seasonal_multiplier
+                  × claim_frequency_multiplier
 ```
 
 **Constants:**
 
 | Constant | Value |
 |---|---|
-| `BASE_PREMIUM` | ₹79 |
-| `MAX_PREMIUM` | ₹149 |
-| `RISK_FACTOR_PER_EVENT` | ₹8 |
+| `BASE_PREMIUM` | ₹49 |
+| `MAX_PREMIUM` | ₹199 |
+| `RISK_FACTOR_PER_EVENT` | ₹12 |
+| `FORECAST_WEIGHT` | ₹20 |
 | `WEEKS_LOOKBACK` | 4 |
 
-**Example calculations:**
+---
 
-| Zone history (4 weeks) | Forecast factor | Premium |
+## Seasonal Risk Multiplier
+
+India's weather follows strong seasonal patterns that directly affect delivery disruption frequency. The premium calculator applies a monthly multiplier:
+
+| Months | Multiplier | Reason |
 |---|---|---|
-| 0 events | 0.0 | ₹79 (base) |
-| 2 events | 0.0 | ₹95 |
-| 5 events | 0.3 | ₹123 |
-| 8+ events | 0.8 | ₹149 (cap) |
+| Jun – Sep (Monsoon) | 1.40× | Peak rain, flooding, waterlogging |
+| Oct | 1.15× | Post-monsoon cyclones, residual rain |
+| Nov | 1.15× | Cyclone season (Bay of Bengal) |
+| Dec – Feb (Winter) | 0.85× | Mild weather, low disruption risk |
+| Mar (Transition) | 1.00× | Baseline |
+| Apr – May (Pre-monsoon) | 1.25× | Extreme heat waves across north India |
+
+```typescript
+const SEASONAL_RISK_MULTIPLIER: Record<number, number> = {
+  0: 0.85,  // Jan
+  1: 0.85,  // Feb
+  2: 1.0,   // Mar
+  3: 1.25,  // Apr
+  4: 1.25,  // May
+  5: 1.4,   // Jun
+  6: 1.4,   // Jul
+  7: 1.4,   // Aug
+  8: 1.4,   // Sep
+  9: 1.15,  // Oct
+  10: 1.15, // Nov
+  11: 0.85, // Dec
+};
+```
+
+---
+
+## Social Risk Factor
+
+Social disruption (strikes, curfews, lockdowns) is tracked separately from weather. The `getSocialRiskFactor` function queries `live_disruption_events` of type `social` within a rider's zone over the past 4 weeks:
+
+```
+socialRiskFactor = min(1.0, socialEventCount / 5)
+```
+
+| Social events (4 weeks) | Risk factor |
+|---|---|
+| 0 | 0.0 |
+| 1 | 0.2 |
+| 3 | 0.6 |
+| 5+ | 1.0 (cap) |
+
+This ensures riders in protest-prone zones pay a fair premium reflecting their actual risk.
+
+---
+
+## Claim Frequency Multiplier
+
+Riders with frequent recent claims represent higher risk. The premium calculator counts claims from the past 4 weeks:
+
+```
+claimFreqMultiplier = 1.0 + min(0.2, claimCountLast4Weeks × 0.04)
+```
+
+| Claims (4 weeks) | Multiplier |
+|---|---|
+| 0 | 1.00× |
+| 2 | 1.08× |
+| 5 | 1.20× (cap) |
+| 10 | 1.20× (cap) |
+
+The 0.2 cap ensures that even high-claim riders don't see premiums spike beyond 20% above base due to this factor alone.
 
 ---
 
@@ -41,14 +102,13 @@ risk_from_forecast = forecast_factor × ₹15
 The premium calculator queries `live_disruption_events` for the past 28 days. For each event, it checks whether the event's geofence overlaps with the rider's zone using `isWithinCircle()`:
 
 ```typescript
-// lib/ml/premium-calc.ts
 export async function getHistoricalEventCount(
   supabase,
   zoneLatitude?: number,
   zoneLongitude?: number
 ): Promise<number> {
   const since = new Date();
-  since.setDate(since.getDate() - WEEKS_LOOKBACK * 7);  // 28 days
+  since.setDate(since.getDate() - WEEKS_LOOKBACK * 7);
 
   const { data } = await supabase
     .from("live_disruption_events")
@@ -59,7 +119,7 @@ export async function getHistoricalEventCount(
   for (const ev of data) {
     const gf = ev.geofence_polygon;
     if (!gf?.lat || !gf?.lng) {
-      count++;  // Citywide event - affects everyone
+      count++;
       continue;
     }
     if (isWithinCircle(zoneLatitude, zoneLongitude, gf.lat, gf.lng, gf.radius_km ?? 10)) {
@@ -76,14 +136,11 @@ Zones without explicit geofence data (e.g., citywide curfews) count toward every
 
 ## Forecast Risk Factor
 
-A 0–1 multiplier derived from Tomorrow.io's 5-day hourly forecast for the rider's zone. Any forecast hour that meets a trigger threshold (temperature ≥43°C or precipitation ≥4 mm/h) increments the trigger counter. The ratio of trigger hours to total forecast hours is the `forecastFactor`:
+A 0–1 multiplier derived from Tomorrow.io's 5-day hourly forecast for the rider's zone. Any forecast hour meeting a trigger threshold (temperature ≥ 43°C or precipitation ≥ 4 mm/h) increments the trigger counter:
 
 ```typescript
-// lib/ml/premium-calc.ts
 export async function getForecastRiskFactor(
-  _supabase,
-  lat: number,
-  lng: number
+  _supabase, lat: number, lng: number
 ): Promise<number> {
   const hourly = await fetchTomorrowForecast(lat, lng);
   let triggerHours = 0;
@@ -98,29 +155,70 @@ export async function getForecastRiskFactor(
 
 ---
 
+## Example Calculations
+
+| Zone history (4w) | Forecast | Social events | Claims (4w) | Month | Premium |
+|---|---|---|---|---|---|
+| 0 events | 0.0 | 0 | 0 | Nov | ₹49 (base) |
+| 3 events | 0.2 | 1 | 2 | Mar | ₹89 |
+| 5 events | 0.5 | 3 | 4 | Jul (monsoon) | ₹175 |
+| 8+ events | 0.8 | 5 | 10 | Aug (monsoon) | ₹199 (cap) |
+
+---
+
 ## Plan Tiers
 
 After the premium is calculated, riders choose from three flat-rate plans. The dynamic calculation informs the recommendation, but riders can select any tier:
 
 | Plan | Weekly Premium | Payout Per Claim | Max Claims/Week |
 |---|---|---|---|
-| Basic | ₹79 | ₹300 | 2 |
-| Standard | ₹99 | ₹400 | 2 |
-| Premium | ₹149 | ₹600 | 3 |
+| Basic | ₹49 | ₹300 | 1 |
+| Standard | ₹99 | ₹700 | 2 |
+| Premium | ₹199 | ₹1,500 | 3 |
 
 The plan chosen is stored as `weekly_policies.plan_id` referencing `plan_packages.id`.
 
 ---
 
+## Cron: Weekly Premium Recommendations
+
+Every Sunday at 17:30 UTC, `/api/cron/weekly-premium` runs:
+
+1. Fetches all active policies where `week_end_date < today`.
+2. Sets `is_active = false` for expired policies.
+3. For each rider with an expired policy, recalculates the premium:
+   - Fetches historical events, forecast risk, and social risk per zone (cached per zone).
+   - Queries the rider's claim count over the past 4 weeks.
+   - Applies seasonal multiplier for the current month.
+   - Passes all factors to `calculatePremiumWithLlm` for final recommendation.
+4. Stores the result in `premium_recommendations` with `risk_factors` JSONB:
+   ```json
+   {
+     "historical_events": 3,
+     "forecast_risk": 0.25,
+     "social_risk": 0.4,
+     "claim_count_4w": 2,
+     "seasonal_multiplier": 1.4
+   }
+   ```
+
+Riders must manually re-subscribe each week — automatic renewal would require Stripe Subscriptions.
+
+---
+
 ## Next-Week Prediction (Admin Dashboard)
 
-The admin analytics panel shows a predicted claims range for the coming week. This is calculated by `lib/ml/next-week-risk.ts`:
+The admin analytics panel shows a predicted claims range for the coming week, calculated by `lib/ml/next-week-risk.ts`:
 
 **With Tomorrow.io API key (primary path):**
-1. Fetch the 5-day hourly forecast for the Bangalore centroid.
-2. Count hours above trigger thresholds.
-3. Multiply by active policy count and a severity weight.
-4. Return a low–high range and a risk level (`low` / `medium` / `high`).
+1. Discover **all active rider zones** from `weekly_policies` + `profiles`.
+2. Deduplicate zones within ~11 km of each other.
+3. For each zone in parallel:
+   - Fetch 5-day hourly weather forecast (Tomorrow.io) — count hours above heat/rain thresholds.
+   - Fetch 5-day AQI forecast (Open-Meteo) — count hours above AQI 150.
+4. Aggregate trigger hours and risk types across all zones.
+5. Factor in active policy count and severity weight.
+6. Return a low–high range, risk level, AQI risk note, and zones checked count.
 
 **Historical fallback (no API key):**
 1. Query `parametric_claims` for the past 21 days.
@@ -134,18 +232,7 @@ interface NextWeekPrediction {
   riskLevel: "low" | "medium" | "high";
   source: "forecast" | "historical";
   details?: string;
+  aqiRisk?: string;              // e.g. "12h of poor AQI across 3 zones"
+  zonesChecked?: number;         // number of zones analyzed
 }
 ```
-
----
-
-## Weekly Renewal
-
-Every Sunday at 17:30 UTC, `/api/cron/weekly-premium` runs:
-
-1. Fetches all active policies where `week_end_date < today`.
-2. Sets `is_active = false` for expired policies.
-3. For each rider with an expired policy, recalculates the premium for the coming week.
-4. Optionally creates a `premium_recommendations` row for display on the rider's dashboard.
-
-Riders must manually re-subscribe each week - automatic renewal would require Stripe Subscriptions.

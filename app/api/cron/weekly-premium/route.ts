@@ -4,6 +4,7 @@ import {
     calculatePremiumWithLlm,
     getForecastRiskFactor,
     getHistoricalEventCount,
+    getSocialRiskFactor,
 } from '@/lib/ml/premium-calc';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { clusterKey } from '@/lib/utils/geo';
@@ -57,37 +58,50 @@ export async function GET(request: Request) {
       });
     }
 
-    const zoneCache = new Map<string, { historicalEvents: number; forecastRisk: number }>();
+    const zoneCache = new Map<string, { historicalEvents: number; forecastRisk: number; socialRisk: number }>();
     let processed = 0;
     const BATCH_SIZE = 5;
+
+    // Precompute 4-week window for claim frequency and social risk
+    const fourWeeksAgo = new Date();
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+    const fourWeeksAgoStr = fourWeeksAgo.toISOString();
 
     for (let i = 0; i < profiles.length; i += BATCH_SIZE) {
       const batch = profiles.slice(i, i + BATCH_SIZE);
 
       await Promise.all(
         batch.map(async (profile) => {
-          // B3 fix: use DEFAULT_ZONE when coordinates are missing
           const lat = profile.zone_latitude ?? DEFAULT_ZONE.lat;
           const lng = profile.zone_longitude ?? DEFAULT_ZONE.lng;
           const key = clusterKey(lat, lng);
 
           let cached = zoneCache.get(key);
           if (!cached) {
-            const [historicalEvents, forecastRisk] = await Promise.all([
+            const [historicalEvents, forecastRisk, socialRisk] = await Promise.all([
               getHistoricalEventCount(admin, lat, lng),
               getForecastRiskFactor(admin, lat, lng),
+              getSocialRiskFactor(admin, lat, lng),
             ]);
-            cached = { historicalEvents, forecastRisk };
+            cached = { historicalEvents, forecastRisk, socialRisk };
             zoneCache.set(key, cached);
           }
 
-          // M1: use LLM-assisted premium calculation
+          // Get rider's claim count in last 4 weeks for claim frequency factor
+          const { count: claimCount4w } = await admin
+            .from('parametric_claims')
+            .select('id', { count: 'exact', head: true })
+            .eq('policy_id', profile.id)
+            .gte('created_at', fourWeeksAgoStr);
+
           const { premium, reasoning, source } = await calculatePremiumWithLlm({
             zoneLatitude: lat,
             zoneLongitude: lng,
             historicalEventCount: cached.historicalEvents,
             forecastRiskFactor: cached.forecastRisk,
+            socialRiskFactor: cached.socialRisk,
             platform: profile.platform,
+            claimCountLast4Weeks: claimCount4w ?? 0,
           });
 
           const now = new Date();
@@ -105,6 +119,8 @@ export async function GET(request: Request) {
               risk_factors: {
                 historical_events: cached.historicalEvents,
                 forecast_risk: cached.forecastRisk,
+                social_risk: cached.socialRisk,
+                claim_count_4w: claimCount4w ?? 0,
                 reasoning,
                 source,
                 zone_lat: lat,

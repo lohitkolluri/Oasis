@@ -24,7 +24,7 @@ flowchart TB
 
     subgraph Data["Data & Services"]
         Supabase[Supabase]
-        ExtAPI[Tomorrow.io, NewsData, OpenRouter, Stripe]
+        ExtAPI[Tomorrow.io, WAQI, Open-Meteo, TomTom, NewsData, OpenRouter, Stripe]
     end
 
     Client --> NextJS
@@ -63,7 +63,7 @@ flowchart TB
     WH --> RD["Redirect back to app"]
 ```
 
-### Adjudicator (Hourly)
+### Adjudicator (Every 15 min)
 
 ```mermaid
 flowchart TB
@@ -94,8 +94,8 @@ flowchart TB
 | Module | Role |
 |--------|------|
 | `lib/adjudicator/run.ts` | Zone discovery, trigger checks, fraud pipeline, claim creation |
-| `lib/fraud/detector.ts` | 7 checks: duplicate, rapid claims, weather mismatch, location, device, cluster, baseline |
-| `lib/ml/premium-calc.ts` | Base ₹79, max ₹149, +₹8/event, forecast factor |
+| `lib/fraud/detector.ts` | 11 checks: duplicate, rapid claims, weather mismatch, location, device fingerprint, impossible travel, cross-profile velocity, cluster anomaly, baseline deviation, GPS accuracy, self-report rate limiting |
+| `lib/ml/premium-calc.ts` | Base ₹49, max ₹199, +₹12/event, forecast + seasonal + social + claim frequency factors |
 | `lib/supabase/*` | Browser, server, admin, middleware clients |
 
 ---

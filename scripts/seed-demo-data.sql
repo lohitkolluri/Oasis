@@ -1,195 +1,25 @@
----
-title: Development Setup
-description: Local setup, env vars, migrations
----
+-- ============================================================
+-- Seed Demo Data for Oasis Parametric Insurance Platform
+--
+-- Creates 5 demo riders across Indian metros with:
+--   - Active policies for the current week
+--   - Disruption events (all trigger subtypes)
+--   - Claims (paid, pending_verification, flagged)
+--   - Location verifications and payouts
+--   - Notifications and premium recommendations
+--   - A rider self-report
+--
+-- How to run:
+--   Supabase Dashboard → SQL Editor → paste this file → Run
+--
+-- Demo logins (email / password):
+--   rahul.demo@oasis.app  / Demo@1234  (Bangalore, Standard)
+--   priya.demo@oasis.app  / Demo@1234  (Mumbai, Premium)
+--   amit.demo@oasis.app   / Demo@1234  (Delhi, Basic)
+--   sneha.demo@oasis.app  / Demo@1234  (Hyderabad, Standard)
+--   vijay.demo@oasis.app  / Demo@1234  (Chennai, Premium)
+-- ============================================================
 
-## Prerequisites
-
-| Tool         | Minimum version | Notes                                               |
-| ------------ | --------------- | --------------------------------------------------- |
-| Node.js      | 20+             | Pinned in `package.json` `engines`; LTS recommended |
-| Yarn         | 1.22+           | `npm i -g yarn`                                     |
-| Supabase CLI | Latest          | `npm i -g supabase`                                 |
-| Git          | Any             |                                                     |
-
----
-
-## 1. Clone & Install
-
-```bash
-git clone https://github.com/lohitkolluri/oasis.git
-cd oasis
-yarn install
-```
-
----
-
-## 2. Environment Variables
-
-Copy the example file and fill in every value:
-
-```bash
-cp .env.local.example .env.local
-```
-
-### Required Variables
-
-```bash
-# Supabase - create a project at supabase.com
-NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
-
-# Admin access - comma-separated emails
-ADMIN_EMAILS=you@example.com
-
-# Cron job protection
-CRON_SECRET=<random-secure-string>
-```
-
-### Weather APIs (for trigger automation)
-
-```bash
-# Tomorrow.io - heat + rain triggers
-# Free tier: 500 calls/day - https://app.tomorrow.io/
-TOMORROW_IO_API_KEY=
-
-# WAQI - ground-station AQI (optional, Open-Meteo fallback used if empty)
-# Free token: https://aqicn.org/api/
-WAQI_API_KEY=
-```
-
-### Traffic (for gridlock detection)
-
-```bash
-# TomTom - multi-point traffic flow sampling
-# Free tier: 2500 calls/day - https://developer.tomtom.com/
-TOMTOM_API_KEY=
-```
-
-### News & LLM (for curfew/traffic triggers)
-
-```bash
-# NewsData.io - news-based disruption detection
-# Free tier: 200 calls/day - https://newsdata.io/
-NEWSDATA_IO_API_KEY=
-
-# OpenRouter - LLM verification of news triggers
-# Free tier available - https://openrouter.ai/
-OPENROUTER_API_KEY=
-```
-
-### Payments
-
-```bash
-# Stripe test keys - https://dashboard.stripe.com/test/apikeys
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...   # From Stripe Dashboard → Developers → Webhooks
-
-```
-
-:::tip[Demo Mode]{icon="approve-check-circle"}
-Use Stripe test keys (`sk_test_...`) to run the full Checkout flow with test cards (e.g. 4242 4242 4242 4242) without real charges.
-:::
-
-```mermaid
-flowchart TB
-    subgraph Demo["Demo Mode"]
-        D1[sk_test_ keys] --> D2[Test card 4242...]
-        D2 --> D3[Full Checkout flow, no charges]
-    end
-    subgraph Local["Local Webhooks"]
-        L1[Stripe CLI] --> L2[stripe listen --forward-to]
-        L2 --> L3[localhost:3000/api/payments/webhook]
-        L3 --> L4[Copy whsec_ to STRIPE_WEBHOOK_SECRET]
-    end
-```
-
-For local testing with real webhook events, use the [Stripe CLI](https://stripe.com/docs/stripe-cli):
-
-```bash
-stripe listen --forward-to localhost:3000/api/payments/webhook
-```
-
-Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET`.
-
----
-
-## 3. Database Setup
-
-### Option A - Supabase Dashboard (recommended for first-time setup)
-
-1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
-2. Go to **SQL Editor → New query**
-3. Run migrations in timestamp order from `supabase/migrations/`:
-
-```
-20240304000001_create_profiles.sql
-20240304000002_create_weekly_policies.sql
-20240304000003_create_live_disruption_events.sql
-20240304000004_create_parametric_claims.sql
-20240304000005_add_fraud_flags.sql
-20240304000006_add_zone_coords.sql
-20240304000007_premium_recommendations.sql
-20240304000008_rider_delivery_reports.sql
-20240304000009_claim_verifications.sql
-20240304100000_plan_packages.sql
-20240305000000_autonomous_db_improvements.sql
-20240306000000_system_logs_and_fraud_enhancements.sql
-20240306000001_aqi_baseline_tracking.sql
-20240307000000_add_profile_role.sql
-20240308000000_add_payment_tracking.sql
-20240308000001_payment_transactions.sql
-20240309000000_comprehensive_fixes.sql
-20240310000000_add_government_id.sql
-20240311000000_supabase_cron_integration.sql
-20240312000000_stripe_payments.sql
-20240313000000_add_face_verification.sql
-20240314000000_adjudicator_every_15min.sql
-20240315000000_stripe_webhook_idempotency.sql
-20240316000000_rate_limit_store.sql
-20240317000000_stripe_webhook_atomic.sql
-20240318000000_rider_notifications.sql
-20240319000000_payout_after_location_verification.sql
-20240320000000_payout_ledger_standalone.sql
-20240321000000_claim_verifications_rls_update.sql
-20240322000000_update_plan_pricing.sql
-20240323000000_add_event_subtype.sql
-```
-
-### Option B - Supabase CLI (or Cursor Supabase plugin)
-
-Migrations are applied with `supabase db push`, which requires the project to be linked. You can link via the **Supabase plugin** (in Cursor: connect your project in the Supabase panel) or via the CLI:
-
-```bash
-# 1. Log in (one-time; or set SUPABASE_ACCESS_TOKEN)
-npx supabase login
-
-# 2. Link to your project (ref = from NEXT_PUBLIC_SUPABASE_URL, e.g. https://<ref>.supabase.co)
-npx supabase link --project-ref <project-ref>
-
-# 3. Apply all migrations
-yarn db:migrate
-# or: make db-migrate
-```
-
-If you use the **Supabase plugin** in Cursor, ensure the project is connected; then you can run migrations from the plugin UI or run `yarn db:migrate` in the terminal after linking once via CLI.
-
-### Seeding Demo Data
-
-An idempotent seed script is available at `scripts/seed-demo-data.sql`. It creates a complete demo environment with:
-
-- **5 demo riders** (auth users + profiles across Zepto/Blinkit in multiple cities)
-- **3 plan packages** (Basic ₹49/wk, Standard ₹99/wk, Premium ₹199/wk)
-- **6 disruption events** (extreme heat, heavy rain, severe AQI, traffic gridlock, zone curfew, road closure) with `event_subtype` values
-- **7 parametric claims** (mix of paid, pending_verification, and flagged statuses)
-- **Claim verifications**, payout ledger entries, premium recommendations
-- **Rider notifications** including verification reminders and fraud alerts
-- **1 self-report** with photo evidence
-
-To seed, open **Supabase Dashboard → SQL Editor** and run:
-
-```sql
 DO $$
 DECLARE
   -- Rider UUIDs (fixed for reproducibility)
@@ -286,6 +116,13 @@ BEGIN
     (r5, r5, jsonb_build_object('sub', r5::text, 'email', 'vijay.demo@oasis.app'), 'email', r5::text, NOW(), NOW() - interval '18 days', NOW())
   ON CONFLICT DO NOTHING;
 
+  -- ─── Profiles ─────────────────────────────────────────────
+  -- City coordinates:
+  --   Bangalore Koramangala: 12.9352, 77.6245
+  --   Mumbai Andheri:        19.1136, 72.8697
+  --   Delhi Connaught Place: 28.6315, 77.2167
+  --   Hyderabad Madhapur:    17.4483, 78.3915
+  --   Chennai T Nagar:       13.0418, 80.2341
   INSERT INTO profiles (id, full_name, phone_number, platform, zone_latitude, zone_longitude, role, government_id_verified, face_verified, primary_zone_geofence)
   VALUES
     (r1, 'Rahul Sharma', '+919876543210', 'zepto',   12.9352, 77.6245, 'rider', true, true, '{"type":"circle","lat":12.9352,"lng":77.6245,"radius_km":5}'),
@@ -367,6 +204,14 @@ BEGIN
     (pol5, r5, plan_premium,  ws, we, 199, true, ws::timestamptz)
   ON CONFLICT (id) DO NOTHING;
 
+  -- ─── Parametric Claims ───────────────────────────────────
+  -- cl1: Rahul, traffic gridlock, PAID (verified)
+  -- cl2: Priya, heavy rain Mumbai, PAID
+  -- cl3: Amit, extreme heat Delhi, PAID
+  -- cl4: Amit, severe AQI Delhi, pending_verification
+  -- cl5: Sneha, zone curfew Hyderabad, PAID
+  -- cl6: Vijay, heavy rain Chennai, pending_verification (just created)
+  -- cl7: Priya, rain again, FLAGGED (rapid claims demo)
   INSERT INTO parametric_claims (id, policy_id, disruption_event_id, payout_amount_inr, status, is_flagged, flag_reason, gateway_transaction_id, created_at)
   VALUES
     (cl1, pol1, ev_traffic, 700,  'paid',                 false, NULL,
@@ -506,90 +351,3 @@ BEGIN
   RAISE NOTICE '   Login: rahul.demo@oasis.app / Demo@1234';
 
 END $$;
-
-```
-
-The script is safe to re-run — it cleans up existing demo data (keyed by fixed UUIDs) before inserting fresh records.
-
-**Demo rider credentials:**
-
-| Email                    | Password      | City      | Platform |
-| ------------------------ | ------------- | --------- | -------- |
-| `demo.rider1@oasis.test` | `DemoRider1!` | Bangalore | Zepto    |
-| `demo.rider2@oasis.test` | `DemoRider2!` | Mumbai    | Blinkit  |
-| `demo.rider3@oasis.test` | `DemoRider3!` | Delhi     | Zepto    |
-| `demo.rider4@oasis.test` | `DemoRider4!` | Chennai   | Blinkit  |
-| `demo.rider5@oasis.test` | `DemoRider5!` | Hyderabad | Zepto    |
-
----
-
-### Storage Bucket Setup
-
-Run `yarn setup-storage` to create all required buckets:
-
-| Bucket           | Purpose                                          |
-| ---------------- | ------------------------------------------------ |
-| `rider-reports`  | Delivery reports and claim proof photos          |
-| `government-ids` | KYC government ID uploads (Aadhaar, PAN, etc.)   |
-| `face-photos`    | Face liveness verification photos for onboarding |
-
-```bash
-yarn setup-storage
-```
-
-Or create them manually via **Supabase Dashboard → Storage → New bucket** (all private, 5MB limit, images only).
-
----
-
-## 4. Run the Development Server
-
-```bash
-yarn dev
-```
-
-The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
-
-### First Login
-
-1. Navigate to `/register` and create an account.
-2. To access `/admin`, your email must be in `ADMIN_EMAILS`.
-3. Complete the onboarding flow at `/onboarding` (Step 1: platform, name, phone, zone; Step 2: government ID + face verification).
-
----
-
-## 5. Useful Scripts
-
-| Script           | Command              | Description                                                     |
-| ---------------- | -------------------- | --------------------------------------------------------------- |
-| Dev server       | `yarn dev`           | Next.js + Turbopack                                             |
-| Production build | `yarn build`         | Full Next.js build with type check                              |
-| Lint             | `yarn lint`          | ESLint with Next.js ruleset                                     |
-| DB migrate       | `yarn db:migrate`    | Supabase CLI push                                               |
-| Storage setup    | `yarn setup-storage` | Create `rider-reports`, `government-ids`, `face-photos` buckets |
-
----
-
-## 6. Running the Adjudicator Locally
-
-The adjudicator runs automatically on Vercel's cron schedule. To trigger it manually during development, call the API with your `CRON_SECRET`:
-
-```bash
-curl -H "Authorization: Bearer <CRON_SECRET>" \
-  http://localhost:3000/api/cron/adjudicator
-```
-
-Or use the **Admin Dashboard → Run Adjudicator** button (requires admin login).
-
----
-
-## 7. Project Structure Quick Reference
-
-```
-app/          → pages and API routes (Next.js App Router)
-components/   → React UI components
-lib/          → business logic (no React)
-supabase/     → SQL migrations + Deno edge function
-docs/         → this Starlight docs site
-```
-
-See [Folder Structure](/folder-structure/) for a complete breakdown.

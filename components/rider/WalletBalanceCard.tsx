@@ -110,7 +110,7 @@ export function WalletBalanceCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className={`relative overflow-hidden rounded-3xl border transition-all duration-500 ${
+      className={`relative overflow-hidden rounded-3xl border transition-all duration-500 active:scale-[0.99] ${
         justUpdated
           ? 'border-uber-green/40 shadow-[0_0_32px_rgba(58,167,109,0.2)]'
           : 'border-white/10'
@@ -136,14 +136,14 @@ export function WalletBalanceCard({
         aria-hidden
       />
 
-      <div className="relative px-5 pt-5 pb-4">
+      <div className="relative px-4 pt-4 pb-3.5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-uber-green/15 border border-uber-green/25 shrink-0">
-              <Wallet className="h-4 w-4 text-uber-green" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-uber-green/15 border border-uber-green/25 shrink-0">
+              <Wallet className="h-[18px] w-[18px] text-uber-green" />
             </div>
             <div>
-              <p className="text-xs font-medium text-white/80 uppercase tracking-wider">
+              <p className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
                 Payout balance
               </p>
               <motion.p
@@ -151,7 +151,7 @@ export function WalletBalanceCard({
                 initial={justUpdated ? { scale: 1.05, opacity: 0.9 } : false}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-white ${
+                className={`text-[28px] leading-tight font-bold tabular-nums tracking-tight text-white ${
                   justUpdated ? 'text-uber-green' : ''
                 }`}
               >
@@ -162,7 +162,7 @@ export function WalletBalanceCard({
           {showAction && (
             <Link
               href="/dashboard/wallet"
-              className="shrink-0 flex items-center gap-1 rounded-full bg-black/30 hover:bg-black/40 border border-white/10 px-3 py-2 text-xs font-medium text-white/90 transition-colors"
+              className="shrink-0 flex items-center gap-1 rounded-full bg-black/30 hover:bg-black/40 active:bg-black/50 border border-white/10 px-3 py-2 text-xs font-medium text-white/90 transition-colors min-h-[36px]"
             >
               Details
               <ChevronRight className="h-3.5 w-3.5" />
@@ -171,12 +171,12 @@ export function WalletBalanceCard({
         </div>
 
         {weeklyChange !== 0 && (
-          <p className="text-xs font-medium mt-2 text-white/70">
+          <p className="text-xs font-medium mt-1.5 text-white/70">
             {weeklyChange > 0 ? '+' : ''}₹{weeklyChange.toLocaleString('en-IN')} this week
           </p>
         )}
 
-        <div className="mt-3 min-h-[28px]">
+        <div className="mt-2.5 min-h-[28px]">
           <Sparkline values={spark} />
         </div>
       </div>

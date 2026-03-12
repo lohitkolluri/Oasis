@@ -11,7 +11,6 @@ export interface ReportDeliveryImpactProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   renderTrigger?: boolean;
-  /** Optional class for the trigger button when renderTrigger is true */
   triggerClassName?: string;
 }
 
@@ -35,8 +34,8 @@ export function ReportDeliveryImpact({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Live camera only: start stream when showCamera is true
   useEffect(() => {
     if (!showCamera) {
       if (streamRef.current) {
@@ -173,7 +172,7 @@ export function ReportDeliveryImpact({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`inline-flex items-center justify-center gap-2.5 rounded-xl border-2 border-uber-yellow/50 bg-uber-yellow/15 px-4 py-3 text-sm font-semibold text-uber-yellow active:scale-[0.98] hover:bg-uber-yellow/25 transition-colors ${triggerClassName ?? ''}`}
+          className={`inline-flex items-center justify-center gap-2.5 rounded-2xl border-2 border-uber-yellow/50 bg-uber-yellow/15 px-4 py-3.5 text-sm font-semibold text-uber-yellow active:scale-[0.97] active:bg-uber-yellow/25 hover:bg-uber-yellow/25 transition-all min-h-[48px] ${triggerClassName ?? ''}`}
         >
           <Flag className="h-4 w-4 shrink-0" />
           Report delivery issue
@@ -196,135 +195,148 @@ export function ReportDeliveryImpact({
                   initial={{ y: '100%' }}
                   animate={{ y: 0 }}
                   exit={{ y: '100%' }}
-                  transition={{ type: 'tween', duration: 0.3 }}
-                  className="w-full max-w-md mx-auto min-w-0 rounded-t-2xl sm:rounded-2xl border-t sm:border border-zinc-700 bg-zinc-900 p-5 shadow-xl sm:max-h-[90vh] overflow-y-auto"
+                  transition={{ type: 'tween', duration: 0.28 }}
+                  ref={scrollRef}
+                  className="w-full max-w-md mx-auto min-w-0 rounded-t-3xl sm:rounded-2xl border-t sm:border border-zinc-700 bg-zinc-900 shadow-xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  {/* Drag indicator for mobile */}
+                  <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
+                    <div className="w-10 h-1 rounded-full bg-zinc-600" />
+                  </div>
+
+                  <div className="flex items-center justify-between px-5 pt-3 pb-3 sm:pt-5 shrink-0">
                     <h3 className="text-lg font-semibold text-zinc-100">Report delivery issue</h3>
                     <button
                       type="button"
                       onClick={() => !loading && setOpen(false)}
-                      className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                      className="rounded-xl p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 active:bg-zinc-700 min-h-[40px] min-w-[40px] flex items-center justify-center"
                     >
                       <X className="h-5 w-5" />
                     </button>
                   </div>
 
-                  {success ? (
-                    <p className="text-uber-green text-sm">
-                      Report approved. Your payout flow has been initiated.
-                    </p>
-                  ) : (
-                    <form onSubmit={onSubmit} className="space-y-4">
-                      <div className="rounded-2xl border border-uber-yellow/20 bg-uber-yellow/10 px-3.5 py-3">
-                        <p className="text-xs font-medium text-zinc-200">
-                          Use this only if Oasis missed a real delivery disruption.
-                        </p>
-                        <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
-                          Add a clear description and a live photo as proof. The evidence is
-                          verified strictly by AI, and payout is initiated only when the report is
-                          judged to be genuine.
+                  <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-5 scroll-touch">
+                    {success ? (
+                      <div className="flex flex-col items-center gap-3 py-8">
+                        <div className="w-12 h-12 rounded-full bg-uber-green/20 flex items-center justify-center">
+                          <Flag className="h-5 w-5 text-uber-green" />
+                        </div>
+                        <p className="text-uber-green text-sm font-medium text-center">
+                          Report approved. Your payout flow has been initiated.
                         </p>
                       </div>
-                      <div>
-                        <label htmlFor="msg" className="block text-sm text-zinc-500 mb-1">
-                          What happened? <span className="text-red-400">(required)</span>
-                        </label>
-                        <textarea
-                          id="msg"
-                          value={message}
-                          onChange={(e) => setMessage(e.target.value)}
-                          placeholder="Describe the issue, where it happened, and how it stopped deliveries."
-                          rows={3}
-                          className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-uber-yellow/50"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-zinc-500 mb-1.5">
-                          Live photo <span className="text-red-400">(required, camera only)</span>
-                        </label>
-                        {!showCamera && !photo && (
-                          <button
-                            type="button"
-                            onClick={() => setShowCamera(true)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-zinc-600 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:border-uber-yellow/40 hover:bg-zinc-700/50 transition-colors"
-                          >
-                            <Camera className="h-4 w-4 text-uber-yellow" />
-                            Take live photo
-                          </button>
-                        )}
-                        {showCamera && (
-                          <div className="rounded-xl overflow-hidden border border-zinc-700">
-                            <video
-                              ref={videoRef}
-                              className="w-full aspect-[4/3] bg-black object-cover"
-                              playsInline
-                              muted
-                            />
-                            {cameraError && (
-                              <p className="text-xs text-red-400 px-3 py-2">{cameraError}</p>
-                            )}
-                            <div className="flex gap-2 p-2 bg-zinc-800/50">
-                              <button
-                                type="button"
-                                onClick={captureFromLive}
-                                className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-lg bg-uber-yellow/20 text-uber-yellow/90 text-sm font-medium"
-                              >
-                                <Camera className="h-4 w-4" />
-                                Capture
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setShowCamera(false)}
-                                className="py-2 px-3 rounded-lg text-zinc-400 hover:bg-zinc-700 text-sm"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {photo && !showCamera && (
-                          <div className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 mt-2">
-                            <ImageIcon className="h-5 w-5 shrink-0 text-uber-yellow" />
-                            <span className="min-w-0 truncate text-sm text-zinc-300">
-                              {photo.name}
-                            </span>
+                    ) : (
+                      <form onSubmit={onSubmit} className="space-y-4">
+                        <div className="rounded-2xl border border-uber-yellow/20 bg-uber-yellow/10 px-3.5 py-3">
+                          <p className="text-xs font-medium text-zinc-200">
+                            Use this only if Oasis missed a real delivery disruption.
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
+                            Add a clear description and a live photo as proof. The evidence is
+                            verified strictly by AI, and payout is initiated only when the report is
+                            judged to be genuine.
+                          </p>
+                        </div>
+                        <div>
+                          <label htmlFor="msg" className="block text-sm text-zinc-500 mb-1">
+                            What happened? <span className="text-red-400">(required)</span>
+                          </label>
+                          <textarea
+                            id="msg"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Describe the issue, where it happened, and how it stopped deliveries."
+                            rows={3}
+                            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2.5 text-[16px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-uber-yellow/50 resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-zinc-500 mb-1.5">
+                            Live photo <span className="text-red-400">(required, camera only)</span>
+                          </label>
+                          {!showCamera && !photo && (
                             <button
                               type="button"
-                              onClick={() => setPhoto(null)}
-                              className="ml-auto shrink-0 rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300"
-                              aria-label="Remove photo"
+                              onClick={() => setShowCamera(true)}
+                              className="inline-flex items-center gap-2 rounded-xl border border-zinc-600 bg-zinc-800/50 px-4 py-3 text-sm font-medium text-zinc-200 hover:border-uber-yellow/40 hover:bg-zinc-700/50 active:bg-zinc-700 transition-colors min-h-[48px]"
                             >
-                              <X className="h-4 w-4" />
+                              <Camera className="h-4 w-4 text-uber-yellow" />
+                              Take live photo
                             </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          type="submit"
-                          disabled={loading || !photo || !message.trim()}
-                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-uber-yellow/20 px-4 py-2.5 text-sm font-medium text-uber-yellow/90 hover:bg-uber-yellow/30 disabled:opacity-50"
-                        >
-                          {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Flag className="h-4 w-4" />
                           )}
-                          Submit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setOpen(false)}
-                          disabled={loading}
-                          className="rounded-xl border border-zinc-600 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  )}
+                          {showCamera && (
+                            <div className="rounded-xl overflow-hidden border border-zinc-700">
+                              <video
+                                ref={videoRef}
+                                className="w-full aspect-[4/3] bg-black object-cover"
+                                playsInline
+                                muted
+                              />
+                              {cameraError && (
+                                <p className="text-xs text-red-400 px-3 py-2">{cameraError}</p>
+                              )}
+                              <div className="flex gap-2 p-2.5 bg-zinc-800/50">
+                                <button
+                                  type="button"
+                                  onClick={captureFromLive}
+                                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-uber-green text-white text-sm font-semibold shadow-md shadow-uber-green/20 active:scale-[0.98] transition-transform min-h-[44px]"
+                                >
+                                  <Camera className="h-4 w-4" />
+                                  Capture
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowCamera(false)}
+                                  className="py-2.5 px-4 rounded-xl text-zinc-400 hover:bg-zinc-700 active:bg-zinc-600 text-sm min-h-[44px]"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {photo && !showCamera && (
+                            <div className="flex items-center gap-2.5 rounded-xl border border-uber-green/30 bg-uber-green/5 px-3 py-2.5 mt-2">
+                              <ImageIcon className="h-5 w-5 shrink-0 text-uber-green" />
+                              <span className="min-w-0 truncate text-sm text-zinc-300">
+                                {photo.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setPhoto(null)}
+                                className="ml-auto shrink-0 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 active:bg-zinc-600 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                aria-label="Remove photo"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2.5 pt-2 pb-1">
+                          <button
+                            type="submit"
+                            disabled={loading || !photo || !message.trim()}
+                            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-uber-yellow/20 px-4 py-3 text-sm font-semibold text-uber-yellow hover:bg-uber-yellow/30 active:bg-uber-yellow/35 disabled:opacity-40 transition-colors min-h-[48px]"
+                          >
+                            {loading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Flag className="h-4 w-4" />
+                            )}
+                            Submit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setOpen(false)}
+                            disabled={loading}
+                            className="rounded-xl border border-zinc-600 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-800 active:bg-zinc-700 disabled:opacity-50 min-h-[48px]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 </motion.div>
               </motion.div>
             )}

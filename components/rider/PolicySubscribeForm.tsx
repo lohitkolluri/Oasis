@@ -144,35 +144,58 @@ export function PolicySubscribeForm({
       {hasPlans && (
         <div className="space-y-3">
           <h2 className="font-semibold text-zinc-200">Choose your plan</h2>
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="space-y-2.5">
             {plans.map((plan) => {
               const isSelected = selectedPlan?.id === plan.id;
+              const premium = Number(plan.weekly_premium_inr);
+              const dailyCost = Math.round(premium / 7);
+              const isPopular = plan.slug === 'standard';
               return (
                 <button
                   key={plan.id}
                   type="button"
                   onClick={() => setSelectedPlan(plan)}
-                  className={`rounded-xl border p-4 text-left transition-all ${
+                  className={`relative w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.99] ${
                     isSelected
                       ? 'border-uber-green bg-uber-green/10 ring-1 ring-uber-green/30'
-                      : 'border-zinc-700 bg-zinc-900/80 hover:border-zinc-600'
+                      : 'border-zinc-700/80 bg-zinc-900/80 hover:border-zinc-600'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-zinc-100">{plan.name}</span>
-                    {isSelected && <Check className="h-4 w-4 text-uber-green shrink-0" />}
-                  </div>
-                  {plan.description && (
-                    <p className="text-xs text-zinc-500 mb-2 line-clamp-2">{plan.description}</p>
+                  {isPopular && (
+                    <span className="absolute -top-2.5 right-4 rounded-full bg-uber-green px-2.5 py-0.5 text-[10px] font-bold text-black uppercase tracking-wider">
+                      Most popular
+                    </span>
                   )}
-                  <p className="text-lg font-bold tabular-nums text-zinc-100">
-                    ₹{Number(plan.weekly_premium_inr).toLocaleString()}
-                    <span className="text-xs font-normal text-zinc-500">/week</span>
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    ₹{Number(plan.payout_per_claim_inr).toLocaleString()} per claim · up to{' '}
-                    {plan.max_claims_per_week} claims/week
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-[15px] text-zinc-100">{plan.name}</span>
+                        {isSelected && <Check className="h-4 w-4 text-uber-green shrink-0" />}
+                      </div>
+                      {plan.description && (
+                        <p className="text-[12px] text-zinc-400 leading-relaxed">{plan.description}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xl font-bold tabular-nums text-white">
+                        ₹{premium.toLocaleString('en-IN')}
+                      </p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5">per week</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
+                    <span className="text-[12px] text-zinc-400">
+                      ₹{Number(plan.payout_per_claim_inr).toLocaleString('en-IN')}/claim
+                    </span>
+                    <span className="text-zinc-600">·</span>
+                    <span className="text-[12px] text-zinc-400">
+                      up to {plan.max_claims_per_week} {plan.max_claims_per_week === 1 ? 'claim' : 'claims'}/week
+                    </span>
+                    <span className="text-zinc-600">·</span>
+                    <span className="text-[12px] text-zinc-500">
+                      ₹{dailyCost}/day
+                    </span>
+                  </div>
                 </button>
               );
             })}

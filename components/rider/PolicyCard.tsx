@@ -66,7 +66,7 @@ export function PolicyCard({
         </div>
         <Link
           href="/dashboard/policy"
-          className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-medium text-zinc-300 hover:bg-white/10 hover:text-white active:bg-white/15 transition-colors min-h-[36px]"
         >
           Manage
           <ChevronRight className="h-3 w-3" />
@@ -97,8 +97,8 @@ export function PolicyCard({
           </p>
           <div className="space-y-1.5">
             {recentClaims.map((c) => (
-              <div key={c.id} className="space-y-1">
-                <div className="flex items-center justify-between rounded-lg bg-white/5 border border-white/10 px-3 py-2">
+                <div key={c.id} className="space-y-1.5">
+                <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="text-[11px] text-zinc-500 tabular-nums">{formatDate(c.created_at)}</p>
                     <p className="text-[10px] mt-0.5">

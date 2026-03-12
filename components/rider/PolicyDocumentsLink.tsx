@@ -5,9 +5,9 @@ export function PolicyDocumentsLink() {
   return (
     <Link
       href="/dashboard/policy/docs"
-      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-surface-1 px-4 py-3 hover:bg-surface-2 active:scale-[0.99] transition-colors group"
+      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-surface-1 px-4 py-3.5 hover:bg-surface-2 active:scale-[0.98] active:bg-surface-2 transition-all group min-h-[56px]"
     >
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-zinc-800/80 text-zinc-400 group-hover:text-zinc-300 transition-colors shrink-0">
+      <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80 text-zinc-400 group-hover:text-zinc-300 transition-colors shrink-0">
         <FileText className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">

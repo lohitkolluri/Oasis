@@ -191,28 +191,49 @@ export async function checkWeatherTriggers(
       (v): v is number => v != null && v > 0,
     );
 
-    let adaptiveThreshold = 201;
+    let adaptiveThreshold = 300;
     let baseline75 = 0;
+    let baseline90 = 0;
     let baselineMean = 0;
+    let isChronic = false;
 
     if (historicalValues.length >= 48) {
       const sorted = [...historicalValues].sort((a, b) => a - b);
       baseline75 = sorted[Math.floor(sorted.length * 0.75)];
+      baseline90 = sorted[Math.floor(sorted.length * 0.90)];
       baselineMean = Math.round(
         historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length,
       );
-      adaptiveThreshold = Math.min(
-        TRIGGERS.AQI_MAX_THRESHOLD,
-        Math.max(
-          TRIGGERS.AQI_MIN_THRESHOLD,
-          Math.round(baseline75 * TRIGGERS.AQI_EXCESS_MULTIPLIER),
-        ),
-      );
+
+      isChronic = baseline75 >= TRIGGERS.AQI_CHRONIC_P75_FLOOR;
+
+      if (isChronic) {
+        // Chronically polluted zone (e.g., Delhi, Lucknow, Kanpur):
+        // use p90 with a tighter multiplier so only truly anomalous spikes trigger.
+        adaptiveThreshold = Math.min(
+          TRIGGERS.AQI_MAX_THRESHOLD,
+          Math.max(
+            TRIGGERS.AQI_CHRONIC_MIN_THRESHOLD,
+            Math.round(baseline90 * TRIGGERS.AQI_CHRONIC_MULTIPLIER),
+          ),
+        );
+      } else {
+        // Clean-to-moderate zone (e.g., Bangalore, coastal cities):
+        // use p75 with standard multiplier.
+        adaptiveThreshold = Math.min(
+          TRIGGERS.AQI_MAX_THRESHOLD,
+          Math.max(
+            TRIGGERS.AQI_MIN_THRESHOLD,
+            Math.round(baseline75 * TRIGGERS.AQI_EXCESS_MULTIPLIER),
+          ),
+        );
+      }
     }
 
     if (currentAqi >= adaptiveThreshold) {
+      const referenceBaseline = isChronic ? baseline90 : baseline75;
       const excessRatio =
-        baseline75 > 0 ? (currentAqi - baseline75) / baseline75 : 0;
+        referenceBaseline > 0 ? (currentAqi - referenceBaseline) / referenceBaseline : 0;
       const severity = Math.min(10, Math.max(6, Math.round(6 + excessRatio * 8)));
 
       candidates.push({
@@ -230,10 +251,12 @@ export async function checkWeatherTriggers(
           current_aqi: currentAqi,
           adaptive_threshold: adaptiveThreshold,
           baseline_p75: baseline75,
+          baseline_p90: baseline90,
           baseline_mean: baselineMean,
+          chronic_pollution: isChronic,
           historical_days: Math.round(historicalValues.length / 24),
           excess_percent: Math.round(
-            ((currentAqi - baseline75) / Math.max(1, baseline75)) * 100,
+            ((currentAqi - referenceBaseline) / Math.max(1, referenceBaseline)) * 100,
           ),
           source: waqiKey ? 'waqi_ground_station' : 'openmeteo_satellite',
         },

@@ -55,7 +55,7 @@ export function KPIGrid({ totalEarnings, claimsPaid, hasActiveCoverage, riskLeve
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2.5">
       {metrics.map((m, i) => (
         <KPICard
           key={m.id}

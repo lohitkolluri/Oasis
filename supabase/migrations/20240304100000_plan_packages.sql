@@ -38,10 +38,10 @@ ALTER TABLE weekly_policies
 
 CREATE INDEX IF NOT EXISTS idx_weekly_policies_plan ON weekly_policies(plan_id);
 
--- Seed default plans
+-- Seed default plans (actuarially modeled for ₹7K/week rider income, 5–8 trigger events/year)
 INSERT INTO plan_packages (slug, name, description, weekly_premium_inr, payout_per_claim_inr, max_claims_per_week, sort_order)
 VALUES
-  ('basic', 'Basic', 'Essential income protection for low-risk zones', 79, 300, 2, 1),
-  ('standard', 'Standard', 'Balanced coverage for most delivery partners', 99, 400, 2, 2),
-  ('premium', 'Premium', 'Maximum coverage for high-risk zones', 149, 600, 3, 3)
+  ('basic', 'Basic', 'Covers fuel & food costs on disrupted days — your minimum safety net', 49, 300, 1, 1),
+  ('standard', 'Standard', 'Replaces ~70% of a lost day''s income — the most popular plan', 99, 700, 2, 2),
+  ('premium', 'Premium', 'Full income replacement + expenses for high-risk zones', 199, 1500, 3, 3)
 ON CONFLICT (slug) DO NOTHING;

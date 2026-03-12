@@ -1243,25 +1243,25 @@ export default function OnboardingPage() {
                       </div>
                       {showCamera && (
                         <div
-                          className={`mt-3 rounded-lg overflow-hidden transition-colors ${captureReady ? 'ring-2 ring-uber-green-500 ring-offset-2 ring-offset-zinc-950' : 'border border-zinc-700'}`}
+                          className={`mt-3 rounded-2xl overflow-hidden transition-colors ${captureReady ? 'ring-2 ring-uber-green-500 ring-offset-2 ring-offset-zinc-950' : 'border border-zinc-700'}`}
                         >
                           <video
                             ref={videoRef}
-                            className="w-full bg-black aspect-[3/2] object-contain"
+                            className="w-full bg-black aspect-[16/9] object-cover"
                             autoPlay
                             playsInline
                             muted
                           />
-                          <div className="px-3 py-2 bg-zinc-900 flex items-center justify-between">
-                            <span className="text-[11px] text-zinc-400">
+                          <div className="px-3 py-3 bg-zinc-900/95 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <span className="text-xs text-zinc-400">
                               {captureReady
                                 ? 'Hold steady — capturing...'
-                                : 'Align your Aadhaar in the frame. Auto-capture when clear.'}
+                                : 'Align your Aadhaar in the landscape frame. Auto-capture when clear.'}
                             </span>
                             <button
                               type="button"
                               onClick={capturePhoto}
-                              className="text-xs px-3 py-1 rounded-full bg-uber-green-500 text-black font-medium hover:bg-uber-green-400"
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-uber-green-500 px-4 py-2 text-sm font-semibold text-black shadow-md shadow-uber-green-500/30 hover:bg-uber-green-400 active:scale-[0.98] transition"
                             >
                               Capture now
                             </button>

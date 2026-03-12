@@ -7,12 +7,12 @@ export const DEFAULT_ZONE = {
   name: 'Bangalore',
 } as const;
 
-/** Premium pricing bounds (INR) */
+/** Premium pricing bounds (INR) — actuarially modeled for ₹7K/week rider income */
 export const PREMIUM = {
-  BASE: 79,
-  MAX: 149,
-  RISK_PER_EVENT: 8,
-  FORECAST_WEIGHT: 15,
+  BASE: 49,
+  MAX: 199,
+  RISK_PER_EVENT: 12,
+  FORECAST_WEIGHT: 20,
   WEEKS_LOOKBACK: 4,
 } as const;
 
@@ -21,9 +21,12 @@ export const TRIGGERS = {
   HEAT_THRESHOLD_C: 43,
   HEAT_SUSTAINED_HOURS: 3,
   RAIN_THRESHOLD_MM_H: 4,
-  AQI_MIN_THRESHOLD: 150,
-  AQI_MAX_THRESHOLD: 400,
-  AQI_EXCESS_MULTIPLIER: 1.4,
+  AQI_MIN_THRESHOLD: 200,
+  AQI_MAX_THRESHOLD: 500,
+  AQI_EXCESS_MULTIPLIER: 1.3,
+  AQI_CHRONIC_P75_FLOOR: 200,
+  AQI_CHRONIC_MULTIPLIER: 1.15,
+  AQI_CHRONIC_MIN_THRESHOLD: 350,
   LLM_SEVERITY_THRESHOLD: 6,
   DEFAULT_GEOFENCE_RADIUS_KM: 15,
   /** Zepto-style single dark-store zone: ~1.5–3 km. Use for hyper-local disruption (one delivery area). See docs/ZEPTO-ZONE-CONTEXT.md. */
@@ -51,7 +54,11 @@ export const FRAUD = {
   DEVICE_FINGERPRINT_WINDOW_HOURS: 1,
   DEVICE_FINGERPRINT_MIN_DISTANCE_DEG: 0.5,
   HISTORICAL_BASELINE_MULTIPLIER: 3,
-  VERIFY_WINDOW_HOURS: 24,
+  VERIFY_WINDOW_HOURS: 48,
+  SELF_REPORT_DAILY_LIMIT: 3,
+  GPS_MAX_ACCURACY_METERS: 100,
+  IMPOSSIBLE_TRAVEL_KM: 50,
+  IMPOSSIBLE_TRAVEL_MINUTES: 30,
 } as const;
 
 /** Rate limiting (requests per window) */

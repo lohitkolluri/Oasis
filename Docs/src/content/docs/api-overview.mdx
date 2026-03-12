@@ -18,7 +18,7 @@ We have fully interactive, auto-generated documentation for all Oasis endpoints 
 <CardGrid>
   <LinkCard
     title="Cron Jobs"
-    description="Automated hourly adjudicators and weekly premium renewals."
+    description="Automated 15-min adjudicators and weekly premium renewals."
     href="/api/openapi/operations/getcronadjudicator/"
     icon="setting"
   />
@@ -100,3 +100,85 @@ Proxy to the OSRM routing API. Returns route details between two coordinates.
 
 ### `POST /api/auth/signout`
 Signs out the current session by clearing Supabase auth cookies. Redirects to `/login`.
+
+### `POST /api/admin/demo-trigger`
+Injects a synthetic disruption event for demo purposes (admin only). Useful for testing the full trigger → claim → payout pipeline without waiting for real API data.
+
+### `POST /api/admin/update-role`
+Updates a rider's profile role (admin only). Used for promoting users to admin.
+
+### `POST /api/admin/update-policy`
+Admin override for policy updates (status changes, plan modifications).
+
+### `GET /api/rider/insight`
+Returns AI-generated insights for the authenticated rider, including risk assessment for their zone and upcoming weather outlook.
+
+### `GET /api/platform/status`
+Public endpoint returning platform operational status — database health, API connectivity, and recent adjudicator activity.
+
+### `GET /api/health`
+Lightweight health check returning `{ "status": "ok" }`. Used by uptime monitors and deployment probes.
+
+### `POST /api/onboarding/verify-government-id`
+Processes Aadhaar/PAN uploads during onboarding. Validates the document format and extracts basic metadata.
+
+### `POST /api/webhooks/disruption`
+Webhook endpoint for external trigger providers to push disruption events directly. Validates the payload against a signing secret.
+
+---
+
+### `POST /api/claims/verify-location`
+
+Verifies a rider's GPS location for a pending claim. Accepts additional fraud-detection parameters.
+
+**Body:**
+```json
+{
+  "claimId": "uuid",
+  "latitude": 12.9716,
+  "longitude": 77.5946,
+  "deviceFingerprint": "optional-device-hash",
+  "gpsAccuracy": 25.5
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `claimId` | string | Yes | UUID of the claim to verify |
+| `latitude` | number | Yes | Rider's current latitude |
+| `longitude` | number | Yes | Rider's current longitude |
+| `deviceFingerprint` | string | No | Browser/device fingerprint for multi-device fraud detection |
+| `gpsAccuracy` | number | No | GPS accuracy in meters (rejected if > 100m) |
+
+**New validation checks (in order):**
+1. GPS accuracy validation — rejects if `gpsAccuracy > 100`
+2. Impossible travel detection — rejects if rider moved > 50 km in < 30 min since last verification
+3. 48-hour claim age check — rejects if claim is older than 48 hours
+4. Geofence verification — checks if rider is within the disruption event's geofence
+5. Extended fraud checks — device fingerprint and cross-profile velocity (async)
+
+---
+
+### `POST /api/rider/report-delivery`
+
+Rider self-report for delivery disruptions. Now includes rate limiting and external corroboration.
+
+**Rate limit:** 3 reports per rider per day (returns `429` if exceeded).
+
+**Body:** `multipart/form-data` with fields:
+- `disruption_note` (string) — description of the disruption
+- `latitude` / `longitude` (number) — rider's GPS coordinates
+- `file` (File, optional) — photo evidence
+
+**Response includes:**
+```json
+{
+  "success": true,
+  "report": { "id": "uuid", "verified": true },
+  "corroboration": {
+    "weather_matches": true,
+    "traffic_matches": false,
+    "overall_verified": false
+  }
+}
+```

@@ -424,8 +424,86 @@ export async function runAllFraudChecks(
 }
 
 /**
+ * Validate GPS accuracy — reject readings above threshold (likely spoofed).
+ */
+export function checkGpsAccuracy(
+  accuracy: number | null | undefined,
+): FraudCheckResult {
+  if (accuracy == null) return { isFlagged: false };
+  if (accuracy > FRAUD.GPS_MAX_ACCURACY_METERS) {
+    return {
+      isFlagged: true,
+      reason: `GPS accuracy too low: ${accuracy}m (max ${FRAUD.GPS_MAX_ACCURACY_METERS}m)`,
+      checkName: 'gps_accuracy',
+    };
+  }
+  return { isFlagged: false };
+}
+
+/**
+ * Impossible travel check: flag if rider verified a claim at a distant location
+ * too recently (e.g., >50 km apart within 30 minutes).
+ */
+export async function checkImpossibleTravel(
+  supabase: SupabaseClient,
+  profileId: string,
+  lat: number,
+  lng: number,
+): Promise<FraudCheckResult> {
+  const windowAgo = new Date(
+    Date.now() - FRAUD.IMPOSSIBLE_TRAVEL_MINUTES * 60 * 1000,
+  ).toISOString();
+
+  const { data: recentVerifications } = await supabase
+    .from('claim_verifications')
+    .select('verified_lat, verified_lng, verified_at')
+    .eq('profile_id', profileId)
+    .gte('verified_at', windowAgo)
+    .order('verified_at', { ascending: false })
+    .limit(5);
+
+  if (!recentVerifications || recentVerifications.length === 0) {
+    return { isFlagged: false };
+  }
+
+  for (const v of recentVerifications) {
+    const vLat = Number(v.verified_lat);
+    const vLng = Number(v.verified_lng);
+    if (!Number.isFinite(vLat) || !Number.isFinite(vLng)) continue;
+
+    const distKm = haversineKm(lat, lng, vLat, vLng);
+    if (distKm > FRAUD.IMPOSSIBLE_TRAVEL_KM) {
+      return {
+        isFlagged: true,
+        reason: `Impossible travel: ${distKm.toFixed(1)}km in <${FRAUD.IMPOSSIBLE_TRAVEL_MINUTES}min`,
+        checkName: 'impossible_travel',
+      };
+    }
+  }
+
+  return { isFlagged: false };
+}
+
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
  * Run post-claim extended fraud checks.
- * Checks: cluster anomaly, historical baseline, device fingerprint.
+ * Checks: cluster anomaly, historical baseline, device fingerprint, cross-profile velocity.
  * Called AFTER claim insertion — flags the claim if fraud detected.
  */
 export async function runExtendedFraudChecks(
@@ -433,6 +511,7 @@ export async function runExtendedFraudChecks(
   claimId: string,
   disruptionEventId: string,
   deviceFingerprint?: string,
+  profileId?: string,
 ): Promise<FraudCheckResult> {
   const checks: Promise<FraudCheckResult>[] = [
     checkClusterAnomaly(supabase, disruptionEventId),
@@ -441,6 +520,12 @@ export async function runExtendedFraudChecks(
 
   if (deviceFingerprint) {
     checks.push(checkDeviceFingerprint(supabase, deviceFingerprint));
+  }
+
+  if (profileId) {
+    checks.push(
+      checkCrossProfileVelocity(supabase, profileId, disruptionEventId),
+    );
   }
 
   const results = await Promise.all(checks);

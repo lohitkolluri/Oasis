@@ -32,22 +32,22 @@ export function RiderInsightCard() {
       className="rounded-2xl border border-uber-yellow/20 bg-uber-yellow/5 overflow-hidden"
     >
       <div className="h-0.5 bg-gradient-to-r from-uber-yellow/50 via-uber-yellow/25 to-transparent" />
-      <div className="flex items-start gap-2.5 px-3 py-3">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-uber-yellow/15 shrink-0 mt-0.5 border border-uber-yellow/20">
-          <Lightbulb className="h-4 w-4 text-uber-yellow" />
+      <div className="flex items-start gap-2.5 px-3.5 py-3.5">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-uber-yellow/15 shrink-0 mt-0.5 border border-uber-yellow/20">
+          <Lightbulb className="h-[18px] w-[18px] text-uber-yellow" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold text-uber-yellow/90 uppercase tracking-wider mb-1">
             Lumo Insight
           </p>
-          <p className="text-[12px] text-zinc-300 leading-snug">
+          <p className="text-[13px] text-zinc-300 leading-snug">
             {displayText}
           </p>
           {isLong && (
             <button
               type="button"
               onClick={() => setExpanded((e) => !e)}
-              className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-uber-yellow hover:text-uber-yellow/90"
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-uber-yellow hover:text-uber-yellow/90 active:opacity-70 min-h-[32px]"
             >
               {expanded ? (
                 <>

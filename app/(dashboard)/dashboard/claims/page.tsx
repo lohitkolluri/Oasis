@@ -79,21 +79,21 @@ export default async function ClaimsHistoryPage() {
     .reduce((s, c) => s + Number(c.payout_amount_inr), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors min-h-[44px] -ml-1 px-1"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to dashboard
       </Link>
       <div>
         <h1 className="text-xl font-bold tracking-tight text-white">Claims History</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">Parametric payouts from your policies</p>
+        <p className="text-[13px] text-zinc-500 mt-0.5">Parametric payouts from your policies</p>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2.5">
         <KPICard
           title="Total"
           count={claims?.length ?? 0}
@@ -146,7 +146,7 @@ export default async function ClaimsHistoryPage() {
               const policy = policyMap.get(claim.policy_id);
 
               return (
-                <div key={claim.id} className="px-5 py-4 flex items-start gap-3.5">
+                <div key={claim.id} className="px-4 py-3.5 flex items-start gap-3 active:bg-white/[0.03] transition-colors">
                   {/* Status icon */}
                   <div className="shrink-0 mt-0.5">
                     {claim.is_flagged ? (

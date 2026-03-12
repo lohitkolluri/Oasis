@@ -53,6 +53,9 @@ const TOOLTIP_STYLE = {
   boxShadow: '0 0 16px rgba(125, 211, 252, 0.08)',
 };
 
+const TOOLTIP_LABEL_STYLE = { color: '#e4e4e7' };
+const TOOLTIP_ITEM_STYLE = { color: '#9ca3af' };
+
 const TOOLTIP_CURSOR = { fill: 'rgba(255, 255, 255, 0.02)' };
 
 function formatINR(n: number) {
@@ -220,6 +223,8 @@ export function AnalyticsCharts() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
+                labelStyle={TOOLTIP_LABEL_STYLE}
+                itemStyle={TOOLTIP_ITEM_STYLE}
                 cursor={TOOLTIP_CURSOR}
                 formatter={(value, name) =>
                   name === 'payout' ? [formatINR(Number(value)), 'Payout'] : [value, 'Claims']
@@ -298,6 +303,8 @@ export function AnalyticsCharts() {
                 />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
+                  labelStyle={TOOLTIP_LABEL_STYLE}
+                  itemStyle={TOOLTIP_ITEM_STYLE}
                   cursor={TOOLTIP_CURSOR}
                   formatter={(value, name) => {
                     if (name === 'lossRatio') return [`${value}%`, 'Loss Ratio'];
@@ -355,7 +362,7 @@ export function AnalyticsCharts() {
                       tickLine={false}
                       width={50}
                     />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={TOOLTIP_CURSOR} formatter={(v) => [v, 'Events']} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} cursor={TOOLTIP_CURSOR} formatter={(v) => [v, 'Events']} />
                     <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={18}>
                       {triggerData.map((_, i) => (
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} opacity={0.85} />
@@ -386,7 +393,7 @@ export function AnalyticsCharts() {
                           />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="space-y-1 text-center">

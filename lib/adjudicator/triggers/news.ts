@@ -5,6 +5,7 @@
 
 import { DEFAULT_ZONE, EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
 import type { GeofenceCircle, TriggerCandidate } from '@/lib/adjudicator/types';
+import { isWithinCircle } from '@/lib/utils/geo';
 import { fetchWithRetry } from '@/lib/utils/retry';
 
 /** Sanitize user-controlled text before LLM to reduce prompt injection risk. */
@@ -17,9 +18,14 @@ export function sanitizeForLlm(text: string, maxLen = 200): string {
     .slice(0, maxLen);
 }
 
+/**
+ * Check news-based triggers, optionally filtered to only produce candidates
+ * that affect zones where riders are actually active.
+ */
 export async function checkNewsTriggers(
   openRouterKey: string,
   newsDataKey: string,
+  activeZones?: Array<{ lat: number; lng: number }>,
 ): Promise<TriggerCandidate[]> {
   const candidates: TriggerCandidate[] = [];
 
@@ -204,6 +210,17 @@ export async function checkNewsTriggers(
     }
   } catch {
     /* skip curfew/news */
+  }
+
+  // Filter candidates to only include those that overlap with active rider zones
+  if (activeZones && activeZones.length > 0) {
+    return candidates.filter((c) => {
+      const cLat = c.geofence?.lat;
+      const cLng = c.geofence?.lng;
+      const cRadius = c.geofence?.radius_km ?? TRIGGERS.NEWS_GEOFENCE_RADIUS_KM;
+      if (cLat == null || cLng == null) return false;
+      return activeZones.some((z) => isWithinCircle(z.lat, z.lng, cLat, cLng, cRadius));
+    });
   }
 
   return candidates;

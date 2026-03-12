@@ -21,9 +21,75 @@ interface TomTomFlowSegmentData {
 }
 
 /**
+ * Generate sample points around a center: center + N/E/S/W at ~70% of radius.
+ */
+function generateSamplePoints(
+  centerLat: number,
+  centerLng: number,
+  radiusKm: number = TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+): Array<{ lat: number; lng: number }> {
+  const offsetKm = radiusKm * 0.7;
+  const latOffset = offsetKm / 111.32;
+  const lngOffset = offsetKm / (111.32 * Math.cos((centerLat * Math.PI) / 180));
+
+  return [
+    { lat: centerLat, lng: centerLng },
+    { lat: centerLat + latOffset, lng: centerLng },
+    { lat: centerLat - latOffset, lng: centerLng },
+    { lat: centerLat, lng: centerLng + lngOffset },
+    { lat: centerLat, lng: centerLng - lngOffset },
+  ];
+}
+
+interface PointResult {
+  currentSpeed: number;
+  freeFlowSpeed: number;
+  roadClosure: boolean;
+  confidence: number;
+  ratio: number;
+  congested: boolean;
+}
+
+async function fetchPointTraffic(
+  lat: number,
+  lng: number,
+  tomtomKey: string,
+): Promise<PointResult | null> {
+  try {
+    const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key=${encodeURIComponent(tomtomKey)}&point=${lat},${lng}&unit=kmph`;
+    const data = await fetchWithRetry<TomTomFlowSegmentData>(url, undefined, {
+      cacheTtlMs: EXTERNAL_APIS.CACHE_TRAFFIC_TTL_MS,
+    });
+    const seg = data.flowSegmentData;
+    if (!seg) return null;
+
+    const currentSpeed = Number(seg.currentSpeed ?? 0);
+    const freeFlowSpeed = Number(seg.freeFlowSpeed ?? 0);
+    const roadClosure = seg.roadClosure === true;
+    const confidence = Number(seg.confidence ?? 0);
+
+    if (!roadClosure && (freeFlowSpeed <= 0 || confidence < TRIGGERS.TRAFFIC_MIN_CONFIDENCE)) {
+      return null;
+    }
+
+    const ratio = freeFlowSpeed > 0 ? currentSpeed / freeFlowSpeed : 0;
+    return {
+      currentSpeed,
+      freeFlowSpeed,
+      roadClosure,
+      confidence,
+      ratio,
+      congested: roadClosure || ratio < TRIGGERS.TRAFFIC_CONGESTION_RATIO_THRESHOLD,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Check traffic triggers for a zone using TomTom Flow Segment Data.
- * Returns a candidate if the segment shows severe congestion (currentSpeed << freeFlowSpeed)
- * or road closure.
+ * Samples 5 points (center + N/E/S/W) to get a representative picture.
+ * Triggers only if majority of sampled points show congestion.
  */
 export async function checkTrafficTriggers(
   zone: { lat: number; lng: number },
@@ -34,70 +100,43 @@ export async function checkTrafficTriggers(
 
   if (!tomtomKey?.trim()) return candidates;
 
-  try {
-    const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key=${encodeURIComponent(tomtomKey)}&point=${lat},${lng}&unit=kmph`;
-    const data = await fetchWithRetry<TomTomFlowSegmentData>(url, undefined, {
-      cacheTtlMs: EXTERNAL_APIS.CACHE_TRAFFIC_TTL_MS,
+  const samplePoints = generateSamplePoints(lat, lng);
+  const results = await Promise.all(
+    samplePoints.map((p) => fetchPointTraffic(p.lat, p.lng, tomtomKey)),
+  );
+
+  const validResults = results.filter((r): r is PointResult => r !== null);
+  if (validResults.length === 0) return candidates;
+
+  const congestedCount = validResults.filter((r) => r.congested).length;
+  const hasRoadClosure = validResults.some((r) => r.roadClosure);
+
+  // Require majority (>= 3/5) of sample points showing congestion, or any road closure
+  if (hasRoadClosure || congestedCount >= Math.ceil(validResults.length / 2)) {
+    const avgRatio =
+      validResults.reduce((sum, r) => sum + r.ratio, 0) / validResults.length;
+    const severity = hasRoadClosure ? 10 : avgRatio <= 0.2 ? 9 : avgRatio <= 0.4 ? 8 : 7;
+
+    candidates.push({
+      type: 'traffic',
+      subtype: 'traffic_gridlock',
+      severity,
+      geofence: {
+        type: 'circle',
+        lat,
+        lng,
+        radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+      },
+      raw: {
+        trigger: 'traffic_gridlock',
+        source: 'tomtom_traffic',
+        sample_points: samplePoints.length,
+        congested_points: congestedCount,
+        has_road_closure: hasRoadClosure,
+        avg_ratio: avgRatio,
+        point_details: validResults,
+      },
     });
-
-    const segment = data.flowSegmentData;
-    if (!segment) return candidates;
-
-    const currentSpeed = Number(segment.currentSpeed ?? 0);
-    const freeFlowSpeed = Number(segment.freeFlowSpeed ?? 0);
-    const roadClosure = segment.roadClosure === true;
-    const confidence = Number(segment.confidence ?? 0);
-
-    if (roadClosure) {
-      candidates.push({
-        type: 'traffic',
-        subtype: 'traffic_gridlock',
-        severity: 10,
-        geofence: {
-          type: 'circle',
-          lat,
-          lng,
-          radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
-        },
-        raw: {
-          trigger: 'traffic_gridlock',
-          source: 'tomtom_traffic',
-          roadClosure: true,
-          currentSpeed,
-          freeFlowSpeed,
-          confidence,
-        },
-      });
-      return candidates;
-    }
-
-    if (freeFlowSpeed <= 0 || confidence < TRIGGERS.TRAFFIC_MIN_CONFIDENCE) return candidates;
-
-    const ratio = currentSpeed / freeFlowSpeed;
-    if (ratio < TRIGGERS.TRAFFIC_CONGESTION_RATIO_THRESHOLD) {
-      const severity = ratio <= 0.2 ? 9 : ratio <= 0.4 ? 8 : 7;
-      candidates.push({
-        type: 'traffic',
-        subtype: 'traffic_gridlock',
-        severity,
-        geofence: {
-          type: 'circle',
-          lat,
-          lng,
-          radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
-        },
-        raw: {
-          trigger: 'traffic_gridlock',
-          source: 'tomtom_traffic',
-          currentSpeed,
-          freeFlowSpeed,
-          ratio,
-          confidence,
-        },
-      });
-    }
-  } catch {
-    /* skip zone on API error */
   }
 
   return candidates;

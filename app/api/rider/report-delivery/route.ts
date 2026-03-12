@@ -10,13 +10,90 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isMobileForGps } from "@/lib/utils/device";
 import { currentWeekMonday } from "@/lib/utils/geo";
 import { toDateString } from "@/lib/utils/date";
+import { EXTERNAL_APIS, FRAUD, TRIGGERS } from "@/lib/config/constants";
+import { checkRapidClaims } from "@/lib/fraud/detector";
+import { fetchWithRetry } from "@/lib/utils/retry";
 
 export const dynamic = "force-dynamic";
 
 const BUCKET = "rider-reports";
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const VISION_MODEL = "qwen/qwen2-vl-72b-instruct"; // or openai/gpt-4o for vision
+const VISION_MODEL = "qwen/qwen2-vl-72b-instruct";
+
+/**
+ * Cross-check a self-report against real-time weather and traffic data.
+ * Returns { corroborated, details } — if external data clearly contradicts the
+ * report, corroborated is false.
+ */
+async function corroborateSelfReport(
+  lat: number,
+  lng: number,
+): Promise<{ corroborated: boolean; details: Record<string, unknown> }> {
+  const details: Record<string, unknown> = {};
+  let weatherSevere = false;
+  let trafficSevere = false;
+
+  // Check weather at report location
+  const tomorrowKey = process.env.TOMORROW_IO_API_KEY?.trim();
+  if (tomorrowKey) {
+    try {
+      const weatherData = await fetchWithRetry<{
+        data?: { values?: { temperature?: number; precipitationIntensity?: number } };
+      }>(
+        `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`,
+        undefined,
+        { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+      );
+      const vals = weatherData.data?.values;
+      details.temperature = vals?.temperature;
+      details.precipitation = vals?.precipitationIntensity;
+      if (
+        (vals?.temperature != null && vals.temperature >= TRIGGERS.HEAT_THRESHOLD_C) ||
+        (vals?.precipitationIntensity != null && vals.precipitationIntensity >= TRIGGERS.RAIN_THRESHOLD_MM_H)
+      ) {
+        weatherSevere = true;
+      }
+    } catch { /* skip */ }
+  }
+
+  // Check traffic at report location
+  const tomtomKey = process.env.TOMTOM_API_KEY?.trim();
+  if (tomtomKey) {
+    try {
+      const trafficData = await fetchWithRetry<{
+        flowSegmentData?: { currentSpeed?: number; freeFlowSpeed?: number; roadClosure?: boolean };
+      }>(
+        `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key=${encodeURIComponent(tomtomKey)}&point=${lat},${lng}&unit=kmph`,
+        undefined,
+        { cacheTtlMs: EXTERNAL_APIS.CACHE_TRAFFIC_TTL_MS },
+      );
+      const seg = trafficData.flowSegmentData;
+      details.currentSpeed = seg?.currentSpeed;
+      details.freeFlowSpeed = seg?.freeFlowSpeed;
+      details.roadClosure = seg?.roadClosure;
+      if (seg?.roadClosure) {
+        trafficSevere = true;
+      } else if (
+        seg?.currentSpeed != null &&
+        seg?.freeFlowSpeed != null &&
+        seg.freeFlowSpeed > 0 &&
+        seg.currentSpeed / seg.freeFlowSpeed < TRIGGERS.TRAFFIC_CONGESTION_RATIO_THRESHOLD
+      ) {
+        trafficSevere = true;
+      }
+    } catch { /* skip */ }
+  }
+
+  details.weather_severe = weatherSevere;
+  details.traffic_severe = trafficSevere;
+
+  // Corroborated if at least one external source shows disruption,
+  // or if we couldn't reach any source (benefit of doubt)
+  const hasAnyData = details.temperature != null || details.currentSpeed != null;
+  const corroborated = !hasAnyData || weatherSevere || trafficSevere;
+  return { corroborated, details };
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -33,6 +110,21 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Use a mobile device for precise location when reporting delivery issues." },
       { status: 403 }
+    );
+  }
+
+  // Per-rider rate limit: max N self-reports per 24 hours
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: recentReportCount } = await supabase
+    .from("rider_delivery_reports")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", user.id)
+    .gte("created_at", twentyFourHoursAgo);
+
+  if ((recentReportCount ?? 0) >= FRAUD.SELF_REPORT_DAILY_LIMIT) {
+    return NextResponse.json(
+      { error: `Daily report limit reached (max ${FRAUD.SELF_REPORT_DAILY_LIMIT} reports per 24 hours).` },
+      { status: 429 }
     );
   }
 
@@ -198,6 +290,16 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
     }
   }
 
+  // Cross-check self-report against real weather/traffic data at report GPS
+  let corroborationResult: { corroborated: boolean; details: Record<string, unknown> } | null = null;
+  if (verified && zoneLat != null && zoneLng != null) {
+    corroborationResult = await corroborateSelfReport(zoneLat, zoneLng);
+    if (!corroborationResult.corroborated) {
+      verified = false;
+      verifyReason = "External data contradicts report: no severe weather or traffic at location.";
+    }
+  }
+
   let payout_created = false;
   let payout_initiated = false;
 
@@ -219,6 +321,19 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
       const plan = policy.plan_packages as { payout_per_claim_inr?: number; max_claims_per_week?: number } | null;
       const payoutAmount = plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : 400;
       const maxClaims = plan?.max_claims_per_week ?? 3;
+
+      // Fraud check: rapid claims detection (blocks if 5+ claims in 24h)
+      const rapidCheck = await checkRapidClaims(admin, policy.id);
+      if (rapidCheck.isFlagged) {
+        return NextResponse.json({
+          id: reportRow.id,
+          created_at: reportRow.created_at,
+          verified: true,
+          reason: "Report verified but claim blocked by fraud detection.",
+          payout_created: false,
+          payout_initiated: false,
+        });
+      }
 
       const { count: weekClaimCount } = await admin
         .from("parametric_claims")
@@ -258,12 +373,11 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
           if (!claimErr && claimRow) {
             payout_created = true;
             payout_initiated = true;
-            // Payout only after rider verifies location (see verify-location API)
             try {
               await admin.from("rider_notifications").insert({
                 profile_id: user.id,
                 title: "Report verified — verify location",
-                body: `Verify your location in the app to receive ₹${payoutAmount}.`,
+                body: `Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
                 type: "payout",
                 metadata: { claim_id: claimRow.id, amount_inr: payoutAmount, source: "self_report" },
               });
@@ -283,5 +397,6 @@ Rules: Set verified true ONLY if (1) the image shows a plausible real-world deli
     reason: verifyReason,
     payout_created,
     payout_initiated,
+    corroboration: corroborationResult ?? undefined,
   });
 }
