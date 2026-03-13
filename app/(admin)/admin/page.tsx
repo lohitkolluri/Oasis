@@ -9,6 +9,7 @@ import {
   Activity,
   BarChart2,
   ChevronRight,
+  CreditCard,
   FileCheck,
   ShieldAlert,
   TrendingUp,
@@ -79,6 +80,15 @@ export default async function AdminDashboardPage() {
       icon: FileCheck,
       alert: false,
       meta: `${activePoliciesCount}`,
+      accentColor: '#7dd3fc',
+    },
+    {
+      href: '/admin/payments',
+      label: 'Payments',
+      description: 'Stripe vs Oasis reconciliation',
+      icon: CreditCard,
+      alert: false,
+      meta: null,
       accentColor: '#7dd3fc',
     },
     {
