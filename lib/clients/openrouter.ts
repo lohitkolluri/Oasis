@@ -14,16 +14,25 @@ export async function callOpenRouterChat(payload: unknown): Promise<OpenRouterCh
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY not configured");
   }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  // App attribution headers are optional per OpenRouter docs; never break
+  // runtime if app URL is missing or misconfigured (e.g. in preview envs).
+  try {
+    const appUrl = getAppUrl();
+    headers["HTTP-Referer"] = appUrl;
+    headers["X-OpenRouter-Title"] = "Oasis – Parametric Income Protection";
+  } catch {
+    // Safe to ignore; attribution is nice-to-have only.
+  }
+
   return fetchWithRetry<OpenRouterChatResponse>("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      // Optional attribution headers per OpenRouter quickstart docs:
-      // https://openrouter.ai/docs/quickstart#using-the-openrouter-api-directly
-      "HTTP-Referer": getAppUrl(),
-      "X-OpenRouter-Title": "Oasis – Parametric Income Protection",
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 }
