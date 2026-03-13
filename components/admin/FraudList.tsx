@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, ShieldAlert, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
@@ -45,7 +44,7 @@ function ReviewButtons({
         onClick={() => handleAction('approved')}
         disabled={!!loading}
         title="Approve. Clear flag, count as valid payout"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 hover:bg-[#22c55e]/15 hover:border-[#22c55e]/30 transition-all disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 hover:bg-[#22c55e]/15 hover:border-[#22c55e]/30 transition-colors disabled:opacity-50"
       >
         {loading === 'approved' ? (
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -58,7 +57,7 @@ function ReviewButtons({
         onClick={() => handleAction('rejected')}
         disabled={!!loading}
         title="Reject. Keep flagged, mark as invalid"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20 hover:bg-[#ef4444]/15 hover:border-[#ef4444]/30 transition-all disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20 hover:bg-[#ef4444]/15 hover:border-[#ef4444]/30 transition-colors disabled:opacity-50"
       >
         {loading === 'rejected' ? (
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -80,9 +79,9 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
 
   if (!claims || claims.length === 0) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl px-5 py-14 text-center">
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-14 text-center">
         <ShieldAlert className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
-        <p className="text-sm text-[#666666]">No flagged claims. Queue is clear</p>
+        <p className="text-sm text-[#555]">No flagged claims. Queue is clear</p>
       </div>
     );
   }
@@ -93,15 +92,8 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
   return (
     <div className="space-y-4">
       {pending.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-[#161616]/80 backdrop-blur border border-[#f59e0b]/20 rounded-2xl overflow-hidden"
-          style={{
-            boxShadow: '0 0 20px rgba(255,255,255,0.03), 0 0 20px rgba(245, 158, 11, 0.06)',
-          }}
-        >
-          <div className="px-5 py-3.5 border-b border-[#2d2d2d] flex items-center gap-2">
+        <div className="bg-[#161616] border border-[#f59e0b]/20 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#2d2d2d] flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
             <p className="text-xs font-semibold text-[#f59e0b]">Pending Review</p>
             <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b]">
@@ -109,23 +101,20 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
             </span>
           </div>
           <div className="divide-y divide-[#2d2d2d]">
-            {pending.map((c, i) => (
-              <motion.div
+            {pending.map((c) => (
+              <div
                 key={c.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: Math.min(i * 0.05, 0.5) }}
-                className="px-5 py-4 flex items-start gap-4 hover:bg-[#1e1e1e] transition-colors"
+                className="px-5 py-3.5 flex items-start gap-4 hover:bg-[#1e1e1e] transition-colors"
               >
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-[10px] text-[#3a3a3a] tabular-nums bg-[#262626] px-2 py-0.5 rounded">
+                    <span className="font-mono text-[10px] text-[#444] tabular-nums bg-[#262626] px-2 py-0.5 rounded">
                       {c.id.slice(0, 8)}
                     </span>
                     <span className="text-sm font-bold text-white tabular-nums">
                       ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-[#666666]">
+                    <span className="text-[10px] text-[#555]">
                       {new Date(c.created_at).toLocaleString('en-IN', {
                         month: 'short',
                         day: 'numeric',
@@ -139,24 +128,19 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                   </p>
                 </div>
                 <ReviewButtons claimId={c.id} onReviewed={handleReviewed} />
-              </motion.div>
+              </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {reviewed.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.03)]"
-        >
-          <div className="px-5 py-3.5 border-b border-[#2d2d2d] flex items-center gap-2">
-            <p className="text-xs font-medium text-[#666666] uppercase tracking-[0.1em]">
+        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#2d2d2d] flex items-center gap-2">
+            <p className="text-xs font-medium text-[#555] uppercase tracking-[0.1em]">
               Reviewed
             </p>
-            <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#262626] text-[#666666]">
+            <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#262626] text-[#555]">
               {reviewed.length}
             </span>
           </div>
@@ -164,19 +148,19 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
             {reviewed.map((c) => (
               <div
                 key={c.id}
-                className="px-5 py-3.5 flex items-center gap-4 hover:bg-[#1e1e1e] transition-colors"
+                className="px-5 py-3 flex items-center gap-4 hover:bg-[#1e1e1e] transition-colors"
               >
-                <span className="font-mono text-[10px] text-[#3a3a3a] tabular-nums bg-[#262626] px-2 py-0.5 rounded">
+                <span className="font-mono text-[10px] text-[#444] tabular-nums bg-[#262626] px-2 py-0.5 rounded">
                   {c.id.slice(0, 8)}
                 </span>
-                <span className="text-xs text-[#666666] flex-1 truncate">
+                <span className="text-xs text-[#555] flex-1 truncate">
                   {c.flag_reason ?? 'Flagged'}
                 </span>
                 <span className="text-sm font-bold text-white tabular-nums">
                   ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
                 </span>
                 <span
-                  className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                     c.admin_review_status === 'approved'
                       ? 'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20'
                       : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20'
@@ -187,7 +171,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

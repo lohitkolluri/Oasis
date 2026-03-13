@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Activity, AlertCircle, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -98,7 +97,7 @@ export function SystemHealth() {
 
   if (loading) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl px-5 py-8 flex items-center justify-center">
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-8 flex items-center justify-center">
         <Loader2 className="h-4 w-4 animate-spin text-[#7dd3fc]" />
       </div>
     );
@@ -106,8 +105,8 @@ export function SystemHealth() {
 
   if (!data) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl px-5 py-8 text-center">
-        <p className="text-sm text-[#666666]">Unable to load health data</p>
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-8 text-center">
+        <p className="text-sm text-[#555]">Unable to load health data</p>
       </div>
     );
   }
@@ -115,27 +114,23 @@ export function SystemHealth() {
   const s = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.degraded;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.03)]"
-    >
+    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[#2d2d2d] flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+      <div className="px-5 py-3 border-b border-[#2d2d2d] flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-[#7dd3fc]" />
           <span className="text-sm font-semibold text-white">System Health</span>
         </div>
         <div className="flex items-center gap-3">
           <div
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${s.border} bg-transparent`}
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${s.border} bg-transparent`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${s.dot} shrink-0`} />
             <span className={`text-[10px] font-semibold ${s.text}`}>{s.label}</span>
           </div>
           <button
             onClick={() => load(true)}
-            className="text-[#666666] hover:text-white transition-colors"
+            className="text-[#555] hover:text-white transition-colors"
             title="Refresh"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -143,10 +138,10 @@ export function SystemHealth() {
         </div>
       </div>
 
-      <div className="p-5 space-y-5">
+      <div className="p-5 space-y-4">
         {/* Last run */}
         <div>
-          <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em] mb-2">
+          <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-2">
             Last Adjudicator Run
           </p>
           {data.lastAdjudicatorRun ? (
@@ -157,10 +152,10 @@ export function SystemHealth() {
                 </span>
                 {data.lastAdjudicatorRun.runId && (
                   <span
-                    className="text-[10px] font-mono text-[#666666] truncate max-w-[180px]"
+                    className="text-[10px] font-mono text-[#555] truncate max-w-[180px]"
                     title={data.lastAdjudicatorRun.runId}
                   >
-                    {data.lastAdjudicatorRun.runId.slice(0, 8)}…
+                    {data.lastAdjudicatorRun.runId.slice(0, 8)}...
                   </span>
                 )}
                 {data.lastAdjudicatorRun.severity === 'error' && (
@@ -170,13 +165,13 @@ export function SystemHealth() {
                 )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666666]">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666]">
                   {data.lastAdjudicatorRun.candidatesFound} events
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc]">
                   {data.lastAdjudicatorRun.claimsCreated} payouts
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666666]">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666]">
                   {data.lastAdjudicatorRun.durationMs}ms
                 </span>
                 {((data.lastAdjudicatorRun.payoutFailures ?? 0) > 0 ||
@@ -198,7 +193,7 @@ export function SystemHealth() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-[#666666]">No runs logged yet</p>
+            <p className="text-sm text-[#555]">No runs logged yet</p>
           )}
         </div>
 
@@ -214,7 +209,7 @@ export function SystemHealth() {
 
         {/* APIs */}
         <div>
-          <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em] mb-2.5">
+          <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-2">
             External APIs
           </p>
           <div className="space-y-2">
@@ -240,8 +235,8 @@ export function SystemHealth() {
 
         {/* Recent logs */}
         {data.recentLogs.length > 0 && (
-          <div className="border-t border-[#2d2d2d] pt-4">
-            <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em] mb-2.5">
+          <div className="border-t border-[#2d2d2d] pt-3">
+            <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-2">
               Recent Events
             </p>
             <div className="space-y-1.5">
@@ -252,18 +247,18 @@ export function SystemHealth() {
                   ) : log.severity === 'warning' ? (
                     <AlertCircle className="h-3 w-3 text-[#f59e0b] shrink-0" />
                   ) : (
-                    <CheckCircle className="h-3 w-3 text-[#666666] shrink-0" />
+                    <CheckCircle className="h-3 w-3 text-[#555] shrink-0" />
                   )}
-                  <span className="text-[#666666] flex-1 truncate">
+                  <span className="text-[#555] flex-1 truncate">
                     {log.event_type.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-[#3a3a3a] shrink-0">{timeAgo(log.created_at)}</span>
+                  <span className="text-[#444] shrink-0">{timeAgo(log.created_at)}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

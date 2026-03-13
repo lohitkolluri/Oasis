@@ -5,18 +5,7 @@ import { SystemHealth } from '@/components/admin/SystemHealth';
 import { KPICard } from '@/components/ui/KPICard';
 import { getNextWeekPrediction } from '@/lib/ml/next-week-risk';
 import { createAdminClient } from '@/lib/supabase/admin';
-import {
-  Activity,
-  BarChart2,
-  ChevronRight,
-  CreditCard,
-  FileCheck,
-  ShieldAlert,
-  TrendingUp,
-  Users,
-  Zap,
-} from 'lucide-react';
-import Link from 'next/link';
+import { TrendingUp } from 'lucide-react';
 
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
@@ -43,7 +32,6 @@ export default async function AdminDashboardPage() {
 
   const totalPremiums = policies?.reduce((sum, p) => sum + Number(p.weekly_premium_inr), 0) ?? 0;
   const totalPayouts = claims?.reduce((sum, c) => sum + Number(c.payout_amount_inr), 0) ?? 0;
-  const flaggedCount = claims?.filter((c) => c.is_flagged).length ?? 0;
   const lossRatio = totalPremiums > 0 ? ((totalPayouts / totalPremiums) * 100).toFixed(1) : '0';
   const activePoliciesCount = policies?.length ?? 0;
 
@@ -54,252 +42,115 @@ export default async function AdminDashboardPage() {
     high: 'text-[#ef4444]',
   };
 
-  const quickLinks = [
-    {
-      href: '/admin/analytics',
-      label: 'Analytics',
-      description: 'Charts · loss ratio · trends',
-      icon: BarChart2,
-      alert: false,
-      meta: null,
-      accentColor: '#7dd3fc',
-    },
-    {
-      href: '/admin/riders',
-      label: 'Riders',
-      description: 'Registered delivery partners',
-      icon: Users,
-      alert: false,
-      meta: `${ridersCount ?? 0}`,
-      accentColor: '#a78bfa',
-    },
-    {
-      href: '/admin/policies',
-      label: 'Policies',
-      description: 'Active weekly coverage',
-      icon: FileCheck,
-      alert: false,
-      meta: `${activePoliciesCount}`,
-      accentColor: '#7dd3fc',
-    },
-    {
-      href: '/admin/payments',
-      label: 'Payments',
-      description: 'Stripe vs Oasis reconciliation',
-      icon: CreditCard,
-      alert: false,
-      meta: null,
-      accentColor: '#7dd3fc',
-    },
-    {
-      href: '/admin/triggers',
-      label: 'Live Triggers',
-      description: 'Weather · traffic · social',
-      icon: Zap,
-      alert: false,
-      meta: null,
-      accentColor: '#a78bfa',
-    },
-    {
-      href: '/admin/fraud',
-      label: 'Fraud Queue',
-      description: 'Flagged claims for review',
-      icon: ShieldAlert,
-      alert: flaggedCount > 0,
-      meta: flaggedCount > 0 ? `${flaggedCount}` : null,
-      accentColor: flaggedCount > 0 ? '#ef4444' : '#7dd3fc',
-    },
-    {
-      href: '/admin/health',
-      label: 'System Health',
-      description: 'API status · run logs',
-      icon: Activity,
-      alert: false,
-      meta: null,
-      accentColor: '#22c55e',
-    },
-  ];
-
   return (
-    <div className="space-y-10 py-2">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">
-            Dashboard
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Overview</h1>
+          <p className="text-sm text-[#666] mt-1">
+            Platform analytics and operational controls
+            {reportsCount > 0 && (
+              <span className="ml-2 text-[#7dd3fc]">
+                {reportsCount} self-report{reportsCount !== 1 ? 's' : ''} in 24h
+              </span>
+            )}
           </p>
-          <h1 className="text-3xl font-semibold font-display tracking-tight text-white">
-            Overview
-          </h1>
-          <p className="text-sm text-[#666666] mt-1">Platform analytics and operational controls</p>
         </div>
-        {reportsCount > 0 && (
-          <span className="text-xs px-3 py-1.5 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20">
-            {reportsCount} self-report{reportsCount !== 1 ? 's' : ''} · 24h
-          </span>
-        )}
+        <RunAdjudicatorButton />
       </div>
 
       {/* KPI row */}
-      <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
-          Key Metrics
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Weekly Premiums"
-            label="Collected"
-            value={`₹${totalPremiums.toLocaleString('en-IN')}`}
-            accent="cyan"
-            index={0}
-          />
-          <KPICard
-            title="Active Riders"
-            label="Registered"
-            value={ridersCount ?? 0}
-            accent="violet"
-            index={1}
-          />
-          <KPICard
-            title="Policies Active"
-            label="This week"
-            value={activePoliciesCount}
-            accent="blue"
-            index={2}
-          />
-          <KPICard
-            title="Loss Ratio"
-            label={Number(lossRatio) > 80 ? 'Above threshold' : 'Within range'}
-            value={`${lossRatio}%`}
-            accent={Number(lossRatio) > 80 ? 'amber' : 'emerald'}
-            index={3}
-          />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard
+          title="Weekly Premiums"
+          label="Collected"
+          value={`₹${totalPremiums.toLocaleString('en-IN')}`}
+          accent="cyan"
+        />
+        <KPICard
+          title="Active Riders"
+          label="Registered"
+          value={ridersCount ?? 0}
+          accent="violet"
+        />
+        <KPICard
+          title="Policies Active"
+          label="This week"
+          value={activePoliciesCount}
+          accent="blue"
+        />
+        <KPICard
+          title="Loss Ratio"
+          label={Number(lossRatio) > 80 ? 'Above threshold' : 'Within range'}
+          value={`${lossRatio}%`}
+          accent={Number(lossRatio) > 80 ? 'amber' : 'emerald'}
+        />
+      </div>
+
+      {/* Operations + Sidebar */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <AdminInsights />
         </div>
-      </section>
-
-      {/* Adjudicator control */}
-      <RunAdjudicatorButton />
-
-      {/* Live feed */}
-      <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
-          Live Activity
-        </p>
-        <AdminLiveFeed />
-      </section>
-
-      {/* Operations brief */}
-      <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
-          Operations Brief
-        </p>
-        <div className="grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <AdminInsights />
-          </div>
-          <div className="space-y-4">
-            <div className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] transition-all">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-[#7dd3fc]/10 border border-[#7dd3fc]/20 flex items-center justify-center">
-                  <TrendingUp className="h-3.5 w-3.5 text-[#7dd3fc]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold font-display text-white">Next Week</p>
-                  <p className="text-[10px] text-[#666666]">
-                    {nextWeekPrediction.source === 'forecast'
-                      ? 'Tomorrow.io 5-day forecast'
-                      : 'Historical claim data'}
-                  </p>
-                </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+        <div className="space-y-4">
+          {/* Next Week Prediction */}
+          <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-[#7dd3fc]/10 border border-[#7dd3fc]/20 flex items-center justify-center">
+                <TrendingUp className="h-3.5 w-3.5 text-[#7dd3fc]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">Next Week</p>
+                <p className="text-[10px] text-[#555]">
+                  {nextWeekPrediction.source === 'forecast'
+                    ? 'Tomorrow.io 5-day forecast'
+                    : 'Historical claim data'}
+                </p>
+              </div>
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   nextWeekPrediction.riskLevel === 'high'
                     ? 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
                     : nextWeekPrediction.riskLevel === 'medium'
                       ? 'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20'
                       : 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20'
-                }`}>
-                  {nextWeekPrediction.riskLevel}
-                </span>
-              </div>
-              <p
-                className={`text-4xl font-bold font-display tabular-nums tracking-tight leading-none ${riskValueColor[nextWeekPrediction.riskLevel]}`}
+                }`}
               >
-                {nextWeekPrediction.expectedClaimsRange}
-              </p>
-              <p className="text-xs text-[#666666] mt-1.5">expected claims</p>
-              {nextWeekPrediction.aqiRisk && (
-                <p className="text-[10px] text-[#f59e0b] mt-2">{nextWeekPrediction.aqiRisk}</p>
-              )}
-              {nextWeekPrediction.details && (
-                <p className="text-xs text-[#666666] mt-4 leading-relaxed border-t border-[#2d2d2d] pt-4">
-                  {nextWeekPrediction.details}
-                </p>
-              )}
-              {nextWeekPrediction.zonesChecked != null && (
-                <p className="text-[10px] text-[#3a3a3a] mt-2">
-                  {nextWeekPrediction.zonesChecked} active zone{nextWeekPrediction.zonesChecked !== 1 ? 's' : ''} · {nextWeekPrediction.source === 'forecast' ? 'Tomorrow.io + Open-Meteo AQI' : '21-day rolling average'}
-                </p>
-              )}
+                {nextWeekPrediction.riskLevel}
+              </span>
             </div>
-
-            <SystemHealth />
+            <p
+              className={`text-4xl font-bold tabular-nums tracking-tight leading-none ${riskValueColor[nextWeekPrediction.riskLevel]}`}
+            >
+              {nextWeekPrediction.expectedClaimsRange}
+            </p>
+            <p className="text-xs text-[#666] mt-1.5">expected claims</p>
+            {nextWeekPrediction.aqiRisk && (
+              <p className="text-[10px] text-[#f59e0b] mt-2">{nextWeekPrediction.aqiRisk}</p>
+            )}
+            {nextWeekPrediction.details && (
+              <p className="text-xs text-[#666] mt-4 leading-relaxed border-t border-[#2d2d2d] pt-4">
+                {nextWeekPrediction.details}
+              </p>
+            )}
+            {nextWeekPrediction.zonesChecked != null && (
+              <p className="text-[10px] text-[#444] mt-2">
+                {nextWeekPrediction.zonesChecked} active zone
+                {nextWeekPrediction.zonesChecked !== 1 ? 's' : ''} ·{' '}
+                {nextWeekPrediction.source === 'forecast'
+                  ? 'Tomorrow.io + Open-Meteo AQI'
+                  : '21-day rolling average'}
+              </p>
+            )}
           </div>
-        </div>
-      </section>
 
-      {/* Quick links grid */}
-      <section>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
-          Sections
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {quickLinks.map(
-            ({ href, label, description, icon: Icon, alert, meta, accentColor }, i) => (
-              <Link
-                key={href}
-                href={href}
-                className="group bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] hover:shadow-[0_0_22px_rgba(125,211,252,0.1)] transition-all duration-200 flex flex-col gap-4"
-                style={{ animationDelay: `${i * 0.05}s` }}
-              >
-                <div className="flex items-start justify-between">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all"
-                    style={{
-                      background: alert ? 'rgba(239, 68, 68, 0.1)' : `${accentColor}14`,
-                      border: `1px solid ${alert ? 'rgba(239, 68, 68, 0.2)' : `${accentColor}28`}`,
-                    }}
-                  >
-                    <Icon
-                      className="h-4 w-4 transition-colors"
-                      style={{ color: alert ? '#ef4444' : accentColor }}
-                    />
-                  </div>
-                  {meta && (
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: alert ? 'rgba(239, 68, 68, 0.1)' : `${accentColor}14`,
-                        color: alert ? '#ef4444' : accentColor,
-                      }}
-                    >
-                      {meta}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <p
-                    className={`text-sm font-semibold ${alert ? 'text-[#ef4444]' : 'text-white'} group-hover:text-white transition-colors`}
-                  >
-                    {label}
-                  </p>
-                  <p className="text-xs text-[#666666] mt-0.5">{description}</p>
-                </div>
-                <ChevronRight className="h-3.5 w-3.5 text-[#3a3a3a] group-hover:text-[#666666] group-hover:translate-x-0.5 transition-all mt-auto self-end" />
-              </Link>
-            ),
-          )}
+          <SystemHealth />
         </div>
-      </section>
+      </div>
+
+      {/* Live Feed */}
+      <AdminLiveFeed />
     </div>
   );
 }

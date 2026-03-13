@@ -1,7 +1,6 @@
 import { DemoTriggerPanel } from '@/components/admin/DemoTriggerPanel';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { ArrowLeft, Clock, FileCheck, FlaskConical, Zap } from 'lucide-react';
-import Link from 'next/link';
+import { FileCheck, Zap } from 'lucide-react';
 
 export default async function AdminDemoPage() {
   const supabase = createAdminClient();
@@ -37,24 +36,10 @@ export default async function AdminDemoPage() {
     });
 
   return (
-    <div className="space-y-8 py-2">
-      <Link
-        href="/admin"
-        className="inline-flex items-center gap-2 text-sm text-[#666666] hover:text-white transition-colors group"
-      >
-        <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-        Back
-      </Link>
-
+    <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">Admin Console</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-white flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-[#a78bfa]/10 border border-[#a78bfa]/20 flex items-center justify-center">
-            <FlaskConical className="h-4 w-4 text-[#a78bfa]" />
-          </div>
-          Demo
-        </h1>
-        <p className="text-sm text-[#666666] mt-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Demo</h1>
+        <p className="text-sm text-[#666] mt-1">
           Trigger synthetic disruptions and manage demo runs for testing and recordings
         </p>
       </div>
@@ -63,18 +48,21 @@ export default async function AdminDemoPage() {
 
       {/* Recent demo runs */}
       <div>
-        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em] mb-4 flex items-center gap-2">
-          <Clock className="h-3.5 w-3.5" />
+        <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-3">
           Recent Demo Runs
         </p>
 
-        <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl overflow-hidden">
+        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
           {demoRuns && demoRuns.length > 0 ? (
             <>
-              {/* Header */}
-              <div className="px-5 py-3 border-b border-[#2d2d2d] grid grid-cols-[1fr_auto_auto_auto_auto] gap-4">
+              <div className="px-5 py-2.5 border-b border-[#2d2d2d] grid grid-cols-[1fr_auto_auto_auto_auto] gap-4">
                 {['Time', 'Candidates', 'Claims', 'Zones', 'Duration'].map((h) => (
-                  <span key={h} className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.1em]">{h}</span>
+                  <span
+                    key={h}
+                    className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em]"
+                  >
+                    {h}
+                  </span>
                 ))}
               </div>
               <div className="divide-y divide-[#2d2d2d]">
@@ -89,16 +77,22 @@ export default async function AdminDemoPage() {
                   return (
                     <div
                       key={run.id}
-                      className="px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-[#1e1e1e] transition-colors"
+                      className="px-5 py-3 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-[#1e1e1e] transition-colors"
                     >
-                      <span className="text-xs text-white whitespace-nowrap tabular-nums">{formatDate(run.created_at)}</span>
-                      <span className="text-xs text-[#9ca3af] text-center">{meta.candidates_found ?? '—'}</span>
+                      <span className="text-xs text-white whitespace-nowrap tabular-nums">
+                        {formatDate(run.created_at)}
+                      </span>
+                      <span className="text-xs text-[#9ca3af] text-center">
+                        {meta.candidates_found ?? '—'}
+                      </span>
                       <span className="inline-flex items-center gap-1.5 text-[#22c55e] text-xs">
                         <FileCheck className="h-3 w-3" />
                         {meta.claims_created ?? '—'}
                       </span>
-                      <span className="text-xs text-[#9ca3af] text-center">{meta.zones_checked ?? '—'}</span>
-                      <span className="text-xs text-[#666666] tabular-nums">
+                      <span className="text-xs text-[#9ca3af] text-center">
+                        {meta.zones_checked ?? '—'}
+                      </span>
+                      <span className="text-xs text-[#555] tabular-nums">
                         {meta.duration_ms != null ? `${meta.duration_ms}ms` : '—'}
                       </span>
                     </div>
@@ -109,8 +103,8 @@ export default async function AdminDemoPage() {
           ) : (
             <div className="py-14 px-4 text-center">
               <Zap className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
-              <p className="text-sm text-[#666666]">No demo runs yet</p>
-              <p className="text-xs text-[#3a3a3a] mt-1">Fire a demo above to see runs here</p>
+              <p className="text-sm text-[#555]">No demo runs yet</p>
+              <p className="text-xs text-[#444] mt-1">Fire a demo above to see runs here</p>
             </div>
           )}
         </div>

@@ -68,7 +68,7 @@ export function AdminSearch() {
         className="w-56 bg-[#1e1e1e] border border-[#2d2d2d] rounded-full pl-8 pr-5 py-2 text-sm text-white placeholder-[#666666] focus:outline-none focus:border-[#7dd3fc]/40 focus:shadow-[0_0_12px_rgba(125,211,252,0.1)] transition-all duration-200"
       />
       {focused && suggestions.length > 0 && (
-        <div className="absolute mt-1 w-64 bg-[#161616] border border-[#2d2d2d] rounded-2xl shadow-xl overflow-hidden z-20">
+        <div className="absolute mt-1 w-64 bg-[#161616] border border-[#2d2d2d] rounded-xl shadow-xl overflow-hidden z-20">
           <div className="px-3 py-2 border-b border-[#2d2d2d]">
             <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em]">
               Quick nav

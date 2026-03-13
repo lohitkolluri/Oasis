@@ -4,9 +4,8 @@ import { RoleSelector } from '@/components/admin/RoleSelector';
 import { Card } from '@/components/ui/Card';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reverseGeocode } from '@/lib/utils/geo';
-import { ArrowLeft, FileCheck, Inbox, MapPin, Phone, Shield, User } from 'lucide-react';
+import { FileCheck, Inbox, MapPin, Phone, Shield, User } from 'lucide-react';
 import { ZoneMapLazy } from '@/components/ui/ZoneMapLazy';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 const GOVERNMENT_IDS_BUCKET = 'government-ids';
@@ -81,15 +80,7 @@ export default async function AdminRiderDetailPage({
   });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <Link
-        href="/admin/riders"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to riders
-      </Link>
-
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header: rider identity + actions */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-6 border-b border-white/5">
         <div className="flex items-center gap-4 min-w-0">

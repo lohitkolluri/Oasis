@@ -1,6 +1,5 @@
+import { KPICard } from '@/components/ui/KPICard';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { ArrowLeft, CreditCard, RefreshCw } from 'lucide-react';
-import Link from 'next/link';
 
 type DbPayment = {
   id: string;
@@ -53,6 +52,8 @@ export default async function AdminPaymentsPage() {
     }
   }
 
+  const stripeIntentsAvailable = intentsById.size > 0;
+
   const rows =
     (payments as DbPayment[] | null)?.map((p) => {
       const intent = p.stripe_payment_intent_id
@@ -71,136 +72,192 @@ export default async function AdminPaymentsPage() {
       };
     }) ?? [];
 
-  return (
-    <div className="space-y-8 py-2">
-      <Link
-        href="/admin"
-        className="inline-flex items-center gap-2 text-sm text-[#666666] hover:text-white transition-colors group"
-      >
-        <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-        Back
-      </Link>
+  const totalCollected = rows.reduce((s, r) => s + Number(r.db.amount_inr), 0);
+  const withStripeIdCount = rows.filter((r) => !!r.db.stripe_payment_intent_id).length;
+  const paidCount = rows.filter((r) => r.db.status === 'paid').length;
 
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.15em] mb-1">
-            Admin Console
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
-            Payments & Reconciliation
-          </h1>
-          <p className="text-sm text-[#666666] mt-1">
-            Compare Oasis payment records with synced Stripe payment intents.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-[#666666]">
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Stripe data synced via Stripe Sync Engine</span>
-        </div>
+  const mismatchCount = stripeIntentsAvailable
+    ? rows.filter(
+        (r) =>
+          (r.db.stripe_payment_intent_id && !r.intent) ||
+          r.amountMatch === false ||
+          (r.intent && r.db.status === 'paid' && r.intent.status !== 'succeeded'),
+      ).length
+    : 0;
+
+  const reconciliationRate =
+    stripeIntentsAvailable && rows.length > 0
+      ? (((rows.length - mismatchCount) / rows.length) * 100).toFixed(1)
+      : null;
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Payment Logs</h1>
+        <p className="text-sm text-[#666] mt-1">
+          Recent premium payments recorded by Oasis
+          {stripeIntentsAvailable ? (
+            <span className="text-[#555]"> · Stripe intents available for reconciliation</span>
+          ) : (
+            <span className="text-[#555]">
+              {' '}
+              · Stripe intents not available (showing Oasis logs only)
+            </span>
+          )}
+        </p>
       </div>
 
-      <div className="rounded-2xl bg-[#161616] border border-[#2d2d2d] overflow-hidden">
-        <div className="px-5 py-3 flex items-center justify-between border-b border-[#2d2d2d]">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#7dd3fc]/10 border border-[#7dd3fc]/20 flex items-center justify-center">
-              <CreditCard className="h-3.5 w-3.5 text-[#7dd3fc]" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-white">Recent payments</p>
-              <p className="text-[10px] text-[#666666]">
-                Last {rows.length} payment_transactions with Stripe intents
-              </p>
-            </div>
-          </div>
+      {/* Summary KPIs */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <KPICard
+          title="Total Collected"
+          label={`Last ${rows.length} transactions`}
+          value={`₹${totalCollected.toLocaleString('en-IN')}`}
+          accent="cyan"
+        />
+        {stripeIntentsAvailable ? (
+          <>
+            <KPICard
+              title="Mismatches"
+              label="Amount or status"
+              value={mismatchCount}
+              accent={mismatchCount > 0 ? 'amber' : 'emerald'}
+            />
+            <KPICard
+              title="Reconciliation"
+              label="Match rate"
+              value={`${reconciliationRate ?? '—'}%`}
+              accent={reconciliationRate != null && Number(reconciliationRate) < 95 ? 'amber' : 'emerald'}
+            />
+          </>
+        ) : (
+          <>
+            <KPICard title="Paid" label="Count" value={paidCount} accent="emerald" />
+            <KPICard
+              title="With Stripe PI"
+              label="Recorded IDs"
+              value={withStripeIdCount}
+              accent={withStripeIdCount > 0 ? 'violet' : 'blue'}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Payments table */}
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-[#2d2d2d] flex items-center justify-between">
+          <p className="text-xs font-semibold text-white">
+            Recent payments
+            <span className="text-[#555] font-normal ml-2">Last {rows.length} transactions</span>
+          </p>
         </div>
 
         {rows.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-[#666666]">
+          <div className="px-5 py-10 text-center text-sm text-[#555]">
             No payment transactions found yet.
           </div>
         ) : (
-          <div className="divide-y divide-[#262626]">
-            {rows.map(({ db, intent, amountMatch }) => {
-              const statusMismatch =
-                intent && db.status === 'paid'
-                  ? intent.status !== 'succeeded'
-                  : false;
-
-              return (
-                <div
-                  key={db.id}
-                  className="px-5 py-3.5 flex items-start gap-3 text-xs text-[#9ca3af]"
+          <>
+            <div
+              className={`px-5 py-2.5 border-b border-[#2d2d2d] grid gap-4 ${
+                stripeIntentsAvailable
+                  ? 'grid-cols-[1.2fr_auto_auto_auto_auto]'
+                  : 'grid-cols-[1.2fr_auto_auto_auto]'
+              }`}
+            >
+              {(
+                stripeIntentsAvailable
+                  ? ['Status', 'Amount', 'Policy', 'Stripe', 'Date']
+                  : ['Status', 'Amount', 'Policy', 'Date']
+              ).map((h) => (
+                <span
+                  key={h}
+                  className={`text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] ${
+                    h === 'Status' ? '' : 'text-center'
+                  }`}
                 >
-                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-[#2d2d2d] bg-[#111111] text-[10px] text-[#9ca3af]">
-                          Oasis · {db.status}
-                        </span>
-                        {intent && (
-                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-[#2d2d2d] bg-[#050816] text-[10px] text-[#7dd3fc]">
-                            Stripe · {intent.status ?? 'unknown'}
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-mono text-[11px] text-[#9ca3af]">
-                        ₹{Number(db.amount_inr).toLocaleString('en-IN')}
+                  {h}
+                </span>
+              ))}
+            </div>
+            <div className="divide-y divide-[#262626]">
+              {rows.map(({ db, intent, amountMatch }) => {
+                const hasStripeId = !!db.stripe_payment_intent_id;
+                const statusMismatch =
+                  stripeIntentsAvailable && intent && db.status === 'paid'
+                    ? intent.status !== 'succeeded'
+                    : false;
+                const hasIssue =
+                  stripeIntentsAvailable &&
+                  (amountMatch === false || statusMismatch || (hasStripeId && !intent));
+
+                return (
+                  <div
+                    key={db.id}
+                    className={`px-5 py-3 grid gap-4 items-center text-xs hover:bg-[#1e1e1e] transition-colors ${
+                      stripeIntentsAvailable
+                        ? 'grid-cols-[1.2fr_auto_auto_auto_auto]'
+                        : 'grid-cols-[1.2fr_auto_auto_auto]'
+                    }`}
+                  >
+                    {/* Status badges */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 border border-[#2d2d2d] bg-[#111] text-[10px] text-[#9ca3af]">
+                        {db.status}
                       </span>
+                      {stripeIntentsAvailable && intent && (
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 border border-[#2d2d2d] bg-[#050816] text-[10px] text-[#7dd3fc]">
+                          {intent.status ?? 'unknown'}
+                        </span>
+                      )}
+                      {hasIssue && (
+                        <span className="text-[10px] text-[#f97316] bg-[#f97316]/10 border border-[#f97316]/30 rounded-full px-2 py-0.5">
+                          {amountMatch === false
+                            ? 'Amount mismatch'
+                            : statusMismatch
+                              ? 'Status mismatch'
+                              : 'No Stripe match'}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <span className="text-[10px] text-[#666666]">
-                        Policy:{' '}
-                        <span className="font-mono text-[#9ca3af]">
-                          {db.weekly_policy_id
-                            ? db.weekly_policy_id.slice(0, 8) + '…'
-                            : '—'}
-                        </span>
-                      </span>
-                      {db.stripe_payment_intent_id && (
-                        <span className="text-[10px] text-[#666666]">
-                          PI:{' '}
-                          <span className="font-mono text-[#9ca3af]">
-                            {db.stripe_payment_intent_id}
-                          </span>
-                        </span>
-                      )}
-                      {intent && (
-                        <span className="text-[10px] text-[#666666]">
-                          Stripe amount:{' '}
-                          <span className="font-mono text-[#9ca3af]">
-                            {intent.amount / 100}{' '}
-                            {(intent.currency ?? 'inr').toUpperCase()}
-                          </span>
-                        </span>
-                      )}
-                    </div>
+                    {/* Amount */}
+                    <span className="font-mono text-[11px] text-white tabular-nums whitespace-nowrap text-center">
+                      ₹{Number(db.amount_inr).toLocaleString('en-IN')}
+                    </span>
 
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      {amountMatch === false && (
-                        <span className="text-[10px] text-[#f97316] bg-[#f97316]/10 border border-[#f97316]/30 rounded-full px-2 py-0.5">
-                          Amount mismatch
-                        </span>
-                      )}
-                      {statusMismatch && (
-                        <span className="text-[10px] text-[#f97316] bg-[#f97316]/10 border border-[#f97316]/30 rounded-full px-2 py-0.5">
-                          Paid in Oasis, not succeeded in Stripe
-                        </span>
-                      )}
-                      {!intent && (
-                        <span className="text-[10px] text-[#facc15] bg-[#facc15]/10 border border-[#facc15]/30 rounded-full px-2 py-0.5">
-                          No matching Stripe payment_intent
-                        </span>
-                      )}
-                    </div>
+                    {/* Policy ID */}
+                    <span className="text-[10px] text-[#555] font-mono whitespace-nowrap text-center">
+                      {db.weekly_policy_id ? db.weekly_policy_id.slice(0, 8) + '...' : '—'}
+                    </span>
+
+                    {stripeIntentsAvailable && (
+                      <span className="text-[10px] text-[#555] font-mono whitespace-nowrap text-center">
+                        {db.stripe_payment_intent_id
+                          ? db.stripe_payment_intent_id.slice(0, 12) + '...'
+                          : '—'}
+                      </span>
+                    )}
+
+                    {/* Date */}
+                    <span className="text-[10px] text-[#555] whitespace-nowrap tabular-nums text-center">
+                      {formatDate(db.created_at)}
+                    </span>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
-

@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { BarChart2, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -95,8 +94,8 @@ export function AnalyticsCharts() {
 
   if (error || !data) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-2xl px-5 py-10 text-center">
-        <p className="text-sm text-[#666666]">{error ?? 'No data available'}</p>
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-10 text-center">
+        <p className="text-sm text-[#555]">{error ?? 'No data available'}</p>
       </div>
     );
   }
@@ -153,32 +152,24 @@ export function AnalyticsCharts() {
             accent: summary.lossRatio > 80 ? 'bg-[#f59e0b]/10 text-[#f59e0b]' : 'bg-[#22c55e]/10 text-[#22c55e]',
             delay: 0.15,
           },
-        ].map((s, i) => (
-          <motion.div
+        ].map((s) => (
+          <div
             key={s.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: s.delay }}
-            className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-4 py-4 hover:border-[#3a3a3a] transition-colors"
+            className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-4 py-4"
           >
-            <p className="text-[10px] font-semibold text-[#666666] uppercase tracking-widest mb-2">
+            <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest mb-2">
               {s.label}
             </p>
             <p className={`text-xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
             <span className={`inline-block mt-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full ${s.accent}`}>
               {s.sub}
             </span>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Claims over time */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
-        className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] transition-all"
-      >
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
         <div className="flex items-center gap-2.5 mb-5">
           <TrendingUp className="h-4 w-4 text-[#7dd3fc]" />
           <p className="text-sm font-semibold text-white">Claims & Payouts</p>
@@ -263,17 +254,12 @@ export function AnalyticsCharts() {
             <span className="text-[10px] text-[#666666]">Claims</span>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Loss ratio + trigger breakdown */}
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Loss ratio */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
-          className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] transition-all"
-        >
+        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
           <div className="flex items-center gap-2.5 mb-5">
             {summary.lossRatio > 80 ? (
               <TrendingUp className="h-4 w-4 text-[#f59e0b]" />
@@ -326,16 +312,11 @@ export function AnalyticsCharts() {
               </BarChart>
             </ResponsiveContainer>
           )}
-          <p className="text-[10px] text-[#3a3a3a] mt-2">Dashed line = 80% threshold</p>
-        </motion.div>
+          <p className="text-[10px] text-[#444] mt-2">Dashed line = 80% threshold</p>
+        </div>
 
         {/* Trigger breakdown */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] transition-all"
-        >
+        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
           <div className="flex items-center gap-2.5 mb-5">
             <BarChart2 className="h-4 w-4 text-[#666666]" />
             <p className="text-sm font-semibold text-white">Trigger Breakdown</p>
@@ -411,7 +392,7 @@ export function AnalyticsCharts() {
               )}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     </div>
   );
