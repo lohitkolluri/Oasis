@@ -12,6 +12,7 @@
 - AI assistant is named "Lumo", not "AI Intelligence"
 - Mobile UX: top-center toasts, 44-48px minimum touch targets, 16px minimum font on inputs to prevent iOS auto-zoom
 - Actionable metrics over vague AI summaries; disable buttons until fully validated; icon buttons over text links
+- Avoid mock or synthetic data in the product UI; prefer honest empty states over fake metrics or placeholders
 
 ## Learned Workspace Facts
 

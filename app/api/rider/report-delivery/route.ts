@@ -286,6 +286,7 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
       });
 
       if (res.ok) {
+        llmAvailable = true;
         const data = (await res.json()) as {
           choices?: Array<{ message?: { content?: string } }>;
         };
@@ -294,16 +295,26 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
         if (match) {
           try {
             const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
-            llmAvailable = true;
             verified = parsed.verified === true;
             verifyReason = parsed.reason ?? "";
           } catch (parseErr) {
             console.error("LLM verify JSON parse error:", parseErr, "content:", content);
+            verifyReason =
+              "Verification model returned an unexpected response. Please try again with a clearer photo.";
           }
+        } else {
+          console.error("LLM verify: no JSON object in content", content);
+          verifyReason =
+            "Verification model did not return a structured decision. Please try again with a clearer photo.";
         }
+      } else {
+        const errorText = await res.text().catch(() => "");
+        console.error("LLM verify HTTP error:", res.status, errorText.slice(0, 400));
+        verifyReason = "Verification provider returned an error. Please try again later.";
       }
     } catch (e) {
       console.error("LLM verify error:", e);
+      verifyReason = "Verification request failed. Please check your connection and try again.";
     }
   }
 

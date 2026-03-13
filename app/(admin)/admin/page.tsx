@@ -50,11 +50,6 @@ export default async function AdminDashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-white">Overview</h1>
           <p className="text-sm text-[#666] mt-1">
             Platform analytics and operational controls
-            {reportsCount > 0 && (
-              <span className="ml-2 text-[#7dd3fc]">
-                {reportsCount} self-report{reportsCount !== 1 ? 's' : ''} in 24h
-              </span>
-            )}
           </p>
         </div>
         <RunAdjudicatorButton />
