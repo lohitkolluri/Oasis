@@ -8,14 +8,14 @@ import {
   runAllFraudChecks,
   runExtendedFraudChecks,
 } from '@/lib/fraud/detector';
-import { currentWeekMonday, isWithinCircle } from '@/lib/utils/geo';
+import { isWithinCircle } from '@/lib/utils/geo';
 import type {
   ProcessTriggerResult,
   SupabaseAdmin,
   TriggerCandidate,
 } from '@/lib/adjudicator/types';
 import { addDays, toDateString } from '@/lib/utils/date';
-import { simulatePayout } from '@/lib/adjudicator/payouts';
+import { createClaimFromTrigger, getWeeklyClaimCounts } from '@/lib/claims/engine';
 
 export interface ProcessClaimsOptions {
   /** When set (demo), only this profile gets the claim/payout; zone check is skipped for them. */
@@ -80,21 +80,8 @@ export async function processClaimsForEvent(
     ]),
   );
 
-  const weekStart = currentWeekMonday().toISOString();
   const policyIds = policies.map((p) => p.id);
-  const { data: existingClaims } = await supabase
-    .from('parametric_claims')
-    .select('policy_id')
-    .in('policy_id', policyIds)
-    .gte('created_at', weekStart);
-
-  const claimCountMap = new Map<string, number>();
-  for (const c of existingClaims ?? []) {
-    claimCountMap.set(
-      c.policy_id,
-      (claimCountMap.get(c.policy_id) ?? 0) + 1,
-    );
-  }
+  const claimCountMap = await getWeeklyClaimCounts(supabase, policyIds);
 
   const preloadedFraud = await preloadFraudData(
     supabase,
@@ -128,8 +115,8 @@ export async function processClaimsForEvent(
               ? 'Traffic gridlock'
               : 'Disruption';
 
-  for (const policy of policies) {
-    const plan = policy.plan_packages as {
+  for (const policyRow of policies) {
+    const plan = policyRow.plan_packages as {
       payout_per_claim_inr?: number;
       max_claims_per_week?: number;
     } | null;
@@ -139,7 +126,7 @@ export async function processClaimsForEvent(
         : PAYOUT_FALLBACK_INR;
     const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
-    const profile = profileMap.get(policy.profile_id);
+    const profile = profileMap.get(policyRow.profile_id);
     if (!restrictToProfileId && profile?.lat != null && profile?.lng != null) {
       if (
         !isWithinCircle(
@@ -154,62 +141,54 @@ export async function processClaimsForEvent(
       }
     }
 
-    const weekClaimCount = claimCountMap.get(policy.id) ?? 0;
-    if (weekClaimCount >= maxClaimsPerWeek) continue;
-
     if (profile?.phone && paidPhones.has(profile.phone)) continue;
 
     const { isFlagged } = await runAllFraudChecks(
       supabase,
-      policy.id,
+      policyRow.id,
       eventId,
       candidate.type === 'weather' ? candidate.raw : undefined,
       preloadedFraud,
     );
     if (isFlagged) continue;
 
-    const { data: claimData, error: claimErr } = await supabase
-      .from('parametric_claims')
-      .insert({
-        policy_id: policy.id,
-        disruption_event_id: eventId,
-        payout_amount_inr: payoutAmount,
-        status: 'pending_verification',
-        is_flagged: false,
-      })
-      .select('id')
-      .single();
+    const policy = {
+      id: policyRow.id,
+      profile_id: policyRow.profile_id,
+      plan_id: policyRow.plan_id,
+      plan_packages: plan,
+    };
 
-    if (!claimErr && claimData) {
+    const created = await createClaimFromTrigger({
+      supabase,
+      policy,
+      disruptionEventId: eventId,
+      payoutAmountInr: payoutAmount,
+      maxClaimsPerWeek,
+      preExistingWeekCounts: claimCountMap,
+      phoneNumber: profile?.phone ?? null,
+      isDemo,
+    });
+
+    if (created?.skippedReason) {
+      continue;
+    }
+
+    if (created?.claim) {
       claimsCreated++;
       if (profile?.phone) paidPhones.add(profile.phone);
       await runExtendedFraudChecks(
         supabase,
-        claimData.id,
+        created.claim.id,
         eventId,
         undefined,
         policy.profile_id,
       );
-
-      if (isDemo) {
-        const payoutOk = await simulatePayout(
-          supabase,
-          claimData.id,
-          policy.profile_id,
-          payoutAmount,
-        );
-        if (payoutOk) {
-          payoutsInitiated++;
-          await supabase
-            .from('parametric_claims')
-            .update({
-              status: 'paid',
-              gateway_transaction_id: `oasis_demo_${Date.now()}_${claimData.id.slice(0, 8)}`,
-            })
-            .eq('id', claimData.id);
-        } else {
-          payoutFailures++;
-        }
+      if (created.payoutInitiated) {
+        payoutsInitiated++;
+      }
+      if (created.payoutFailed) {
+        payoutFailures++;
       }
 
       pendingNotifications.push({
@@ -221,7 +200,7 @@ export async function processClaimsForEvent(
           ? `${eventLabel} (demo). Payout recorded to your wallet.`
           : `${eventLabel} in your zone. Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
         type: 'payout',
-        metadata: { claim_id: claimData.id, amount_inr: payoutAmount, subtype: candidate.subtype },
+        metadata: { claim_id: created?.claim.id, amount_inr: payoutAmount, subtype: candidate.subtype },
       });
 
       if (!isDemo) {
@@ -236,7 +215,7 @@ export async function processClaimsForEvent(
             body: reminder.body,
             type: 'reminder',
             metadata: {
-              claim_id: claimData.id,
+              claim_id: created?.claim.id,
               amount_inr: payoutAmount,
               scheduled_for: new Date(Date.now() + reminder.hours * 60 * 60 * 1000).toISOString(),
               reminder_hours: reminder.hours,

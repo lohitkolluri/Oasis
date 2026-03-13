@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { getFacePhotoEncryptionKey, getGovIdEncryptionKey, getOpenRouterApiKey } from '@/lib/config/env';
 
 const BUCKET = 'face-photos';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -26,7 +27,7 @@ const GESTURES = [
 ] as const;
 
 export async function GET() {
-  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+  const openRouterKey = getOpenRouterApiKey();
   if (!openRouterKey) {
     return NextResponse.json(
       { error: 'Face verification unavailable. Set OPENROUTER_API_KEY.' },
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+  const openRouterKey = getOpenRouterApiKey();
   if (!openRouterKey) {
     return NextResponse.json(
       { error: 'Face verification unavailable. Set OPENROUTER_API_KEY.' },
@@ -103,8 +104,8 @@ export async function POST(request: Request) {
   const path = `${user.id}/face-verification.${ext}`;
 
   const encKeyBase64 =
-    process.env.FACE_PHOTO_ENCRYPTION_KEY?.trim() ||
-    process.env.GOV_ID_ENCRYPTION_KEY?.trim();
+    getFacePhotoEncryptionKey() ||
+    getGovIdEncryptionKey();
 
   if (process.env.NODE_ENV === 'production' && !encKeyBase64) {
     return NextResponse.json(

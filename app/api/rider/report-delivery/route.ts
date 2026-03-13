@@ -13,6 +13,8 @@ import { toDateString } from "@/lib/utils/date";
 import { DEFAULT_ZONE, EXTERNAL_APIS, FRAUD, PAYOUT_FALLBACK_INR, TRIGGERS } from "@/lib/config/constants";
 import { checkRapidClaims } from "@/lib/fraud/detector";
 import { fetchWithRetry } from "@/lib/utils/retry";
+import { getOpenRouterApiKey, getTomorrowApiKey, getTomTomApiKey } from "@/lib/config/env";
+import { createClaimFromTrigger } from "@/lib/claims/engine";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,7 @@ async function corroborateSelfReport(
   let trafficSevere = false;
 
   // Check weather at report location
-  const tomorrowKey = process.env.TOMORROW_IO_API_KEY?.trim();
+  const tomorrowKey = getTomorrowApiKey();
   if (tomorrowKey) {
     try {
       const weatherData = await fetchWithRetry<{
@@ -58,7 +60,7 @@ async function corroborateSelfReport(
   }
 
   // Check traffic at report location
-  const tomtomKey = process.env.TOMTOM_API_KEY?.trim();
+  const tomtomKey = getTomTomApiKey();
   if (tomtomKey) {
     try {
       const trafficData = await fetchWithRetry<{
@@ -240,7 +242,7 @@ export async function POST(request: Request) {
   }
 
   // LLM verification: genuine disruption + live photo (no screenshot/upload)
-  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+  const openRouterKey = getOpenRouterApiKey();
   let verified = false;
   let verifyReason = "";
   let llmAvailable = false;
@@ -326,7 +328,9 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
     }
   }
 
-  let payout_created = false;
+  let claim_created = false;
+  let claim_accepted = false;
+  let fraud_blocked = false;
   let payout_initiated = false;
 
   if (verified) {
@@ -334,7 +338,7 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
     const weekStart = currentWeekMonday().toISOString();
 
     // Get rider's active policy for current week
-    const { data: policy } = await admin
+    const { data: policyRow } = await admin
       .from("weekly_policies")
       .select("id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)")
       .eq("profile_id", user.id)
@@ -343,20 +347,23 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
       .gte("week_end_date", today)
       .single();
 
-    if (policy) {
-      const plan = policy.plan_packages as { payout_per_claim_inr?: number; max_claims_per_week?: number } | null;
+    if (policyRow) {
+      const plan = (policyRow.plan_packages as { payout_per_claim_inr?: number; max_claims_per_week?: number } | null);
       const payoutAmount = plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : PAYOUT_FALLBACK_INR;
       const maxClaims = plan?.max_claims_per_week ?? 3;
 
       // Fraud check: rapid claims detection (blocks if 5+ claims in 24h)
-      const rapidCheck = await checkRapidClaims(admin, policy.id);
+      const rapidCheck = await checkRapidClaims(admin, policyRow.id);
       if (rapidCheck.isFlagged) {
+        fraud_blocked = true;
         return NextResponse.json({
           id: reportRow.id,
           created_at: reportRow.created_at,
-          verified: true,
+          verified,
           reason: "Report verified but claim blocked by fraud detection.",
-          payout_created: false,
+          claim_created: false,
+          claim_accepted: false,
+          fraud_blocked: true,
           payout_initiated: false,
         });
       }
@@ -364,7 +371,7 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
       const { count: weekClaimCount } = await admin
         .from("parametric_claims")
         .select("id", { count: "exact", head: true })
-        .eq("policy_id", policy.id)
+        .eq("policy_id", policyRow.id)
         .gte("created_at", weekStart);
 
       if ((weekClaimCount ?? 0) < maxClaims) {
@@ -384,28 +391,32 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
           .single();
 
         if (eventRow?.id) {
-          const { data: claimRow, error: claimErr } = await admin
-            .from("parametric_claims")
-            .insert({
-              policy_id: policy.id,
-              disruption_event_id: eventRow.id,
-              payout_amount_inr: payoutAmount,
-              status: "pending_verification",
-              is_flagged: false,
-            })
-            .select("id")
-            .single();
+          const policy = {
+            id: policyRow.id,
+            profile_id: policyRow.profile_id,
+            plan_id: policyRow.plan_id,
+            plan_packages: plan,
+          };
+          const created = await createClaimFromTrigger({
+            supabase: admin,
+            policy,
+            disruptionEventId: eventRow.id,
+            payoutAmountInr: payoutAmount,
+            maxClaimsPerWeek: maxClaims,
+            phoneNumber: null,
+            isDemo: false,
+          });
 
-          if (!claimErr && claimRow) {
-            payout_created = true;
-            payout_initiated = true;
+          if (created?.claim && !created.skippedReason) {
+            claim_created = true;
+            claim_accepted = true;
             try {
               await admin.from("rider_notifications").insert({
                 profile_id: user.id,
                 title: "Report verified — verify location",
                 body: `Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
                 type: "payout",
-                metadata: { claim_id: claimRow.id, amount_inr: payoutAmount, source: "self_report" },
+                metadata: { claim_id: created.claim.id, amount_inr: payoutAmount, source: "self_report" },
               });
             } catch {
               // optional
@@ -421,7 +432,9 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
     created_at: reportRow.created_at,
     verified,
     reason: verifyReason,
-    payout_created,
+    claim_created,
+    claim_accepted,
+    fraud_blocked,
     payout_initiated,
     corroboration: corroborationResult ?? undefined,
   });

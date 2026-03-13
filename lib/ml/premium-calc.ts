@@ -12,6 +12,7 @@
 import { DEFAULT_ZONE, EXTERNAL_APIS, PREMIUM } from '@/lib/config/constants';
 import { isWithinCircle } from '@/lib/utils/geo';
 import { fetchWithRetry } from '@/lib/utils/retry';
+import { getOpenRouterApiKey, getTomorrowApiKey } from '@/lib/config/env';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -96,7 +97,7 @@ export function calculateWeeklyPremium(input: PremiumInput): number {
 export async function calculatePremiumWithLlm(
   input: PremiumInput,
 ): Promise<{ premium: number; reasoning: string; source: 'llm' | 'formula' }> {
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const openRouterKey = getOpenRouterApiKey();
 
   if (!openRouterKey) {
     return {
@@ -278,9 +279,10 @@ export async function getForecastRiskFactor(
   lng: number,
 ): Promise<number> {
   const key = process.env.TOMORROW_IO_API_KEY;
+  const apiKey = getTomorrowApiKey();
   let weatherRisk = 0;
 
-  if (key) {
+  if (apiKey) {
     try {
       const data = await fetchWithRetry<{
         timelines?: {
@@ -292,7 +294,7 @@ export async function getForecastRiskFactor(
           }>;
         };
       }>(
-        `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${key}`,
+        `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${apiKey}`,
         undefined,
         { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
       );

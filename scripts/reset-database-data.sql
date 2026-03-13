@@ -55,6 +55,9 @@ TRUNCATE TABLE stripe_webhook_events CASCADE;
 TRUNCATE TABLE rate_limit_entries CASCADE;
 TRUNCATE TABLE system_logs CASCADE;
 
+-- ─── Supabase storage: remove all files (keeps buckets) ────────
+TRUNCATE TABLE storage.objects CASCADE;
+
 -- ─── app_config: clear and re-seed defaults so cron jobs still have placeholders
 TRUNCATE TABLE app_config CASCADE;
 INSERT INTO app_config (key, value)

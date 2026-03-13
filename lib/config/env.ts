@@ -58,6 +58,35 @@ export function getStripeWebhookSecret(): string | null {
   return optional('STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET);
 }
 
+/** Stripe secret key for creating Checkout Sessions and payouts (server-only). */
+export function getStripeSecretKey(): string {
+  return required('STRIPE_SECRET_KEY', process.env.STRIPE_SECRET_KEY);
+}
+
+/** OpenRouter API key for LLM and vision models (server-only). */
+export function getOpenRouterApiKey(): string | null {
+  return optional('OPENROUTER_API_KEY', process.env.OPENROUTER_API_KEY);
+}
+
+/** Tomorrow.io API key for weather and forecast data. */
+export function getTomorrowApiKey(): string | null {
+  return optional('TOMORROW_IO_API_KEY', process.env.TOMORROW_IO_API_KEY);
+}
+
+/** TomTom API key for traffic data. */
+export function getTomTomApiKey(): string | null {
+  return optional('TOMTOM_API_KEY', process.env.TOMTOM_API_KEY);
+}
+
+/** Optional encryption keys for KYC media. Must be 32-byte base64 in production. */
+export function getFacePhotoEncryptionKey(): string | null {
+  return optional('FACE_PHOTO_ENCRYPTION_KEY', process.env.FACE_PHOTO_ENCRYPTION_KEY);
+}
+
+export function getGovIdEncryptionKey(): string | null {
+  return optional('GOV_ID_ENCRYPTION_KEY', process.env.GOV_ID_ENCRYPTION_KEY);
+}
+
 /**
  * Canonical app URL (e.g. for Stripe redirects, emails).
  * In production this is required; in development defaults to http://localhost:3000.

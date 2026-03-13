@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { getGovIdEncryptionKey, getOpenRouterApiKey } from '@/lib/config/env';
 
 const BUCKET = 'government-ids';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
   try {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    const encKeyBase64 = process.env.GOV_ID_ENCRYPTION_KEY?.trim();
+    const encKeyBase64 = getGovIdEncryptionKey();
 
     if (process.env.NODE_ENV === 'production' && !encKeyBase64) {
       return NextResponse.json(
@@ -207,7 +208,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to upload government ID' }, { status: 500 });
   }
 
-  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+  const openRouterKey = getOpenRouterApiKey();
   let verification: VerificationResult = {
     verified: false,
     reason: openRouterKey

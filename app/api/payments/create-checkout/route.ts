@@ -4,14 +4,14 @@
  * Creates a Stripe Checkout Session for weekly policy payment.
  */
 import { RATE_LIMITS } from '@/lib/config/constants';
-import { getAppUrl } from '@/lib/config/env';
+import { getAppUrl, getStripeSecretKey } from '@/lib/config/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { createCheckoutSession } from '@/lib/clients/stripe';
 
 export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'payment-create');
@@ -19,17 +19,6 @@ export async function POST(request: Request) {
     maxRequests: RATE_LIMITS.PAYMENTS_PER_MINUTE,
   });
   if (rateLimited) return rateLimited;
-
-  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!stripeSecret) {
-    return NextResponse.json(
-      {
-        error:
-          'Stripe not configured. Add STRIPE_SECRET_KEY (sk_test_... from Stripe Dashboard) to use Stripe Checkout.',
-      },
-      { status: 503 },
-    );
-  }
 
   const supabase = await createClient();
   const {
@@ -121,10 +110,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: msg }, { status: 503 });
     }
 
-    const stripe = new Stripe(stripeSecret!);
     const amountPaise = Math.round(amountInr * 100); // Stripe uses smallest currency unit for INR
 
-    const session = await stripe.checkout.sessions.create({
+    // Ensure secret is present and valid; throws in production if missing.
+    getStripeSecretKey();
+
+    const session = await createCheckoutSession({
       mode: 'payment',
       payment_method_types: ['card'],
       currency: 'inr',

@@ -1,4 +1,5 @@
 import { AdminRiderActions } from '@/components/admin/AdminRiderActions';
+import { ClaimReviewButtons } from '@/components/admin/ClaimReviewButtons';
 import { RiderGovernmentIdAvatar } from '@/components/admin/RiderGovernmentIdAvatar';
 import { RoleSelector } from '@/components/admin/RoleSelector';
 import { Card } from '@/components/ui/Card';
@@ -48,7 +49,7 @@ export default async function AdminRiderDetailPage({
     policyIds.length > 0
       ? supabase
           .from('parametric_claims')
-          .select('id, payout_amount_inr, status, is_flagged, flag_reason, created_at')
+          .select('id, payout_amount_inr, status, is_flagged, flag_reason, created_at, admin_review_status')
           .in('policy_id', policyIds)
           .order('created_at', { ascending: false })
           .limit(20)
@@ -229,16 +230,30 @@ export default async function AdminRiderDetailPage({
             {claims.map((c) => (
               <li
                 key={c.id}
-                className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 text-sm"
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3 first:pt-0 text-sm"
               >
-                <span className="font-mono text-zinc-500 text-xs">{c.id.slice(0, 8)}…</span>
-                <span className="font-medium text-uber-green tabular-nums">
-                  +₹{Number(c.payout_amount_inr).toLocaleString()}
-                </span>
-                <span className="text-zinc-500 text-xs">
-                  {new Date(c.created_at).toLocaleDateString('en-IN')}
-                </span>
-                {c.is_flagged && <span className="text-[11px] text-uber-yellow">Flagged</span>}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="font-mono text-zinc-500 text-xs">{c.id.slice(0, 8)}…</span>
+                  <span className="font-medium text-uber-green tabular-nums">
+                    +₹{Number(c.payout_amount_inr).toLocaleString()}
+                  </span>
+                  <span className="text-zinc-500 text-xs">
+                    {new Date(c.created_at).toLocaleDateString('en-IN')}
+                  </span>
+                  {c.status === 'paid' ? (
+                    <span className="text-[11px] text-uber-green">Paid</span>
+                  ) : (
+                    <span className="text-[11px] text-zinc-500">{c.status}</span>
+                  )}
+                  {c.is_flagged && <span className="text-[11px] text-uber-yellow">Flagged</span>}
+                  {(c as { admin_review_status?: string | null }).admin_review_status && (
+                    <span className="text-[11px] text-zinc-400">
+                      Reviewed: {(c as { admin_review_status?: string | null }).admin_review_status}
+                    </span>
+                  )}
+                </div>
+
+                <ClaimReviewButtons claimId={c.id} />
               </li>
             ))}
           </ul>

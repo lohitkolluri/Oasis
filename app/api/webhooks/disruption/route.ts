@@ -2,7 +2,7 @@
 
 import { getWebhookSecret } from '@/lib/config/env';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { processSingleTrigger, type TriggerCandidate } from '@/lib/adjudicator/run';
+import { processSingleTrigger, type TriggerCandidate } from '@/lib/adjudicator/core';
 import { disruptionWebhookSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { NextResponse } from 'next/server';

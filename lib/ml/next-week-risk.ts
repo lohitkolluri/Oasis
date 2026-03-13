@@ -6,6 +6,7 @@
 
 import { DEFAULT_ZONE, EXTERNAL_APIS } from '@/lib/config/constants';
 import { fetchWithRetry } from '@/lib/utils/retry';
+import { getTomorrowApiKey } from '@/lib/config/env';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface NextWeekPrediction {
@@ -22,7 +23,7 @@ export async function getNextWeekPrediction(
   zoneLat?: number | null,
   zoneLng?: number | null,
 ): Promise<NextWeekPrediction> {
-  const tomorrowKey = process.env.TOMORROW_IO_API_KEY;
+  const tomorrowKey = getTomorrowApiKey();
 
   if (tomorrowKey) {
     try {

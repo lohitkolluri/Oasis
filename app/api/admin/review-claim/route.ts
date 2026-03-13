@@ -4,7 +4,6 @@
  */
 
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { withAdminAuth } from "@/lib/utils/admin-guard";
 import { reviewClaimSchema } from "@/lib/validations/schemas";
 import { parseWithSchema } from "@/lib/validations/parse";
@@ -23,7 +22,7 @@ export const POST = withAdminAuth(async (ctx, request) => {
   if (!parsed.success) return parsed.response;
   const { claimId, action } = parsed.data;
 
-    const admin = createAdminClient();
+    const admin = ctx.supabase;
     const updatePayload: Record<string, unknown> = {
       admin_review_status: action,
       reviewed_by: ctx.user.email ?? ctx.user.id,
