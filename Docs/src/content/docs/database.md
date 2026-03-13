@@ -3,11 +3,36 @@ title: Database Schema
 description: All tables, RLS, relationships
 ---
 
-Supabase PostgreSQL with Row Level Security (RLS) on every table. Business logic uses the four Supabase client factories in `lib/supabase/`.
+Oasis stores its data in **Supabase PostgreSQL** with Row Level Security (RLS) on every table, so **each rider only sees their own information** and admins get the full picture.
+
+If you’re **not** implementing the database yourself, you can mostly focus on the **conceptual diagram** below and skim the table descriptions. The `CREATE TABLE` SQL is here mainly for engineers wiring things up.
 
 ---
 
 ## Entity Relationships
+
+At a high level, the data model is simple:
+
+- A **rider profile** connects to **weekly policies**
+- Each **weekly policy** can generate **multiple parametric claims**
+- Each **claim** is tied back to a specific **disruption event**
+
+```mermaid
+erDiagram
+  AuthUser ||--|| RiderProfile : "signs in as"
+  RiderProfile ||--o{ WeeklyCoverage : "buys"
+  WeeklyCoverage }o--|| Plan : "uses"
+  WeeklyCoverage ||--o{ Claim : "can create"
+  Claim }o--|| DisruptionEvent : "caused by"
+  RiderProfile ||--o{ SelfReport : "submits"
+  RiderProfile ||--o{ PricingSuggestion : "receives"
+```
+
+**For riders:** this translates to “I have a profile, I buy a weekly plan, and whenever a qualifying disruption hits my zone, Oasis records an event and creates a claim against my current week.”
+
+**For admins:** it means every payout is **auditable end‑to‑end** — from the disruption trigger to the rider, policy, and final payment transaction.
+
+---
 
 | From | To | Relation |
 |------|-----|----------|
@@ -27,6 +52,14 @@ Supabase PostgreSQL with Row Level Security (RLS) on every table. Business logic
 
 Stores rider identity and delivery zone. Created on first sign-in.
 
+**Key fields:**
+- **platform**: where the rider delivers (e.g. Zepto/Blinkit)
+- **primary_zone_geofence**: rider’s “home zone” used for eligibility checks
+- **zone_latitude / zone_longitude**: lightweight zone center for quick lookups
+
+<details>
+<summary>Show SQL</summary>
+
 ```sql
 CREATE TABLE profiles (
   id                   UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -42,6 +75,7 @@ CREATE TABLE profiles (
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 **RLS:** Users can only read and write their own row.
 
@@ -50,6 +84,14 @@ CREATE TABLE profiles (
 ### `plan_packages`
 
 Insurance plan tiers. Seeded with three default plans.
+
+**Key fields:**
+- **weekly_premium_inr**: weekly price (Oasis uses weekly pricing only)
+- **payout_per_claim_inr**: amount paid per qualifying disruption
+- **max_claims_per_week**: plan cap to prevent unlimited payouts
+
+<details>
+<summary>Show SQL</summary>
 
 ```sql
 CREATE TABLE plan_packages (
@@ -64,6 +106,7 @@ CREATE TABLE plan_packages (
   sort_order            INT DEFAULT 0
 );
 ```
+</details>
 
 **Seeded data:**
 
@@ -79,6 +122,13 @@ CREATE TABLE plan_packages (
 
 One row per rider per week of coverage. The `is_active` flag is flipped to `false` at week end by the weekly-premium cron.
 
+**Key fields:**
+- **week_start_date / week_end_date**: always a single coverage week
+- **is_active**: used by the adjudicator to find covered riders
+
+<details>
+<summary>Show SQL</summary>
+
 ```sql
 CREATE TABLE weekly_policies (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -91,6 +141,7 @@ CREATE TABLE weekly_policies (
   CONSTRAINT valid_week_range CHECK (week_end_date >= week_start_date)
 );
 ```
+</details>
 
 **Indexes:**
 - `(profile_id, is_active)` - fast lookup for dashboard
@@ -104,6 +155,15 @@ CREATE TABLE weekly_policies (
 
 Created by the adjudicator when a trigger threshold is crossed. One row per detected disruption.
 
+**Key fields:**
+- **event_type / event_subtype**: what happened (heat, rain, AQI, traffic gridlock, curfew)
+- **severity_score**: 0–10 scale used for reporting and analytics
+- **geofence_polygon**: who is “in the affected area”
+- **raw_api_data**: full trigger evidence for audit/debugging
+
+<details>
+<summary>Show SQL</summary>
+
 ```sql
 CREATE TABLE live_disruption_events (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -116,6 +176,7 @@ CREATE TABLE live_disruption_events (
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 The `event_subtype` column (added via migration `20240323000000_add_event_subtype.sql`) provides granular trigger classification beyond the three broad `event_type` enum values. An index on `event_subtype` supports efficient analytics queries.
 
@@ -137,6 +198,13 @@ The `geofence_polygon` field uses a custom JSON format:
 
 Auto-inserted by the adjudicator when a rider is eligible for a payout. Status starts as `pending_verification` and transitions to `paid` after GPS confirmation.
 
+**Key fields:**
+- **status**: starts `pending_verification`, becomes `paid` after GPS confirmation
+- **is_flagged / flag_reason**: fraud checks can flag suspicious claims for admin review
+
+<details>
+<summary>Show SQL</summary>
+
 ```sql
 CREATE TABLE parametric_claims (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -151,6 +219,7 @@ CREATE TABLE parametric_claims (
   created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 **Indexes:**
 - `(policy_id)` - rider dashboard claims list
@@ -165,6 +234,9 @@ CREATE TABLE parametric_claims (
 
 Optional GPS-attached reports that riders submit to confirm they were in an affected zone. Used by the location verification fraud check.
 
+<details>
+<summary>Show SQL</summary>
+
 ```sql
 CREATE TABLE rider_delivery_reports (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -176,12 +248,16 @@ CREATE TABLE rider_delivery_reports (
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 ---
 
 ### `claim_verifications`
 
 Links a GPS reading to a specific claim. Created when a rider submits the `ClaimVerificationPrompt`.
+
+<details>
+<summary>Show SQL</summary>
 
 ```sql
 CREATE TABLE claim_verifications (
@@ -193,12 +269,16 @@ CREATE TABLE claim_verifications (
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 ---
 
 ### `premium_recommendations`
 
 Stores per-rider weekly premium suggestions generated by the ML module. Used to display the pricing recommendation before subscription.
+
+<details>
+<summary>Show SQL</summary>
 
 ```sql
 CREATE TABLE premium_recommendations (
@@ -210,12 +290,16 @@ CREATE TABLE premium_recommendations (
   created_at            TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 ---
 
 ### `system_logs`
 
 Append-only audit log written by the adjudicator after each run.
+
+<details>
+<summary>Show SQL</summary>
 
 ```sql
 CREATE TABLE system_logs (
@@ -225,12 +309,16 @@ CREATE TABLE system_logs (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 ---
 
 ### `payment_transactions`
 
 Records every Stripe payment for audit and reconciliation.
+
+<details>
+<summary>Show SQL</summary>
 
 ```sql
 CREATE TABLE payment_transactions (
@@ -243,6 +331,7 @@ CREATE TABLE payment_transactions (
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+</details>
 
 ---
 
@@ -262,27 +351,25 @@ CREATE TABLE payment_transactions (
 
 ## Migrations
 
-Migrations are in `supabase/migrations/` and should be applied in timestamp order. Key additions:
+Migrations live in `supabase/migrations/`.
 
-| Migration | Description |
-|---|---|
-| `20240314000000_adjudicator_every_15min.sql` | Changes cron schedule from hourly to every 15 minutes |
-| `20240315000000_stripe_webhook_idempotency.sql` | Adds idempotency key tracking for Stripe webhooks |
-| `20240316000000_rate_limit_store.sql` | Creates rate limit storage table |
-| `20240317000000_stripe_webhook_atomic.sql` | Atomic webhook processing for payment reliability |
-| `20240318000000_rider_notifications.sql` | Rider notification preferences and history |
-| `20240319000000_payout_after_location_verification.sql` | Enforces location verification before payout |
-| `20240320000000_payout_ledger_standalone.sql` | Standalone payout ledger for accounting audit trail |
-| `20240321000000_claim_verifications_rls_update.sql` | Updated RLS policies for claim verifications |
-| `20240322000000_update_plan_pricing.sql` | Updates plan payouts: Basic ₹300/1, Standard ₹700/2, Premium ₹1,500/3 |
-| `20240323000000_add_event_subtype.sql` | Adds `event_subtype TEXT` column to `live_disruption_events` with index |
+- **Dashboard approach**: run the SQL files in **timestamp order** (top to bottom).
+- **CLI approach**: use `supabase db push` (or your project’s `yarn db:migrate` script) after linking the project.
+
+You don’t need to memorize migration filenames — the timestamps enforce the correct order.
 
 ---
 
 ## Type Enums
+
+These enums keep the database values consistent (so we don’t end up with “paid”, “PAID”, “Paid”, etc.).
+
+<details>
+<summary>Show SQL</summary>
 
 ```sql
 CREATE TYPE platform_type AS ENUM ('zepto', 'blinkit');
 CREATE TYPE disruption_event_type AS ENUM ('weather', 'traffic', 'social');
 CREATE TYPE claim_status AS ENUM ('triggered', 'pending_verification', 'paid');
 ```
+</details>

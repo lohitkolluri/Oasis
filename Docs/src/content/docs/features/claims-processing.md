@@ -24,41 +24,33 @@ Parametric insurance replaces all of this with **objective trigger thresholds**:
 ## Claim Lifecycle
 
 ```mermaid
-flowchart LR
-    A[Disruption] --> B[INSERT events]
-    B --> C[For each policy]
-    C --> D[Cap OK?]
-    D --> E[Fraud checks]
-    E --> F[INSERT pending_verification claim]
-    F --> G[Notify rider + schedule reminders]
-    G --> H[GPS confirmation within 48h]
-    H --> I[Mark paid + wallet update]
-```
+graph TD
+    Start["Disruption event detected"] --> DB1["Record the disruption event"]
+    DB1 --> Loop["For each active policy"]
 
-**Flow:**
+    subgraph Validation ["Policy & fraud validation"]
+        Loop --> Cap["Check weekly claim cap"]
+        Cap --> Fraud["Run fraud checks"]
+    end
 
-```
-Disruption event detected by adjudicator
-           ↓
-INSERT live_disruption_events (event_type, event_subtype, severity, geofence, raw_api_data)
-           ↓
-For each active policy in affected geofence:
-  ├── Check weekly claim cap (max_claims_per_week from plan_packages)
-  ├── runAllFraudChecks() [parallel + sequential]
-  │       ├── checkDuplicateClaim()   - same policy + same event?
-  │       ├── checkRapidClaims()      - ≥ 3 claims in 24h?
-  │       └── checkWeatherMismatch()  - raw data supports trigger?
-  └── INSERT parametric_claims (status='pending_verification', payout_amount_inr)
-           ↓
-  Schedule verification reminders (at 12h and 20h after creation)
-           ↓
-Mobile app auto-verifies GPS when possible; otherwise rider taps verify
-           ↓
-  Extended fraud checks run (GPS accuracy, impossible travel, cross-profile)
-           ↓
-On successful verification → claim updated to status='paid'
-           ↓
-Supabase Realtime fires → wallet UI updates immediately
+    Validation --> DB2["Create a pending claim"]
+    DB2 --> Remind["Schedule reminders (12h & 20h)"]
+    
+    Remind --> Verify["GPS verification\n(auto or manual)"]
+    
+    subgraph Finalize ["Final approval"]
+        Verify --> ExtFraud["Extended fraud checks"]
+        ExtFraud --> Paid["Mark claim as paid"]
+    end
+
+    Paid --> UI["Realtime wallet update"]
+
+    style Start fill:#f96,stroke:#333,color:#111
+    style Paid fill:#9f9,stroke:#333,color:#111
+    style UI fill:#9cf,stroke:#333,color:#111
+
+    style Validation fill:#fff4dd,stroke:#caa24a,stroke-width:2px,color:#111
+    style Finalize fill:#fff4dd,stroke:#caa24a,stroke-width:2px,color:#111
 ```
 
 ---
@@ -92,23 +84,19 @@ Reminders are scheduled at claim creation time using `scheduled_for` timestamps 
 
 When riders manually report a delivery disruption via `/api/rider/report-delivery`, Oasis cross-checks the report against real-time external data:
 
-```
-1. Rider submits self-report with GPS coordinates and disruption description
-           ↓
-2. Rate limit check: max 3 self-reports per rider per day
-           ↓
-3. LLM verification: does the photo/description indicate a genuine disruption?
-           ↓
-4. Rapid claims check: has this rider filed too many claims recently?
-           ↓
-5. Corroboration check (async):
-   ├── Tomorrow.io: fetch weather at rider's GPS
-   │   └── If clear skies but rider claims rain → verified = false
-   └── TomTom: fetch traffic at rider's GPS
-       └── If free-flowing traffic but rider claims gridlock → verified = false
-           ↓
-6. If corroborated → claim created with verified = true
-   If contradicted → claim created with verified = false (admin review)
+```mermaid
+graph TD
+    SR["Rider submits self-report\n(GPS + description)"] --> Limit["Check daily limit\n(max 3 reports)"]
+    Limit --> LLM["LLM checks photo + text\nfor genuine disruption"]
+    LLM --> Rapid["Rapid-claims check"]
+    Rapid --> Corro["Corroborate with APIs\n(Tomorrow.io + TomTom)"]
+    Corro --> Yes{"Matches weather/traffic?"}
+    Yes -- No --> Unverified["Store report\nverified = false (admin review)"]
+    Yes -- Yes --> Verified["Store report\nverified = true (trusted signal)"]
+
+    style SR fill:#9cf,stroke:#333,color:#111
+    style Verified fill:#9f9,stroke:#333,color:#111
+    style Unverified fill:#ffcccc,stroke:#333,color:#111
 ```
 
 The corroboration result is returned in the API response and stored alongside the claim for audit.

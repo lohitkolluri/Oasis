@@ -5,15 +5,17 @@ description: High-level overview of Oasis API architecture
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-The Oasis generic API endpoints live under `app/api/` in the Next.js App Router.
+Oasis APIs power three experiences:
 
-Authentication is generally handled via Supabase session cookies (SSR). System endpoints (like Adjudicator CRONs) require a `CRON_SECRET` Bearer token.
+- **Rider experience**: buy weekly cover, self-report disruptions, verify GPS, see wallet updates
+- **Admin experience**: monitor system health, run demos, review the platform
+- **Automation**: scheduled adjudicator runs detect disruptions and create payouts automatically
 
 ---
 
 ## Interactive OpenAPI Reference
 
-We have fully interactive, auto-generated documentation for all Oasis endpoints where you can view request shapes, parameter constraints, and example JSON responses.
+Most endpoints are documented in the interactive OpenAPI pages below (requests, responses, and examples).
 
 <CardGrid>
   <LinkCard
@@ -44,59 +46,53 @@ We have fully interactive, auto-generated documentation for all Oasis endpoints 
 
 ---
 
-## Non-OpenAPI Internal Routes
+## How requests flow (high level)
+
+```mermaid
+flowchart LR
+  UI[Rider/Admin UI] --> API[Oasis API]
+  API --> DB[(Supabase)]
+  API --> EXT[Weather / Traffic / News APIs]
+  API --> PAY[Stripe]
+  DB --> RT[Realtime updates]
+  RT --> UI
+```
+
+---
+
+## Auth & access (plain English)
+
+- **Most rider/admin routes** use the user’s Supabase session (signed-in cookies).
+- **System routes** (like cron jobs) are protected with a shared secret (`CRON_SECRET`) so only Oasis can run them.
+
+---
+
+## Internal routes (not in OpenAPI)
 
 The following are internal or proxy routes that do not have formal OpenAPI contracts as they rely strictly on Supabase Auth context.
 
-### `GET /api/admin/system-health`
+### Admin monitoring
 
-Returns current system status for the dashboard: database connection, API key availability, last adjudicator run.
+- `GET /api/admin/system-health`: quick “is everything up?” status (DB + keys + last run)
+- `GET /api/admin/analytics`: aggregated admin dashboard numbers
+- `GET /api/admin/insights`: AI-generated insights (risk + top disruption zones)
 
-**Response:**
+<details>
+<summary>Show example responses</summary>
+
 ```json
 {
-  "database": "ok",
-  "tomorrowio": "configured",
-  "newsdata": "configured",
-  "openrouter": "configured",
-  "lastRun": "2024-03-05T11:00:00.000Z",
-  "lastRunResult": {
-    "claims_created": 8,
-    "zones_checked": 2
-  }
+  "systemHealth": { "database": "ok", "lastRun": "2024-03-05T11:00:00.000Z" },
+  "analytics": { "totalRiders": 120, "activePolicies": 87, "totalPayoutInr": 136800 }
 }
 ```
-
-### `GET /api/admin/analytics`
-
-Returns aggregated platform analytics for the admin dashboard.
-
-**Response:**
-```json
-{
-  "totalRiders": 120,
-  "activePolicies": 87,
-  "totalClaims": 342,
-  "totalPayoutInr": 136800,
-  "flaggedClaims": 4,
-  "weeklyGrowth": 12.5
-}
-```
-
-### `GET /api/admin/insights`
-Returns AI-generated platform insights (next-week risk prediction, top disruption zones).
+</details>
 
 ### `POST /api/routing/check`
 
 Proxy to the OSRM routing API. Returns route details between two coordinates.
 
-**Body:**
-```json
-{
-  "origin": { "lat": 12.9716, "lng": 77.5946 },
-  "destination": { "lat": 12.9352, "lng": 77.6245 }
-}
-```
+**Body:** origin + destination coordinates.
 
 ### `POST /api/auth/signout`
 Signs out the current session by clearing Supabase auth cookies. Redirects to `/login`.
@@ -112,6 +108,8 @@ Admin override for policy updates (status changes, plan modifications).
 
 ### `GET /api/rider/insight`
 Returns AI-generated insights for the authenticated rider, including risk assessment for their zone and upcoming weather outlook.
+
+### Public status
 
 ### `GET /api/platform/status`
 Public endpoint returning platform operational status — database health, API connectivity, and recent adjudicator activity.
@@ -129,18 +127,7 @@ Webhook endpoint for external trigger providers to push disruption events direct
 
 ### `POST /api/claims/verify-location`
 
-Verifies a rider's GPS location for a pending claim. Accepts additional fraud-detection parameters.
-
-**Body:**
-```json
-{
-  "claimId": "uuid",
-  "latitude": 12.9716,
-  "longitude": 77.5946,
-  "deviceFingerprint": "optional-device-hash",
-  "gpsAccuracy": 25.5
-}
-```
+Used when a rider taps **Verify** on a pending claim. If the GPS check passes, the claim can move to **paid**.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -150,12 +137,7 @@ Verifies a rider's GPS location for a pending claim. Accepts additional fraud-de
 | `deviceFingerprint` | string | No | Browser/device fingerprint for multi-device fraud detection |
 | `gpsAccuracy` | number | No | GPS accuracy in meters (rejected if > 100m) |
 
-**New validation checks (in order):**
-1. GPS accuracy validation — rejects if `gpsAccuracy > 100`
-2. Impossible travel detection — rejects if rider moved > 50 km in < 30 min since last verification
-3. 48-hour claim age check — rejects if claim is older than 48 hours
-4. Geofence verification — checks if rider is within the disruption event's geofence
-5. Extended fraud checks — device fingerprint and cross-profile velocity (async)
+**What happens next (simplified):** GPS accuracy → claim age window → geofence check → fraud checks → mark paid (if all good).
 
 ---
 
@@ -170,15 +152,4 @@ Rider self-report for delivery disruptions. Now includes rate limiting and exter
 - `latitude` / `longitude` (number) — rider's GPS coordinates
 - `file` (File, optional) — photo evidence
 
-**Response includes:**
-```json
-{
-  "success": true,
-  "report": { "id": "uuid", "verified": true },
-  "corroboration": {
-    "weather_matches": true,
-    "traffic_matches": false,
-    "overall_verified": false
-  }
-}
-```
+**Response:** includes whether the report was corroborated by external data.

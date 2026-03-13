@@ -8,41 +8,48 @@ The parametric adjudicator is the core engine. It runs every 15 minutes, polls e
 ## Adjudicator Lifecycle
 
 ```mermaid
-flowchart LR
-    A[Discover zones] --> B[Check triggers]
-    B --> C[Deduplicate]
-    C --> D[INSERT events]
-    D --> E[Find policies]
-    E --> F[Fraud checks]
-    F --> G[INSERT claims]
+sequenceDiagram
+    autonumber
+    participant A as Adjudicator
+    participant DB as Database
+    participant API as Weather/Traffic/News APIs
+    participant LLM as LLM
+    participant LOG as System logs
+
+    Note over A: 1. Discovery
+    A->>DB: Fetch active riders & weekly cover
+    DB-->>A: Active zones & locations
+
+    Note over A: 2. Check triggers (in parallel)
+    rect rgb(160, 130, 20)
+        A->>API: Ask for heat / rain / AQI / traffic / curfew data
+        API-->>A: Potential disruption signals
+        A->>LLM: Evaluate severity of traffic / curfew
+        LLM-->>A: Verified severity and zone
+    end
+
+    A->>A: Merge nearby events (avoid double-counting)
+
+    Note over A: 3. Create claims
+    loop For each real disruption
+        A->>DB: Store disruption event
+        A->>DB: Find covered riders in geofence
+        A->>DB: Check weekly claim caps
+        A->>DB: Create parametric claims
+    end
+
+    Note over A: 4. Wrap up
+    A->>LOG: Save a summary of the run
 ```
 
-**Steps:**
+In human terms:
 
-```
-runAdjudicator()
-│
-├── 1. Discover active zones
-│       └── Query weekly_policies + profiles → cluster ~11 km grid
-│
-├── 2. Check triggers per zone (parallel, batch of 5)
-│       ├── checkZoneTriggers(zone)
-│       │   ├── Trigger 1: Extreme heat (Open-Meteo → Tomorrow.io fallback)
-│       │   ├── Trigger 2: Heavy rain (Tomorrow.io)
-│       │   ├── Trigger 3: AQI adaptive (WAQI → Open-Meteo fallback)
-│       │   ├── Trigger 4: Traffic gridlock (NewsData + LLM)
-│       │   └── Trigger 5: Zone curfew/strike (NewsData + LLM + geocoding)
-│       └── Deduplicate: skip if same trigger type within 30 km
-│
-├── 3. For each trigger candidate:
-│       ├── INSERT live_disruption_events
-│       ├── Find active policies with riders inside geofence
-│       ├── Check plan weekly claim cap (max_claims_per_week)
-│       ├── runAllFraudChecks()
-│       └── INSERT parametric_claims (status='pending_verification')
-│
-└── 4. Log result to system_logs
-```
+1. **Look around:** Find zones where riders currently have active weekly cover.
+2. **Sense the world:** Ask the APIs if anything serious is happening (heat, rain, pollution, traffic, curfews).
+3. **Clean up the signals:** Merge overlapping events so one disruption doesn’t fire twice.
+4. **Decide who’s affected:** For each real disruption, find covered riders inside the impacted area.
+5. **Protect the pool:** Run lightweight fraud checks and respect per-week claim caps.
+6. **Pay out automatically:** Create parametric claims and log what happened for later audit.
 
 ---
 
@@ -115,23 +122,42 @@ If Open-Meteo check passes, the Tomorrow.io fallback is skipped. If Open-Meteo i
 
 **Why adaptive?** Delhi's baseline AQI is ~250; Bangalore's is ~60. A fixed threshold would never fire in Bangalore and fire too often in Delhi. A two-tier approach classifies zones as "chronic" or "normal" and applies different baselines and multipliers.
 
-**Algorithm:**
+**Algorithm (visual):**
 
+```mermaid
+graph TD
+    A([Start]) --> B[Fetch current AQI]
+    B --> C[Fetch 30-day history]
+    C --> D[Compute p75 & p90]
+    
+    D --> E{Is p75 ≥ 200?}
+    
+    E -- Chronic zone --> F[Threshold = p90 × 1.15]
+    E -- Normal zone --> G[Threshold = p75 × 1.30]
+    
+    F --> H{AQI ≥ threshold?}
+    G --> H
+    
+    H -- No --> I([End])
+    
+    H -- Yes --> J[Calculate severity score]
+    J --> K[/Trigger payout event/]
+    K --> L([End])
+
+    style E fill:#fff4dd,stroke:#caa24a,stroke-width:2px,color:#111
+    style H fill:#fff4dd,stroke:#caa24a,stroke-width:2px,color:#111
+    style F fill:#ffdada,stroke:#d08b8b,stroke-width:2px,color:#111
+    style G fill:#daffda,stroke:#7fb37f,stroke-width:2px,color:#111
+    style K fill:#ffcccc,stroke:#d88a8a,stroke-width:2px,color:#111
 ```
-1. Fetch current AQI via WAQI ground-station (preferred, most accurate)
-   └── Fallback: Open-Meteo satellite AQI
-2. Fetch 30-day hourly AQI history via Open-Meteo (free, no key)
-3. Compute p75 AND p90 of historical values
-4. Classify zone:
-   - Chronic (p75 ≥ 200): cities like Delhi, Lucknow, Kanpur
-   - Normal (p75 < 200): cities like Bangalore, coastal cities
-5. Compute adaptive threshold:
-   - Chronic: min(500, max(350, round(p90 × 1.15)))
-   - Normal:  min(500, max(200, round(p75 × 1.30)))
-6. Trigger if current_aqi >= adaptive_threshold
-7. severity = min(10, max(6, round(6 + excess_ratio × 8)))
-   where excess_ratio uses p90 for chronic zones, p75 for normal zones
-```
+
+In words:
+
+1. **Measure now + history:** Get today’s AQI and the last 30 days of hourly AQI.
+2. **Understand the baseline:** Compute **p75** and **p90** to see what “normal bad” looks like for that city.
+3. **Label the city:** If p75 ≥ 200, treat it as a **chronic-pollution** city; otherwise as **normal**.
+4. **Set an adaptive bar:** Use a slightly higher threshold for each category so only **unusually bad spikes** cross it.
+5. **Fire only on real spikes:** If current AQI beats that adaptive threshold, we trigger an event and compute a severity score between 6 and 10.
 
 | Zone Type | Baseline | Multiplier | Floor | Cap | Example City | Typical Threshold |
 |---|---|---|---|---|---|---|
@@ -153,31 +179,22 @@ The chronic-zone tier ensures that cities with perpetually high AQI only trigger
 
 Rather than checking a single road segment, the adjudicator samples **5 points** per zone (center + N/E/S/W at 70% of the zone radius) for a representative picture:
 
-```
-For each zone:
-  1. Generate 5 sample points (center + cardinal offsets)
-  2. Query TomTom Flow Segment Data for each point (parallel)
-  3. Compute currentSpeed / freeFlowSpeed ratio per point
-  4. Trigger if:
-     - Any road closure detected, OR
-     - Majority (≥ 50%) of sampled points show congestion
-       (ratio < 0.5, i.e., current speed < 50% of free-flow speed)
-  5. Severity based on average ratio:
-     - ratio ≤ 0.2 → severity 9
-     - ratio ≤ 0.4 → severity 8
-     - otherwise → severity 7
-```
+- **1) Pick 5 sample points**: zone center + North/East/South/West offsets  
+- **2) Ask TomTom for each point** (in parallel)
+- **3) Compute congestion ratio** per point: \(currentSpeed / freeFlowSpeed\)
+- **4) Trigger when it’s genuinely bad**:
+  - Road closure detected, **or**
+  - At least **half** the sample points are congested (ratio < 0.5)
+- **5) Set severity** from the average ratio:
+  - ratio ≤ 0.2 → severity **9**
+  - ratio ≤ 0.4 → severity **8**
+  - otherwise → severity **7**
 
 ### News-Based Traffic (Supplementary)
 
-```
-1. NewsData.io search: "traffic OR gridlock OR road closure OR congestion"
-   → country=in, language=en, limit=3
-2. OpenRouter LLM (arcee-ai/trinity-large-preview:free):
-   → "Do these headlines indicate severe gridlock affecting delivery work?"
-   → Returns: {"qualifies": true/false, "severity": 0-10}
-3. Trigger if qualifies=true AND severity >= 6
-```
+- **1) Search headlines** for traffic gridlock signals (India, English, top 3)
+- **2) Ask the LLM to judge severity** (does it affect delivery work?)
+- **3) Trigger only if** it qualifies and severity ≥ 6
 
 **Geofence:** 15 km radius (TomTom) or 20 km (news-based).
 **Severity:** 7–10 (TomTom) or LLM-assigned (news).
@@ -188,18 +205,12 @@ For each zone:
 
 **Source:** NewsData.io + OpenRouter LLM + Open-Meteo geocoding.
 
-```
-1. NewsData.io search: "curfew OR strike OR lockdown"
-   → country=in, language=en, limit=3
-2. OpenRouter LLM:
-   → "Does this indicate a zone lockdown preventing delivery work?"
-   → Returns: {"qualifies": bool, "severity": 0-10, "zone": "city name"}
-3. If qualifies AND severity >= 6:
-   → Geocode "zone" string via Open-Meteo geocoding API
-   → Build geofence at geocoded coordinates (20 km if specific zone, 50 km if India-wide)
-4. Zone-scoped filtering: only keep candidates whose geofence
-   overlaps with at least one active rider zone
-```
+- **1) Search headlines** for curfew/strike/lockdown (India, English, top 3)
+- **2) Ask the LLM**: “Does this prevent delivery work?” → returns qualifies + severity + a place name (if available)
+- **3) If it qualifies (severity ≥ 6)**:
+  - Convert the place name into coordinates (geocoding)
+  - Build a geofence (20 km if specific, 50 km if broad)
+- **4) Keep it relevant**: only trigger if the geofence overlaps at least one active rider zone
 
 The LLM extracts a city/region name from the headline when possible, enabling geofence precision to the affected area rather than defaulting to the entire country. The zone-scoped filter prevents false triggers — a curfew in Kerala won't create claims for riders in Delhi.
 
@@ -258,19 +269,26 @@ This enables subtype-specific analytics, notification labels, and future trigger
 
 ## API Rate Limits
 
-| API | Free tier | Oasis usage |
+| API | Typical free tier | How Oasis uses it |
 |---|---|---|
-| Open-Meteo | Unlimited | Heat check + AQI history (30 days) |
-| Tomorrow.io | 500 calls/day | Rain + heat fallback (1 call/zone/run) |
-| WAQI | 1000 calls/day | Current AQI (1 call/zone/run) |
-| TomTom | 2500 calls/day | 5 sample points × N zones per run |
-| NewsData.io | 200 calls/day | 2 calls per adjudicator run (traffic + curfew) |
-| OpenRouter | Free tier | 2 LLM calls per adjudicator run |
-| Open-Meteo Geocoding | Unlimited | 1 call when curfew zone is identifiable |
+| Open‑Meteo Weather | Varies by provider policy | **1 call/zone/run** for heat (hourly temps, past 24h) |
+| Open‑Meteo Air Quality | Varies by provider policy | **2 calls/zone/run** for AQI (current + 30‑day history) |
+| WAQI (optional) | Varies by plan | **1 call/zone/run** for current AQI (only if `WAQI_API_KEY` is set) |
+| Tomorrow.io (optional) | Varies by plan | **0 calls** if Open‑Meteo heat already qualifies; otherwise **2 calls/zone/run** (realtime + hourly forecast). Also provides rain intensity in the realtime call. |
+| TomTom Traffic | Varies by plan | **5 calls/zone/run** (5 sample points in parallel) |
+| NewsData.io | Varies by plan | **2 calls/run total** (traffic headlines + curfew/strike headlines) |
+| OpenRouter LLM | Varies by plan/model | **2 calls/run total** (one for traffic headlines, one for curfew/strike) |
+| Open‑Meteo Geocoding | Varies by provider policy | **Up to 1 call/run** (only when a curfew/strike has a place name to geocode) |
 
-With 5 active zones, a single adjudicator run uses approximately:
-- Open-Meteo: 5 (heat) + 5 (AQI) + 5 (AQI history) = 15 calls
-- Tomorrow.io: up to 10 calls (realtime + forecast, per zone)
-- TomTom: 25 calls (5 sample points × 5 zones)
-- NewsData.io: 2 calls
-- OpenRouter: 2 calls
+With **5 active zones**, one run is approximately:
+
+- **Open‑Meteo**: 5 (heat) + 10 (AQI current + 30‑day history) = **15 calls**
+- **TomTom**: 5 points × 5 zones = **25 calls**
+- **NewsData.io**: **2 calls**
+- **OpenRouter**: **2 calls**
+- **WAQI** (if enabled): 5 zones = **5 calls**
+- **Tomorrow.io** (only when Open‑Meteo heat fails): up to 2 calls × 5 zones = **10 calls**
+
+:::note
+“Free tier” limits change frequently across providers. The counts above (calls per zone/run) are based on how Oasis is implemented; use the provider dashboards to confirm current quotas.
+:::

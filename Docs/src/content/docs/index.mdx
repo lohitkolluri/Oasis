@@ -67,16 +67,16 @@ By removing the human element from the claims process, Oasis creates a highly sc
 
 ```mermaid
 flowchart LR
-    O[Onboard]
-    S[Subscribe weekly]
-    P[Pay premium]
-    E[Parametric engine adjudicator]
-    H[Hourly / 15-min poll]
-    Q{Disruption threshold crossed?}
-    F[Fraud checks]
-    A[Auto-claim created]
-    V[Location verification]
-    W[Realtime wallet updated]
+    O[Onboarding]
+    S[Weekly coverage]
+    P[Payment]
+    E[Automation engine]
+    H[Runs every 15 minutes]
+    Q{Disruption detected?}
+    F[Safety & fraud checks]
+    A[Claim created automatically]
+    V[Quick GPS confirmation]
+    W[Wallet updates instantly]
 
     O --> S
     S --> P
@@ -88,6 +88,16 @@ flowchart LR
     F --> A
     A --> V
     V --> W
+
+    classDef user fill:#BFE3FF,stroke:#2B3A55,stroke-width:1.5px,color:#111;
+    classDef system fill:#FFF4DD,stroke:#Caa24A,stroke-width:1.5px,color:#111;
+    classDef decision fill:#EAEAEA,stroke:#5A5A5A,stroke-width:1.5px,color:#111;
+    classDef success fill:#BFF0C4,stroke:#2F6F3E,stroke-width:1.5px,color:#111;
+
+    class O,S,P user;
+    class E,H,F,A,V system;
+    class Q decision;
+    class W success;
 ```
 
 <CardGrid>

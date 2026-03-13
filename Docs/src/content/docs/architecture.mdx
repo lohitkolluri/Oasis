@@ -5,7 +5,13 @@ description: Next.js + Supabase stack and flow
 
 import { Badge } from '@astrojs/starlight/components';
 
-Next.js 15 App Router + Supabase (Postgres, Auth, Realtime). Three layers: presentation (pages + components), application (API routes + lib), data (Supabase + external APIs).
+Oasis is built like a simple three-layer cake so it’s easy to reason about:
+
+- **What riders and admins see** (the app UI)
+- **The brain** that decides what to do (APIs + business logic)
+- **The memory** where we store everything safely (database + external data feeds)
+
+Under the hood this is **Next.js 15 App Router + Supabase (Postgres, Auth, Realtime)**, but you can ignore those names if you just want the big picture.
 
 ## Overview
 
@@ -32,7 +38,13 @@ flowchart TB
     NextJS --> ExtAPI
 ```
 
-**Flow:** Client (PWA) → Next.js (pages, API, lib) → Supabase + external APIs. Cron jobs trigger adjudicator and weekly premium renewal.
+**In plain language:**
+The **rider/admin app** talks to the **Oasis brain (Next.js app)**, which in turn talks to **Supabase** for data and to **external APIs** for live weather, traffic, and news.
+Every 15 minutes, background jobs wake up the brain to:
+
+- Check if any **zone looks risky** right now
+- Decide if riders in that zone **deserve an automatic payout**
+- Update their **wallets and dashboards in real time**
 
 ---
 
@@ -45,67 +57,78 @@ flowchart TB
     RQ["1. Request"] --> MW["Middleware\n(session refresh)"]
     MW --> RL["2. Render layout"]
     RL --> FP["Fetch profile"]
-    RL --> FPol["Fetch policy"]
-    RL --> FC["Fetch claims"]
+    RL --> FPol["Fetch current week’s policy"]
+    RL --> FC["Fetch recent claims & payouts"]
     RL --> SUB["3. Initialize subscription"]
     SUB --> RT["Supabase Realtime\n(wallet updates)"]
 ```
+
+**What this means for a rider:**
+Open the dashboard → Oasis quietly checks who you are, your policy, and recent claims → then it “subscribes” to live updates so that **new payouts just appear without refresh**.
 
 ### Premium Subscription
 
 ```mermaid
 flowchart TB
-    UI["1. User init\n(rider selects plan + week)"] --> CC["POST /api/payments/create-checkout"]
-    CC --> SC["2. Stripe Checkout"]
-    SC --> WH["3. Webhook\n/api/payments/webhook"]
-    WH --> WP["INSERT weekly_policies"]
-    WH --> PT["INSERT payment_transactions"]
-    WH --> RD["Redirect back to app"]
+    UI["1. Rider picks a weekly plan"] --> CC["Create Stripe Checkout session"]
+    CC --> SC["2. Stripe-hosted payment page"]
+    SC --> WH["3. Secure webhook from Stripe"]
+    WH --> WP["Store weekly coverage\n(weekly_policies)"]
+    WH --> PT["Store payment record\n(payment_transactions)"]
+    WH --> RD["Send rider back to dashboard\nwith coverage active"]
 ```
 
 ### Adjudicator (Every 15 min)
 
 ```mermaid
 flowchart TB
-    Start["runAdjudicator()"] --> Z["1. Discover active zones\nweekly_policies + profiles\ncluster ~11 km grid"]
-    Z --> T["2. Check triggers per zone\n(parallel, batch of 5)"]
-    T --> Heat["Extreme heat\n(Open-Meteo → Tomorrow.io)"]
-    T --> Rain["Heavy rain\n(Tomorrow.io)"]
-    T --> AQI["AQI adaptive\n(WAQI → Open-Meteo)"]
-    T --> Traffic["Traffic gridlock\n(NewsData + LLM)"]
-    T --> Curfew["Curfew / strike\n(NewsData + LLM + geocoding)"]
-    T --> DD["Deduplicate\n(skip same trigger type within 30 km)"]
+    Start["Every 15 minutes"] --> Z["1. Find zones with active weekly coverage"]
+    Z --> T["2. Ask APIs:\nIs heat / rain / AQI / traffic / curfew bad enough?"]
+    T --> DD["3. Group nearby events\n(avoid double-counting same disruption)"]
 
-    DD --> Loop["3. For each trigger candidate"]
-    Loop --> Evt["INSERT live_disruption_events"]
-    Loop --> Pol["Find active policies in geofence"]
-    Loop --> Cap["Check weekly claim cap\n(max_claims_per_week)"]
-    Loop --> Fraud["runAllFraudChecks()"]
-    Loop --> Claims["INSERT parametric_claims\n(status = 'pending_verification')"]
+    DD --> Loop["4. For each real disruption"]
+    Loop --> Evt["Record disruption\n(live_disruption_events)"]
+    Loop --> Pol["Find covered riders\nin the affected area"]
+    Loop --> Cap["Respect weekly caps\n(max claims per rider)"]
+    Loop --> Fraud["Run fraud & sanity checks"]
+    Loop --> Claims["Create auto-claims\n(parametric_claims)"]
 
-    Claims --> Log["4. Log result to system_logs"]
+    Claims --> Log["5. Log what happened\n(for audit & debugging)"]
 ```
+
+You can think of this as a **robotic claims adjuster** that wakes up regularly, scans India’s metros for disruptions, and **instantly credits riders** who were covered and affected.
 
 
 ---
 
 ## Key Modules
 
-| Module | Role |
-|--------|------|
-| `lib/adjudicator/run.ts` | Zone discovery, trigger checks, fraud pipeline, claim creation |
-| `lib/fraud/detector.ts` | 11 checks: duplicate, rapid claims, weather mismatch, location, device fingerprint, impossible travel, cross-profile velocity, cluster anomaly, baseline deviation, GPS accuracy, self-report rate limiting |
-| `lib/ml/premium-calc.ts` | Base ₹49, max ₹199, +₹12/event, forecast + seasonal + social + claim frequency factors |
-| `lib/supabase/*` | Browser, server, admin, middleware clients |
+| Piece of the system | What it does |
+|---------------------|--------------|
+| **Adjudicator brain** | Wakes up on a schedule, looks at the map of India, decides **where something bad is happening**, and creates automatic claims for covered riders in those zones. |
+| **Fraud shield** | Stops obvious abuse (too many claims, wrong location, suspicious devices) while still keeping the rider experience **instant and hassle-free**. |
+| **Pricing engine** | Suggests a fair weekly price (₹49–₹199) based on **how risky a rider’s zone and history look**, while keeping plans simple to understand. |
+| **Database helpers** | Small utilities that let the app read and write data safely without repeating the same low-level code everywhere. |
 
 ---
 
 ## Auth
 
-Supabase Auth. Middleware refreshes session. Route groups: `(auth)` public, `(dashboard)` rider, `(admin)` admin-only (email in `ADMIN_EMAILS` or `role=admin`).
+We use **Supabase Auth** to keep riders and admins signed in securely.
+
+- Public routes live under an `(auth)` group (login, register, etc.)
+- Rider dashboards live under `(dashboard)` and require a logged-in rider
+- Admin screens require an email in `ADMIN_EMAILS` or `role = 'admin'` in the database
+
+In practice: **riders never see admin controls**, and admins can quickly inspect the system without special tooling.
 
 ---
 
 ## Realtime
 
-`RealtimeWallet` subscribes to `parametric_claims` by `policy_id`. New claim → balance updates without reload.
+The **Realtime wallet** experience comes from Supabase Realtime subscriptions:
+
+- The dashboard subscribes to any new claims for the rider’s active policy
+- When an auto-claim is created, the **wallet balance and timeline update live**
+
+This makes Oasis feel less like a traditional insurance portal and more like a **live financial app**, where riders immediately **see money arriving** when disruptions hit.

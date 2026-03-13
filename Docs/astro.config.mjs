@@ -35,9 +35,9 @@ export default defineConfig({
       favicon: '/favicon.svg',
       social: [
         {
-          icon: 'github',
-          label: 'GitHub',
-          href: 'https://github.com/lohitkolluri/oasis',
+          icon: 'external',
+          label: 'Website',
+          href: 'https://oasis-murex-omega.vercel.app',
         },
       ],
       plugins: [
