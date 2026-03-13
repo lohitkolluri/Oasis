@@ -663,13 +663,13 @@ export default function OnboardingPage() {
   }, [govIdFile]);
 
   async function verifyGovernmentId(file: File) {
-    try {
-      setGovIdVerifying(true);
-      setGovIdVerified(false);
-      setGovIdVerificationPath(null);
-      setGovIdVerificationReason(null);
-      setError(null);
+    setGovIdVerifying(true);
+    setGovIdVerified(false);
+    setGovIdVerificationPath(null);
+    setGovIdVerificationReason(null);
+    setError(null);
 
+    try {
       const formData = new FormData();
       formData.set('full_name', fullName.trim());
       formData.set('id_type', govIdType); // only 'aadhaar'
@@ -699,6 +699,10 @@ export default function OnboardingPage() {
       setGovIdVerified(true);
       setGovIdVerificationPath(verifyData.path ?? null);
       setGovIdVerificationReason(verifyData.reason ?? null);
+    } catch (err) {
+      console.error('verifyGovernmentId error:', err);
+      setError('Identity verification failed to load. Please check your connection and try again.');
+      setGovIdVerified(false);
     } finally {
       setGovIdVerifying(false);
     }
@@ -1261,7 +1265,7 @@ export default function OnboardingPage() {
                             <button
                               type="button"
                               onClick={capturePhoto}
-                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-uber-green-500 px-4 py-2 text-sm font-semibold text-black shadow-md shadow-uber-green-500/30 hover:bg-uber-green-400 active:scale-[0.98] transition"
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-uber-green-500 px-4 py-2 text-sm font-semibold text-zinc-950 shadow-md shadow-uber-green-500/30 hover:bg-uber-green-400 active:scale-[0.98] transition"
                             >
                               Capture now
                             </button>
