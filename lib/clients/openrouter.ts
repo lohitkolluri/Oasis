@@ -1,4 +1,4 @@
-import { getOpenRouterApiKey } from "@/lib/config/env";
+import { getAppUrl, getOpenRouterApiKey } from "@/lib/config/env";
 import { fetchWithRetry } from "@/lib/utils/retry";
 
 export interface OpenRouterChatResponse {
@@ -19,6 +19,10 @@ export async function callOpenRouterChat(payload: unknown): Promise<OpenRouterCh
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
+      // Optional attribution headers per OpenRouter quickstart docs:
+      // https://openrouter.ai/docs/quickstart#using-the-openrouter-api-directly
+      "HTTP-Referer": getAppUrl(),
+      "X-OpenRouter-Title": "Oasis – Parametric Income Protection",
     },
     body: JSON.stringify(payload),
   });

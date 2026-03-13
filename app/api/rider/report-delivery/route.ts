@@ -15,13 +15,14 @@ import { checkRapidClaims } from "@/lib/fraud/detector";
 import { fetchWithRetry } from "@/lib/utils/retry";
 import { getOpenRouterApiKey, getTomorrowApiKey, getTomTomApiKey } from "@/lib/config/env";
 import { createClaimFromTrigger } from "@/lib/claims/engine";
+import { callOpenRouterChat } from "@/lib/clients/openrouter";
 
 export const dynamic = "force-dynamic";
 
 const BUCKET = "rider-reports";
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const VISION_MODEL = "qwen/qwen2-vl-72b-instruct";
+const VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl:free";
 
 // Simple in-memory cooldowns so we don't hammer external APIs once they start
 // returning rate limits. This is per server instance and resets on deploy.
@@ -271,69 +272,58 @@ export async function POST(request: Request) {
       const base64 = Buffer.from(photoBuf).toString("base64");
       const dataUrl = `data:${photo.type};base64,${base64}`;
 
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openRouterKey}`,
-        },
-        body: JSON.stringify({
-          model: VISION_MODEL,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You verify rider delivery disruption reports for a parametric income-protection product. Reply ONLY with valid JSON: {\"verified\": true or false, \"reason\": \"brief explanation\"}. Be EXTREMELY strict. Approve ONLY when the image AND rider note clearly show a real, current delivery-blocking disruption such as severe weather, flooded roads, obvious road blockades, curfew enforcement on streets, protests blocking roads, or unsafe outdoor crowd conditions.\n\nIf the scene appears even partially INDOOR (doors, sofas, interior walls, ceilings, furniture) or does not clearly show an outdoor road/streetscape or visible environmental conditions (rain, flood water, barricades, crowds on the road), you MUST set \"verified\": false. Reject screenshots, downloaded images, normal/slow traffic, low-light ambiguity, indoor photos, unrelated selfies, staged scenes, accidents, health issues, vehicle repair issues, or anything that does not clearly prove a covered disruption in an outdoor public delivery context.",
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Rider says: "${message || "Delivery disrupted in my zone."}"
+      const data = await callOpenRouterChat({
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              'You verify rider delivery disruption reports for a parametric income-protection product. Reply ONLY with valid JSON: {"verified": true or false, "reason": "brief explanation"}. Be EXTREMELY strict. Approve ONLY when the image AND rider note clearly show a real, current delivery-blocking disruption such as severe weather, flooded roads, obvious road blockades, curfew enforcement on streets, protests blocking roads, or unsafe outdoor crowd conditions.\n\nIf the scene appears even partially INDOOR (doors, sofas, interior walls, ceilings, furniture) or does not clearly show an outdoor road/streetscape or visible environmental conditions (rain, flood water, barricades, crowds on the road), you MUST set "verified": false. Reject screenshots, downloaded images, normal/slow traffic, low-light ambiguity, indoor photos, unrelated selfies, staged scenes, accidents, health issues, vehicle repair issues, or anything that does not clearly prove a covered disruption in an outdoor public delivery context.',
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Rider says: "${message || "Delivery disrupted in my zone."}"
 
 Category selected: "${category}".
 
 Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on or near a road/streetscape, (2) there is a plausible real-world disruption that blocks deliveries (e.g. flooded road, road completely blocked, visible curfew enforcement, protest blocking the street), (3) it looks like a genuine live camera photo captured on scene (not a screenshot or stock image), and (4) the text description is consistent with the image and the selected category. If the scene looks like a room/indoor environment (door, sofa, interior wall, furniture) or you cannot confidently see a covered disruption, you MUST set verified false. Reply ONLY with JSON: {"verified": true/false, "reason": "..."}`,
-                },
-                { type: "image_url", image_url: { url: dataUrl } },
-              ],
-            },
-          ],
-          max_tokens: 256,
-        }),
+              },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+        max_tokens: 256,
       });
 
-      if (res.ok) {
-        llmAvailable = true;
-        const data = (await res.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        const content = data.choices?.[0]?.message?.content ?? "";
-        const match = content.match(/\{[\s\S]*?\}/);
-        if (match) {
-          try {
-            const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
-            verified = parsed.verified === true;
-            verifyReason = parsed.reason ?? "";
-          } catch (parseErr) {
-            console.error("LLM verify JSON parse error:", parseErr, "content:", content);
-            verifyReason =
-              "Verification model returned an unexpected response. Please try again with a clearer photo.";
-          }
-        } else {
-          console.error("LLM verify: no JSON object in content", content);
+      llmAvailable = true;
+      const content = data.choices?.[0]?.message?.content ?? "";
+      const match = content.match(/\{[\s\S]*?\}/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0]) as { verified?: boolean; reason?: string };
+          verified = parsed.verified === true;
+          verifyReason = parsed.reason ?? "";
+        } catch (parseErr) {
+          console.error("LLM verify JSON parse error:", parseErr, "content:", content);
           verifyReason =
-            "Verification model did not return a structured decision. Please try again with a clearer photo.";
+            "Verification model returned an unexpected response. Please try again with a clearer photo.";
         }
       } else {
-        const errorText = await res.text().catch(() => "");
-        console.error("LLM verify HTTP error:", res.status, errorText.slice(0, 400));
-        verifyReason = "Verification provider returned an error. Please try again later.";
+        console.error("LLM verify: no JSON object in content", content);
+        verifyReason =
+          "Verification model did not return a structured decision. Please try again with a clearer photo.";
       }
     } catch (e) {
-      console.error("LLM verify error:", e);
-      verifyReason = "Verification request failed. Please check your connection and try again.";
+      console.error("LLM verify error via OpenRouter:", e);
+      const message = e instanceof Error ? e.message : String(e);
+      if (message.startsWith("HTTP")) {
+        verifyReason = "Verification provider returned an error. Please try again later.";
+      } else {
+        verifyReason = "Verification request failed. Please check your connection and try again.";
+      }
     }
   }
 
