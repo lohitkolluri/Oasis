@@ -23,6 +23,11 @@ const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const VISION_MODEL = "qwen/qwen2-vl-72b-instruct";
 
+// Simple in-memory cooldowns so we don't hammer external APIs once they start
+// returning rate limits. This is per server instance and resets on deploy.
+let tomorrowRateLimitedUntilMs: number | null = null;
+let tomtomRateLimitedUntilMs: number | null = null;
+
 /**
  * Cross-check a self-report against real-time weather and traffic data.
  * Returns { corroborated, details } — if external data clearly contradicts the
@@ -38,7 +43,7 @@ async function corroborateSelfReport(
 
   // Check weather at report location
   const tomorrowKey = getTomorrowApiKey();
-  if (tomorrowKey) {
+  if (tomorrowKey && (!tomorrowRateLimitedUntilMs || Date.now() > tomorrowRateLimitedUntilMs)) {
     try {
       const weatherData = await fetchWithRetry<{
         data?: { values?: { temperature?: number; precipitationIntensity?: number } };
@@ -56,12 +61,20 @@ async function corroborateSelfReport(
       ) {
         weatherSevere = true;
       }
-    } catch (err) { console.warn("Corroboration: weather check failed:", err); }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn("Corroboration: weather check failed:", message);
+      // If Tomorrow.io is rate limiting us, back off for a few minutes instead of
+      // repeatedly hitting the API on every self-report.
+      if (message.includes("HTTP 429")) {
+        tomorrowRateLimitedUntilMs = Date.now() + 5 * 60 * 1000;
+      }
+    }
   }
 
   // Check traffic at report location
   const tomtomKey = getTomTomApiKey();
-  if (tomtomKey) {
+  if (tomtomKey && (!tomtomRateLimitedUntilMs || Date.now() > tomtomRateLimitedUntilMs)) {
     try {
       const trafficData = await fetchWithRetry<{
         flowSegmentData?: { currentSpeed?: number; freeFlowSpeed?: number; roadClosure?: boolean };
@@ -84,7 +97,13 @@ async function corroborateSelfReport(
       ) {
         trafficSevere = true;
       }
-    } catch (err) { console.warn("Corroboration: traffic check failed:", err); }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn("Corroboration: traffic check failed:", message);
+      if (message.includes("HTTP 429")) {
+        tomtomRateLimitedUntilMs = Date.now() + 5 * 60 * 1000;
+      }
+    }
   }
 
   details.weather_severe = weatherSevere;
@@ -316,6 +335,49 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
       console.error("LLM verify error:", e);
       verifyReason = "Verification request failed. Please check your connection and try again.";
     }
+  }
+
+  // If the AI verifier is unavailable or the provider is rate-limiting us,
+  // enqueue this report for deferred verification via pgmq instead of making
+  // a hard decision immediately. Riders still see a clear status, and a
+  // background worker can re-run the checks later.
+  if (!llmAvailable) {
+    try {
+      const payload = {
+        report_id: reportRow.id,
+        profile_id: user.id,
+        photo_path: photoUrl,
+        zone_lat: zoneLat,
+        zone_lng: zoneLng,
+        category,
+        message,
+      };
+
+      await admin
+        .from("rider_delivery_reports")
+        .update({ verification_status: "queued" })
+        .eq("id", reportRow.id);
+
+      await admin.rpc("pgmq_send_self_report_verification", {
+        msg: payload,
+      });
+    } catch (err) {
+      console.error("Failed to enqueue self-report verification job:", err);
+    }
+
+    return NextResponse.json({
+      id: reportRow.id,
+      created_at: reportRow.created_at,
+      verified: false,
+      reason:
+        verifyReason ||
+        "Verification is temporarily queued due to provider limits. We will process your report shortly.",
+      claim_created: false,
+      claim_accepted: false,
+      fraud_blocked: false,
+      payout_initiated: false,
+      queued: true,
+    });
   }
 
   // Cross-check self-report against real weather/traffic data at report GPS
