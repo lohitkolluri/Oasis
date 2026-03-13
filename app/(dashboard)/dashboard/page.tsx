@@ -1,4 +1,5 @@
 import { DashboardContent } from "@/components/rider/DashboardContent";
+import { RealtimeProvider } from "@/components/rider/RealtimeProvider";
 import { createClient } from "@/lib/supabase/server";
 import {
   deriveWalletStats,
@@ -39,19 +40,21 @@ export default async function DashboardPage() {
     : undefined;
 
   return (
-    <DashboardContent
-      user={user}
-      profile={profile}
-      policyIds={result.policyIds}
-      totalPayouts={stats.totalPayouts}
-      totalClaimCount={stats.totalClaimCount}
-      thisWeekEarned={stats.thisWeekEarned}
-      weeklyDailyEarnings={stats.weeklyDailyEarnings}
-      riskLevel={riskLevel}
-      claimsFiltered={result.claims}
-      activePolicy={result.activePolicy}
-      planName={planName}
-      claimIdsNeedingVerification={result.claimIdsNeedingVerification}
-    />
+    <RealtimeProvider profileId={user.id} policyIds={result.policyIds}>
+      <DashboardContent
+        user={user}
+        profile={profile}
+        policyIds={result.policyIds}
+        totalPayouts={stats.totalPayouts}
+        totalClaimCount={stats.totalClaimCount}
+        thisWeekEarned={stats.thisWeekEarned}
+        weeklyDailyEarnings={stats.weeklyDailyEarnings}
+        riskLevel={riskLevel}
+        claimsFiltered={result.claims}
+        activePolicy={result.activePolicy}
+        planName={planName}
+        claimIdsNeedingVerification={result.claimIdsNeedingVerification}
+      />
+    </RealtimeProvider>
   );
 }

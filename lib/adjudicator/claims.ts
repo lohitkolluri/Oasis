@@ -107,6 +107,26 @@ export async function processClaimsForEvent(
   let payoutFailures = 0;
   const paidPhones = new Set<string>();
   const isDemo = candidate.raw?.demo === true || candidate.raw?.source === 'admin_demo_mode';
+  const pendingNotifications: Array<{
+    profile_id: string;
+    title: string;
+    body: string;
+    type: string;
+    metadata: Record<string, unknown>;
+  }> = [];
+
+  const eventLabel =
+    candidate.subtype === 'extreme_heat'
+      ? 'Extreme heat'
+      : candidate.subtype === 'heavy_rain'
+        ? 'Heavy rain'
+        : candidate.subtype === 'severe_aqi'
+          ? 'Severe AQI'
+          : candidate.subtype === 'zone_curfew'
+            ? 'Zone curfew'
+            : candidate.subtype === 'traffic_gridlock'
+              ? 'Traffic gridlock'
+              : 'Disruption';
 
   for (const policy of policies) {
     const plan = policy.plan_packages as {
@@ -171,7 +191,6 @@ export async function processClaimsForEvent(
         policy.profile_id,
       );
 
-      // Demo mode: auto-record payout so ledger has a row and demo shows "1 payout(s)"
       if (isDemo) {
         const payoutOk = await simulatePayout(
           supabase,
@@ -193,22 +212,7 @@ export async function processClaimsForEvent(
         }
       }
 
-      // Payout (non-demo): rider must verify location (see verify-location API). When the app is open
-      // on mobile, RealtimeNotifications auto-requests GPS and POSTs to verify-location so
-      // payout can be processed without the rider tapping "Verify". Otherwise they verify manually.
-      const eventLabel =
-        candidate.subtype === 'extreme_heat'
-          ? 'Extreme heat'
-          : candidate.subtype === 'heavy_rain'
-            ? 'Heavy rain'
-            : candidate.subtype === 'severe_aqi'
-              ? 'Severe AQI'
-              : candidate.subtype === 'zone_curfew'
-                ? 'Zone curfew'
-                : candidate.subtype === 'traffic_gridlock'
-                  ? 'Traffic gridlock'
-                  : 'Disruption';
-      const { error: notifErr } = await supabase.from('rider_notifications').insert({
+      pendingNotifications.push({
         profile_id: policy.profile_id,
         title: isDemo
           ? `Demo: claim paid — ₹${payoutAmount} credited`
@@ -219,19 +223,14 @@ export async function processClaimsForEvent(
         type: 'payout',
         metadata: { claim_id: claimData.id, amount_inr: payoutAmount, subtype: candidate.subtype },
       });
-      if (notifErr) {
-        // Table may not exist yet or RLS; don't fail the claim
-      }
 
-      // Schedule verification reminder notifications at 12h and 20h after claim creation
       if (!isDemo) {
         const reminders = [
           { hours: 12, title: 'Reminder: verify your location', body: `You have ${FRAUD.VERIFY_WINDOW_HOURS - 12}h left to verify your location for ₹${payoutAmount} payout.` },
           { hours: 20, title: 'Urgent: verify location soon', body: `Only ${FRAUD.VERIFY_WINDOW_HOURS - 20}h remaining to verify your location and claim ₹${payoutAmount}.` },
         ];
         for (const reminder of reminders) {
-          const scheduledAt = new Date(Date.now() + reminder.hours * 60 * 60 * 1000).toISOString();
-          await supabase.from('rider_notifications').insert({
+          pendingNotifications.push({
             profile_id: policy.profile_id,
             title: reminder.title,
             body: reminder.body,
@@ -239,13 +238,17 @@ export async function processClaimsForEvent(
             metadata: {
               claim_id: claimData.id,
               amount_inr: payoutAmount,
-              scheduled_for: scheduledAt,
+              scheduled_for: new Date(Date.now() + reminder.hours * 60 * 60 * 1000).toISOString(),
               reminder_hours: reminder.hours,
             },
-          }).then(() => {}, () => {});
+          });
         }
       }
     }
+  }
+
+  if (pendingNotifications.length > 0) {
+    await supabase.from('rider_notifications').insert(pendingNotifications).then(() => {}, () => {});
   }
 
   return {

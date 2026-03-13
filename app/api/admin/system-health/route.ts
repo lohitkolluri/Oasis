@@ -36,7 +36,7 @@ async function checkStripe(): Promise<{ ok: boolean; error?: string }> {
 export const GET = withAdminAuth(async () => {
   const admin = createAdminClient();
 
-  const [dbCheck, stripeCheck, lastRunRes, errorCountRes, recentLogsRes] = await Promise.all([
+  const [dbCheck, stripeCheck, lastRunRes, errorCountRes, recentLogsRes, lastRotationRes, logCountRes] = await Promise.all([
     checkSupabase(admin),
     checkStripe(),
     admin
@@ -56,6 +56,16 @@ export const GET = withAdminAuth(async () => {
       .select("event_type, severity, metadata, created_at")
       .order("created_at", { ascending: false })
       .limit(10),
+    admin
+      .from("system_logs")
+      .select("created_at, metadata")
+      .eq("event_type", "log_rotation")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("system_logs")
+      .select("id", { count: "exact", head: true }),
   ]);
 
   const dbOk = dbCheck.ok;
@@ -63,6 +73,8 @@ export const GET = withAdminAuth(async () => {
   const lastRun = lastRunRes.data;
   const errorCount = errorCountRes.error ? 0 : (errorCountRes.count ?? 0);
   const recentLogs = recentLogsRes.data ?? [];
+  const lastRotation = lastRotationRes.data;
+  const totalLogCount = logCountRes.count ?? 0;
 
   if (!dbOk) {
     return NextResponse.json(
@@ -121,6 +133,11 @@ export const GET = withAdminAuth(async () => {
         }
       : null,
     errors24h: errorCount,
+    logRotation: {
+      lastRunAt: lastRotation?.created_at ?? null,
+      lastResult: lastRotation?.metadata ?? null,
+      totalLogRows: totalLogCount,
+    },
     apis,
     recentLogs,
   });

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Wallet, Zap } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtime } from "@/components/rider/RealtimeProvider";
 
 interface RealtimeWalletProps {
   profileId: string;
@@ -16,61 +16,26 @@ export function RealtimeWallet({
   profileId: _profileId,
   initialBalance,
   initialClaimCount,
-  policyIds,
+  policyIds: _policyIds,
   platform,
 }: RealtimeWalletProps) {
   const [balance, setBalance] = useState(initialBalance);
   const [claimCount, setClaimCount] = useState(initialClaimCount);
   const [justUpdated, setJustUpdated] = useState(false);
+  const seenClaimIds = useRef(new Set<string>());
 
-  const supabase = createClient();
+  const { lastClaimEvent } = useRealtime();
 
   useEffect(() => {
-    if (policyIds.length === 0) return;
-
-    const channel = supabase
-      .channel("parametric_claims")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "parametric_claims",
-          filter: `policy_id=in.(${policyIds.join(",")})`,
-        },
-        (payload) => {
-          const newClaim = payload.new as { payout_amount_inr: number; status?: string };
-          if (newClaim.status !== "paid") return;
-          setBalance((b) => b + Number(newClaim.payout_amount_inr));
-          setClaimCount((c) => c + 1);
-          setJustUpdated(true);
-          setTimeout(() => setJustUpdated(false), 2500);
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "parametric_claims",
-          filter: `policy_id=in.(${policyIds.join(",")})`,
-        },
-        (payload) => {
-          const oldClaim = payload.old as { status?: string } | null;
-          const newClaim = payload.new as { payout_amount_inr: number; status?: string };
-          if (oldClaim?.status === "paid" || newClaim.status !== "paid") return;
-          setBalance((b) => b + Number(newClaim.payout_amount_inr));
-          setClaimCount((c) => c + 1);
-          setJustUpdated(true);
-          setTimeout(() => setJustUpdated(false), 2500);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, policyIds]);
+    if (!lastClaimEvent) return;
+    if (lastClaimEvent.status !== "paid") return;
+    if (seenClaimIds.current.has(lastClaimEvent.id)) return;
+    seenClaimIds.current.add(lastClaimEvent.id);
+    setBalance((b) => b + Number(lastClaimEvent.payout_amount_inr));
+    setClaimCount((c) => c + 1);
+    setJustUpdated(true);
+    setTimeout(() => setJustUpdated(false), 2500);
+  }, [lastClaimEvent]);
 
   return (
     <div className="rounded-[24px] bg-surface-1 border border-white/10 overflow-hidden">

@@ -1,18 +1,16 @@
 'use client';
 
-import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 import { ChevronRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRealtime } from '@/components/rider/RealtimeProvider';
 
 interface WalletBalanceCardProps {
   initialBalance: number;
   weeklyChange: number;
   policyIds: string[];
-  /** Optional sparkline values (e.g. last 7 days). If not provided, uses placeholder. */
   sparklineData?: number[];
-  /** Show a "View details" style CTA on the card (e.g. on wallet page). */
   showAction?: boolean;
 }
 
@@ -49,56 +47,24 @@ function Sparkline({ values }: { values: number[] }) {
 export function WalletBalanceCard({
   initialBalance,
   weeklyChange,
-  policyIds,
+  policyIds: _policyIds,
   sparklineData,
   showAction = false,
 }: WalletBalanceCardProps) {
   const [balance, setBalance] = useState(initialBalance);
   const [justUpdated, setJustUpdated] = useState(false);
-  const supabase = createClient();
+  const seenClaimIds = useRef(new Set<string>());
+  const { lastClaimEvent } = useRealtime();
 
   useEffect(() => {
-    if (policyIds.length === 0) return;
-    const channel = supabase
-      .channel('wallet_balance_card')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'parametric_claims',
-          filter: `policy_id=in.(${policyIds.join(',')})`,
-        },
-        (payload) => {
-          const newClaim = payload.new as { payout_amount_inr: number; status?: string };
-          if (newClaim.status !== 'paid') return;
-          setBalance((b) => b + Number(newClaim.payout_amount_inr));
-          setJustUpdated(true);
-          setTimeout(() => setJustUpdated(false), 2500);
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'parametric_claims',
-          filter: `policy_id=in.(${policyIds.join(',')})`,
-        },
-        (payload) => {
-          const oldClaim = payload.old as { status?: string } | null;
-          const newClaim = payload.new as { payout_amount_inr: number; status?: string };
-          if (oldClaim?.status === 'paid' || newClaim.status !== 'paid') return;
-          setBalance((b) => b + Number(newClaim.payout_amount_inr));
-          setJustUpdated(true);
-          setTimeout(() => setJustUpdated(false), 2500);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [policyIds]);
+    if (!lastClaimEvent) return;
+    if (lastClaimEvent.status !== 'paid') return;
+    if (seenClaimIds.current.has(lastClaimEvent.id)) return;
+    seenClaimIds.current.add(lastClaimEvent.id);
+    setBalance((b) => b + Number(lastClaimEvent.payout_amount_inr));
+    setJustUpdated(true);
+    setTimeout(() => setJustUpdated(false), 2500);
+  }, [lastClaimEvent]);
 
   const spark =
     sparklineData && sparklineData.length > 0

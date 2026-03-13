@@ -6,6 +6,7 @@ import { WalletBalanceCard } from "@/components/rider/WalletBalanceCard";
 import { WalletActions } from "@/components/rider/WalletActions";
 import { WeeklyEarningsChart } from "@/components/rider/WeeklyEarningsChart";
 import { ClaimsPreview } from "@/components/rider/ClaimsPreview";
+import { RealtimeProvider } from "@/components/rider/RealtimeProvider";
 import {
   deriveWalletStats,
   getRiderPoliciesAndWallet,
@@ -32,44 +33,43 @@ export default async function WalletPage() {
   const firstName = profile?.full_name?.split(/\s+/)[0] ?? "there";
 
   return (
-    <div className="space-y-5">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors min-h-[44px] -ml-1 px-1"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to dashboard
-      </Link>
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-white">
-          Hello, {firstName}!
-        </h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
-          Your payout balance and recent activity
-        </p>
+    <RealtimeProvider profileId={user.id} policyIds={result.policyIds}>
+      <div className="space-y-5">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors min-h-[44px] -ml-1 px-1"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            Hello, {firstName}!
+          </h1>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            Your payout balance and recent activity
+          </p>
+        </div>
+
+        <WalletBalanceCard
+          initialBalance={stats.totalPayouts}
+          weeklyChange={stats.thisWeekEarned}
+          policyIds={result.policyIds}
+          sparklineData={
+            stats.weeklyDailyEarnings.some((n) => n > 0)
+              ? stats.weeklyDailyEarnings
+              : undefined
+          }
+        />
+
+        <WalletActions />
+
+        <section>
+          <ClaimsPreview claims={result.claims} title="Recent activity" variant="wallet" />
+        </section>
+
+        <WeeklyEarningsChart dailyEarnings={stats.weeklyDailyEarnings} />
       </div>
-
-      {/* Main wallet card — gradient, rounded, prominent balance */}
-      <WalletBalanceCard
-        initialBalance={stats.totalPayouts}
-        weeklyChange={stats.thisWeekEarned}
-        policyIds={result.policyIds}
-        sparklineData={
-          stats.weeklyDailyEarnings.some((n) => n > 0)
-            ? stats.weeklyDailyEarnings
-            : undefined
-        }
-      />
-
-      {/* Quick actions — Report, Claims, Policy, More */}
-      <WalletActions />
-
-      {/* Recent activity — list style with View all */}
-      <section>
-        <ClaimsPreview claims={result.claims} title="Recent activity" variant="wallet" />
-      </section>
-
-      <WeeklyEarningsChart dailyEarnings={stats.weeklyDailyEarnings} />
-    </div>
+    </RealtimeProvider>
   );
 }

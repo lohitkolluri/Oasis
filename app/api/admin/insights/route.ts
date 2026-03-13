@@ -13,9 +13,13 @@ export const GET = withAdminAuth(async (_ctx) => {
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  const [policiesRes, claimsRes, recentClaimsRes, eventsRes, reportsRes] = await Promise.all([
+  const [policiesRes, claimsRes, fraudRes, recentClaimsRes, eventsRes, reportsRes] = await Promise.all([
     adminSupabase.from('weekly_policies').select('weekly_premium_inr').eq('is_active', true),
-    adminSupabase.from('parametric_claims').select('payout_amount_inr, is_flagged'),
+    adminSupabase.from('parametric_claims').select('payout_amount_inr'),
+    adminSupabase
+      .from('parametric_claims')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_flagged', true),
     adminSupabase
       .from('parametric_claims')
       .select('id', { count: 'exact', head: true })
@@ -26,7 +30,6 @@ export const GET = withAdminAuth(async (_ctx) => {
       .gte('created_at', since24h)
       .order('created_at', { ascending: false })
       .limit(50),
-    // rider_delivery_reports table may not exist in all environments — guard with try/catch
     (async () => {
       try {
         return await adminSupabase
@@ -41,7 +44,7 @@ export const GET = withAdminAuth(async (_ctx) => {
 
   const policies = policiesRes.data ?? [];
   const claims = claimsRes.data ?? [];
-  const fraudCount = claims.filter((c: { is_flagged: boolean }) => c.is_flagged).length;
+  const fraudCount = fraudRes.count ?? 0;
   const events = eventsRes.data ?? [];
   const severeEvents = events.filter((e: { severity_score: number }) => Number(e.severity_score) >= 8);
   const reportsLast24h = reportsRes.count ?? 0;

@@ -12,43 +12,29 @@ export async function getActiveZones(
 ): Promise<Array<{ lat: number; lng: number }>> {
   const today = toDateString(new Date());
 
-  const { data: activePolicies } = await supabase
+  const { data: policies } = await supabase
     .from('weekly_policies')
-    .select('profile_id')
+    .select('profiles!inner(zone_latitude, zone_longitude)')
     .eq('is_active', true)
     .lte('week_start_date', today)
-    .gte('week_end_date', today);
+    .gte('week_end_date', today)
+    .not('profiles.zone_latitude', 'is', null)
+    .not('profiles.zone_longitude', 'is', null);
 
-  if (!activePolicies || activePolicies.length === 0) {
-    return [{ lat: DEFAULT_ZONE.lat, lng: DEFAULT_ZONE.lng }];
-  }
-
-  const profileIds = [
-    ...new Set(
-      (activePolicies as Array<{ profile_id: string }>).map((p) => p.profile_id),
-    ),
-  ];
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('zone_latitude, zone_longitude')
-    .in('id', profileIds)
-    .not('zone_latitude', 'is', null)
-    .not('zone_longitude', 'is', null);
-
-  if (!profiles || profiles.length === 0) {
+  if (!policies || policies.length === 0) {
     return [{ lat: DEFAULT_ZONE.lat, lng: DEFAULT_ZONE.lng }];
   }
 
   const seen = new Map<string, { lat: number; lng: number }>();
-  for (const p of profiles as Array<{
-    zone_latitude: number;
-    zone_longitude: number;
-  }>) {
-    if (p.zone_latitude == null || p.zone_longitude == null) continue;
-    const key = clusterKey(p.zone_latitude, p.zone_longitude);
+  for (const row of policies) {
+    const profile = row.profiles as unknown as {
+      zone_latitude: number;
+      zone_longitude: number;
+    } | null;
+    if (!profile || profile.zone_latitude == null || profile.zone_longitude == null) continue;
+    const key = clusterKey(profile.zone_latitude, profile.zone_longitude);
     if (!seen.has(key)) {
-      seen.set(key, { lat: p.zone_latitude, lng: p.zone_longitude });
+      seen.set(key, { lat: profile.zone_latitude, lng: profile.zone_longitude });
     }
   }
 

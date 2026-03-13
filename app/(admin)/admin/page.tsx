@@ -1,4 +1,5 @@
 import { AdminInsights } from '@/components/admin/AdminInsights';
+import { AdminLiveFeed } from '@/components/admin/AdminLiveFeed';
 import { RunAdjudicatorButton } from '@/components/admin/RunAdjudicatorButton';
 import { SystemHealth } from '@/components/admin/SystemHealth';
 import { KPICard } from '@/components/ui/KPICard';
@@ -169,6 +170,14 @@ export default async function AdminDashboardPage() {
       {/* Adjudicator control */}
       <RunAdjudicatorButton />
 
+      {/* Live feed */}
+      <section>
+        <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
+          Live Activity
+        </p>
+        <AdminLiveFeed />
+      </section>
+
       {/* Operations brief */}
       <section>
         <p className="text-[10px] font-medium text-[#666666] uppercase tracking-[0.12em] mb-4">
@@ -179,7 +188,6 @@ export default async function AdminDashboardPage() {
             <AdminInsights />
           </div>
           <div className="space-y-4">
-            {/* Next week forecast */}
             <div className="bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:border-[#3a3a3a] transition-all">
               <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-7 h-7 rounded-lg bg-[#7dd3fc]/10 border border-[#7dd3fc]/20 flex items-center justify-center">

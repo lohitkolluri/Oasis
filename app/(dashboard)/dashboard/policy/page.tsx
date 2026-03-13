@@ -18,24 +18,6 @@ export default async function PolicyPage({
 
   if (!user) redirect("/login");
 
-  const { data: policies } = await supabase
-    .from("weekly_policies")
-    .select("*, plan_packages(name)")
-    .eq("profile_id", user.id)
-    .order("week_start_date", { ascending: false })
-    .limit(5);
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("primary_zone_geofence, zone_latitude, zone_longitude")
-    .eq("id", user.id)
-    .single();
-
-  const zoneData = profile?.primary_zone_geofence as Record<string, unknown> | null;
-  const zoneName = (zoneData?.zone_name as string) ?? null;
-  const zoneLat = profile?.zone_latitude ?? null;
-  const zoneLng = profile?.zone_longitude ?? null;
-
   const nextMonday = (() => {
     const d = new Date();
     const day = d.getDay();
@@ -44,19 +26,45 @@ export default async function PolicyPage({
     return d.toISOString().split("T")[0];
   })();
 
-  const { data: rec } = await supabase
-    .from("premium_recommendations")
-    .select("recommended_premium_inr")
-    .eq("profile_id", user.id)
-    .eq("week_start_date", nextMonday)
-    .single();
+  const [{ data: policies }, { data: profile }, { data: rec }, { data: plans }] =
+    await Promise.all([
+      supabase
+        .from("weekly_policies")
+        .select("*, plan_packages(name)")
+        .eq("profile_id", user.id)
+        .order("week_start_date", { ascending: false })
+        .limit(5),
+      supabase
+        .from("profiles")
+        .select("primary_zone_geofence, zone_latitude, zone_longitude")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("premium_recommendations")
+        .select("recommended_premium_inr")
+        .eq("profile_id", user.id)
+        .eq("week_start_date", nextMonday)
+        .single(),
+      supabase
+        .from("plan_packages")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+  const zoneData = profile?.primary_zone_geofence as Record<string, unknown> | null;
+  const zoneName = (zoneData?.zone_name as string) ?? null;
+  const zoneLat = profile?.zone_latitude ?? null;
+  const zoneLng = profile?.zone_longitude ?? null;
 
   let premium: number;
   if (rec?.recommended_premium_inr != null) {
     premium = Number(rec.recommended_premium_inr);
   } else {
-    const eventCount = await getHistoricalEventCount(supabase, zoneLat, zoneLng);
-    const forecastRisk = await getForecastRiskFactor(supabase, zoneLat ?? 12.97, zoneLng ?? 77.59);
+    const [eventCount, forecastRisk] = await Promise.all([
+      getHistoricalEventCount(supabase, zoneLat, zoneLng),
+      getForecastRiskFactor(supabase, zoneLat ?? 12.97, zoneLng ?? 77.59),
+    ]);
     premium = calculateWeeklyPremium({
       zoneName,
       zoneLatitude: zoneLat,
@@ -71,12 +79,6 @@ export default async function PolicyPage({
     activePolicy?.plan_packages && typeof activePolicy.plan_packages === "object" && activePolicy.plan_packages !== null
       ? (activePolicy.plan_packages as { name?: string }).name ?? "Weekly plan"
       : "Weekly plan";
-
-  const { data: plans } = await supabase
-    .from("plan_packages")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
 
   return (
     <div className="space-y-5">

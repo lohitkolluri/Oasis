@@ -78,6 +78,14 @@ export const ADJUDICATOR = {
   TRIGGER_CONCURRENCY: 3,
 } as const;
 
+/** Log rotation retention periods (days) */
+export const LOG_ROTATION = {
+  SYSTEM_LOGS_DAYS: 30,
+  READ_NOTIFICATIONS_DAYS: 7,
+  UNREAD_NOTIFICATIONS_DAYS: 30,
+  STRIPE_WEBHOOKS_DAYS: 90,
+} as const;
+
 /** External API config */
 export const EXTERNAL_APIS = {
   RETRY_MAX_ATTEMPTS: 3,
