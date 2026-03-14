@@ -139,6 +139,71 @@ body {
   .gooey-timestamp {
     display: none !important;
   }
+  .gooey-wrapper {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .gooey-content,
+  .gooey-contentExpanded {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .gooey-title {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+}
+
+/* Rider app react-toastify — mobile-first, swipe-to-dismiss, safe area */
+/* Container: above modals (z-[9999]) so toasts are always visible on top */
+.rider-toast-container.Toastify__toast-container--top-center {
+  z-index: 99999 !important;
+  top: max(12px, env(safe-area-inset-top)) !important;
+  left: 50% !important;
+  right: auto !important;
+  width: min(calc(100vw - 24px), 400px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: translateX(-50%) !important;
+}
+.rider-toast-container .Toastify__toast {
+  z-index: 99999 !important;
+}
+.rider-toast {
+  border-radius: 1rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important;
+  padding: 14px 44px 14px 16px !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+  min-height: auto !important;
+  width: 100% !important;
+  word-break: break-word !important;
+  opacity: 1 !important;
+  background: #1a1a1a !important;
+  background-color: #1a1a1a !important;
+  color: #fff !important;
+}
+.rider-toast.Toastify__toast--success,
+.rider-toast.Toastify__toast-theme--dark.Toastify__toast--success {
+  opacity: 1 !important;
+  background: #0f2a1a !important;
+  background-color: #0f2a1a !important;
+  border-color: rgba(58, 167, 109, 0.5) !important;
+  color: #dcfce7 !important;
+}
+.rider-toast.Toastify__toast--error,
+.rider-toast.Toastify__toast-theme--dark.Toastify__toast--error,
+.rider-toast.Toastify__toast-theme--colored.Toastify__toast--error {
+  opacity: 1 !important;
+  background: #2a1512 !important;
+  background-color: #2a1512 !important;
+  border-color: rgba(212, 67, 51, 0.5) !important;
+  color: #fef2f2 !important;
+}
+.rider-toast-progress {
+  background: rgba(255, 255, 255, 0.25) !important;
 }
 
 /* Scrollbar */

@@ -2,6 +2,7 @@ import { BottomNav } from '@/components/rider/BottomNav';
 import { RealtimeNotifications } from '@/components/rider/RealtimeNotifications';
 import { Avatar } from '@/components/ui/Avatar';
 import { Logo } from '@/components/ui/Logo';
+import { RiderToaster } from '@/components/ui/RiderToaster';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/auth';
 import Link from 'next/link';
@@ -31,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-[100dvh] bg-black">
+      <RiderToaster />
       <RealtimeNotifications profileId={user.id} />
       {/* Top App Bar — Uber black, safe-area aware */}
       <header className="sticky top-0 z-10 bg-black/95 backdrop-blur-2xl safe-area-top will-change-transform">

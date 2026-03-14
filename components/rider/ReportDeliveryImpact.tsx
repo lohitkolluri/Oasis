@@ -2,7 +2,7 @@
 
 import { isMobileForGps } from '@/lib/utils/device';
 import { AnimatePresence, motion } from 'framer-motion';
-import { gooeyToast } from 'goey-toast';
+import { toast } from 'react-toastify';
 import { Camera, Flag, ImageIcon, Loader2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -102,15 +102,15 @@ export function ReportDeliveryImpact({
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) {
-      gooeyToast.error('Add a short description of the disruption');
+      toast.error('Add a short description of the disruption');
       return;
     }
     if (!photo) {
-      gooeyToast.error('Please take a live photo (camera only)');
+      toast.error('Please take a live photo (camera only)');
       return;
     }
     if (!isMobileForGps(navigator.userAgent)) {
-      gooeyToast.error('Use a mobile device for precise location when reporting delivery issues.');
+      toast.error('Use a mobile device for precise location when reporting delivery issues.');
       return;
     }
     setLoading(true);
@@ -144,14 +144,14 @@ export function ReportDeliveryImpact({
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         if (!data.verified) {
-          gooeyToast.error(data.reason ?? 'Report could not be verified by AI');
+          toast.error(data.reason ?? 'Report could not be verified by AI');
           return;
         }
 
         setSuccess(true);
         setMessage('');
         setPhoto(null);
-        gooeyToast.success(
+        toast.success(
           (data.payout_initiated ?? data.payout_created)
             ? 'Report verified. Payout flow started. Complete location verification in Recent Payouts.'
             : 'Report verified, but payout could not be initiated for this policy week.',
@@ -161,10 +161,10 @@ export function ReportDeliveryImpact({
           setSuccess(false);
         }, 1500);
       } else {
-        gooeyToast.error(data.error ?? 'Failed to submit report');
+        toast.error(data.error ?? 'Failed to submit report');
       }
     } catch {
-      gooeyToast.error('Failed to submit report');
+      toast.error('Failed to submit report');
     } finally {
       setLoading(false);
     }

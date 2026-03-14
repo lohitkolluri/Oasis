@@ -1,6 +1,6 @@
 'use client';
 
-import { gooeyToast } from 'goey-toast';
+import { toast } from 'react-toastify';
 import { createClient } from '@/lib/supabase/client';
 import { isMobileForGps } from '@/lib/utils/device';
 import { useEffect } from 'react';
@@ -86,16 +86,14 @@ export function RealtimeNotifications({ profileId }: RealtimeNotificationsProps)
           const title = row.title ?? 'Notification';
           const body = row.body;
 
-          gooeyToast.success(title, { description: body });
+          toast.success(body ? `${title}. ${body}` : title);
 
           // Auto-verify: only for payout notifications with a claim_id (claim created for this rider's zone)
           const claimId = row.metadata?.claim_id;
           if (row.type === 'payout' && claimId && typeof claimId === 'string') {
             tryAutoVerifyLocation(claimId).then((payoutInitiated) => {
               if (payoutInitiated) {
-                gooeyToast.success('Payout credited', {
-                  description: 'Your location was verified. Amount added to your wallet.',
-                });
+                toast.success('Payout credited. Your location was verified. Amount added to your wallet.');
               }
             });
           }

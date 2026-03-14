@@ -25,7 +25,7 @@ export async function callOpenRouterChat(payload: unknown): Promise<OpenRouterCh
   try {
     const appUrl = getAppUrl();
     headers["HTTP-Referer"] = appUrl;
-    headers["X-OpenRouter-Title"] = "Oasis – Parametric Income Protection";
+    headers["X-OpenRouter-Title"] = "Oasis - Parametric Income Protection";
   } catch {
     // Safe to ignore; attribution is nice-to-have only.
   }
