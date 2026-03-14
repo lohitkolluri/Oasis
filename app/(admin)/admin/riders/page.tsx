@@ -1,3 +1,13 @@
+import { CopyableId } from '@/components/ui/CopyableId';
+import { PlatformLogo } from '@/components/ui/PlatformLogo';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ChevronRight, Shield, Users } from 'lucide-react';
 import Link from 'next/link';
@@ -27,91 +37,99 @@ export default async function AdminRidersPage() {
     return z?.zone_name ?? '—';
   };
 
-  const platformColor: Record<string, string> = {
-    zepto: '#7dd3fc',
-    blinkit: '#f59e0b',
-    swiggy: '#f97316',
-    zomato: '#ef4444',
-  };
-
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+    new Date(d).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: '2-digit',
+    });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Riders</h1>
-          <p className="text-sm text-[#666] mt-1">View and manage delivery partner profiles</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">
+            Riders
+          </h1>
+          <p className="text-sm text-[#666] mt-1">
+            View and manage delivery partner profiles
+          </p>
         </div>
-        <span className="text-xs px-3 py-1 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20 tabular-nums">
+        <span className="text-xs px-3 py-1.5 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20 tabular-nums font-medium">
           {profiles?.length ?? 0} total
         </span>
       </div>
 
       {profiles && profiles.length > 0 ? (
-        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-[#2d2d2d] grid grid-cols-[1fr_auto_auto_auto_auto] gap-4">
-            {['Name', 'Platform', 'Zone', 'Joined', ''].map((h) => (
-              <span
-                key={h || 'action'}
-                className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em]"
-              >
-                {h}
-              </span>
-            ))}
-          </div>
-          <div className="divide-y divide-[#2d2d2d]">
-            {profiles.map((p) => {
-              const platform = (p.platform ?? '').toLowerCase();
-              const color = platformColor[platform] ?? '#666';
-              return (
-                <Link
-                  key={p.id}
-                  href={`/admin/riders/${p.id}`}
-                  className="px-5 py-3 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-[#1e1e1e] transition-colors group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-white truncate">
-                          {p.full_name ?? 'Unnamed rider'}
-                        </p>
-                        {(p as { role?: string }).role === 'admin' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#7dd3fc]/10 text-[#7dd3fc]">
-                            <Shield className="h-2.5 w-2.5" /> Admin
+        <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+                <TableHead className="w-[min(280px,35%)]">Name</TableHead>
+                <TableHead className="w-[80px]">Platform</TableHead>
+                <TableHead className="w-[140px]">Zone</TableHead>
+                <TableHead className="w-[100px]">Joined</TableHead>
+                <TableHead className="w-[44px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {profiles.map((p) => (
+                <TableRow key={p.id} className="border-[#2d2d2d] group">
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/admin/riders/${p.id}`}
+                      className="flex items-center gap-3 min-w-0 hover:opacity-90 transition-opacity"
+                    >
+                      <PlatformLogo platform={p.platform} size={32} showName />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-white truncate">
+                            {p.full_name ?? 'Unnamed rider'}
                           </span>
-                        )}
+                          {(p as { role?: string }).role === 'admin' && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20">
+                              <Shield className="h-2.5 w-2.5" /> Admin
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5">
+                          <CopyableId value={p.id} prefix="" label="Copy rider ID" />
+                        </div>
                       </div>
-                      <p className="text-[10px] text-[#555] font-mono">{p.id.slice(0, 8)}...</p>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center">
+                      <PlatformLogo platform={p.platform} size={24} showName />
                     </div>
-                  </div>
-
-                  <span
-                    className="text-xs font-medium whitespace-nowrap"
-                    style={{ color: p.platform ? color : '#555' }}
-                  >
-                    {p.platform ?? '—'}
-                  </span>
-
-                  <span className="text-xs text-[#9ca3af] whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-[#9ca3af] text-xs">
                     {zoneName(p.primary_zone_geofence)}
-                  </span>
-
-                  <span className="text-xs text-[#555] whitespace-nowrap tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-xs text-[#9ca3af] tabular-nums">
                     {formatDate(p.created_at)}
-                  </span>
-
-                  <ChevronRight className="h-3.5 w-3.5 text-[#3a3a3a] group-hover:text-[#666] transition-colors" />
-                </Link>
-              );
-            })}
-          </div>
+                  </TableCell>
+                  <TableCell className="p-0 w-[44px]">
+                    <Link
+                      href={`/admin/riders/${p.id}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#555] transition-colors hover:bg-[#1e1e1e] hover:text-[#7dd3fc]"
+                      title="View rider"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : (
-        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-16 text-center">
-          <Users className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
-          <p className="text-sm text-[#555]">No riders registered yet</p>
+        <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] flex flex-col items-center justify-center py-16 text-center">
+          <Users className="h-10 w-10 text-[#3a3a3a] mb-4" />
+          <p className="text-sm font-medium text-[#555]">No riders registered yet</p>
+          <p className="text-xs text-[#444] mt-1">
+            Riders appear here after they complete onboarding
+          </p>
         </div>
       )}
     </div>

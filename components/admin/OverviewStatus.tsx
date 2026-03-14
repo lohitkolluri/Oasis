@@ -1,6 +1,7 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -24,16 +25,16 @@ export function OverviewStatus() {
 
   if (loading) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-4 flex items-center justify-center">
-        <Loader2 className="h-4 w-4 animate-spin text-[#555]" />
-      </div>
+      <Card variant="default" padding="md" className="flex items-center justify-center">
+        <Skeleton className="h-5 w-32" />
+      </Card>
     );
   }
 
   const ok = data?.status === 'healthy' && (data?.errors24h ?? 0) === 0;
 
   return (
-    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-4">
+    <Card variant="default" padding="md">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
@@ -52,6 +53,6 @@ export function OverviewStatus() {
           Details
         </Link>
       </div>
-    </div>
+    </Card>
   );
 }

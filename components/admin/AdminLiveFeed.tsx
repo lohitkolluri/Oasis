@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { createClient } from '@/lib/supabase/client';
 import { Activity, Cloud, CreditCard, FileCheck, ShieldAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -165,71 +167,73 @@ export function AdminLiveFeed({ summary24h }: AdminLiveFeedProps) {
   }
 
   return (
-    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
+    <Card variant="default" padding="none" className="overflow-hidden">
       <div className="px-5 py-3 border-b border-[#2d2d2d]">
         <p className="text-sm font-semibold text-white">Recent activity</p>
       </div>
 
-      <div className="max-h-[280px] overflow-y-auto">
-        {events.length === 0 ? (
-          <div className="px-5 py-6">
-            {summary24h && (summary24h.claims > 0 || summary24h.payoutsTotal > 0 || summary24h.flagged > 0) ? (
-              <>
-                <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-3">
-                  Last 24 hours
-                </p>
-                <div className="space-y-2.5">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#9ca3af]">Claims</span>
-                    <span className="font-medium text-white tabular-nums">{summary24h.claims}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#9ca3af]">Payouts</span>
-                    <span className="font-medium text-white tabular-nums">
-                      ₹{summary24h.payoutsTotal.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {summary24h.flagged > 0 && (
+      <ScrollArea className="h-[280px]">
+        <div className="pr-3">
+          {events.length === 0 ? (
+            <div className="px-5 py-6">
+              {summary24h && (summary24h.claims > 0 || summary24h.payoutsTotal > 0 || summary24h.flagged > 0) ? (
+                <>
+                  <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-3">
+                    Last 24 hours
+                  </p>
+                  <div className="space-y-2.5">
                     <div className="flex justify-between text-sm">
-                      <span className="text-[#9ca3af]">Under review</span>
-                      <span className="font-medium text-[#ef4444] tabular-nums">{summary24h.flagged}</span>
+                      <span className="text-[#9ca3af]">Claims</span>
+                      <span className="font-medium text-white tabular-nums">{summary24h.claims}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#9ca3af]">Payouts</span>
+                      <span className="font-medium text-white tabular-nums">
+                        ₹{summary24h.payoutsTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    {summary24h.flagged > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[#9ca3af]">Under review</span>
+                        <span className="font-medium text-[#ef4444] tabular-nums">{summary24h.flagged}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[#444] mt-4">
+                    Live claims and payouts will appear here as they happen
+                  </p>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-xs text-[#555]">No recent activity</p>
+                  <p className="text-[10px] text-[#444] mt-1">
+                    Claims and payouts will appear here when they occur
+                  </p>
                 </div>
-                <p className="text-[10px] text-[#444] mt-4">
-                  Live claims and payouts will appear here as they happen
-                </p>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-xs text-[#555]">No recent activity</p>
-                <p className="text-[10px] text-[#444] mt-1">
-                  Claims and payouts will appear here when they occur
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-[#2d2d2d]">
-            {events.map((ev) => (
-              <div key={ev.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div
-                  className={`flex items-center justify-center w-7 h-7 rounded-lg border shrink-0 ${feedColors[ev.type]}`}
-                >
-                  {feedIcons[ev.type]}
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-[#2d2d2d]">
+              {events.map((ev) => (
+                <div key={ev.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div
+                    className={`flex items-center justify-center w-7 h-7 rounded-lg border shrink-0 ${feedColors[ev.type]}`}
+                  >
+                    {feedIcons[ev.type]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white truncate">{ev.title}</p>
+                    <p className="text-[10px] text-[#555] truncate">{ev.detail}</p>
+                  </div>
+                  <span className="text-[10px] text-[#444] tabular-nums shrink-0">
+                    {timeAgo(ev.timestamp)}
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-white truncate">{ev.title}</p>
-                  <p className="text-[10px] text-[#555] truncate">{ev.detail}</p>
-                </div>
-                <span className="text-[10px] text-[#444] tabular-nums shrink-0">
-                  {timeAgo(ev.timestamp)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </Card>
   );
 }

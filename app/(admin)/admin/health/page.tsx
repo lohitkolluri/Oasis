@@ -1,5 +1,53 @@
 import { SystemHealth } from '@/components/admin/SystemHealth';
+import { Card } from '@/components/ui/Card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ClipboardList } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const SEVERITY_STYLES: Record<
+  string,
+  { badgeClass: string }
+> = {
+  info: { badgeClass: 'border-[#2d2d2d] bg-[#262626] text-[#666]' },
+  warning: {
+    badgeClass: 'border-[#f59e0b]/25 bg-[#f59e0b]/10 text-[#f59e0b]',
+  },
+  error: {
+    badgeClass: 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444]',
+  },
+};
+
+function formatLogTime(d: string) {
+  return new Date(d).toLocaleString('en-IN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatDetails(metadata: Record<string, unknown>): string {
+  if (metadata?.claims_created != null && metadata?.duration_ms != null) {
+    return `${metadata.claims_created} claims · ${metadata.duration_ms}ms`;
+  }
+  if (metadata?.action) {
+    return `${metadata.action} by ${metadata.reviewed_by ?? 'admin'}`;
+  }
+  if (metadata?.error) {
+    return String(metadata.error).slice(0, 60);
+  }
+  return '—';
+}
 
 export default async function HealthPage() {
   const supabase = createAdminClient();
@@ -22,16 +70,12 @@ export default async function HealthPage() {
     // Table may not exist yet
   }
 
-  const SEVERITY_STYLES: Record<string, { badge: string }> = {
-    info: { badge: 'bg-[#262626] text-[#666]' },
-    warning: { badge: 'bg-[#f59e0b]/10 text-[#f59e0b]' },
-    error: { badge: 'bg-[#ef4444]/10 text-[#ef4444]' },
-  };
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">System Health</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          System Health
+        </h1>
         <p className="text-sm text-[#666] mt-1">
           API status, adjudicator run history, and platform event log
         </p>
@@ -39,69 +83,70 @@ export default async function HealthPage() {
 
       <SystemHealth />
 
-      {/* Full log table */}
-      <div>
-        <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-3">
-          Event Log
-        </p>
+      <Card variant="default" padding="none">
+        <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
+          <p className="text-sm font-semibold text-white">Event Log</p>
+          {recentLogs.length > 0 && (
+            <span className="text-[11px] text-[#555] tabular-nums">
+              {recentLogs.length} events
+            </span>
+          )}
+        </div>
         {recentLogs.length === 0 ? (
-          <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-12 text-center">
-            <p className="text-sm text-[#555]">
-              No events logged yet. Run the adjudicator to start
+          <div className="flex flex-col items-center justify-center py-16 text-center px-5">
+            <ClipboardList className="h-10 w-10 text-[#3a3a3a] mb-4" />
+            <p className="text-sm font-medium text-[#555]">
+              No events logged yet
+            </p>
+            <p className="text-xs text-[#444] mt-1">
+              Run the adjudicator to start recording runs and events
             </p>
           </div>
         ) : (
-          <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
-            <div className="px-5 py-2.5 border-b border-[#2d2d2d] grid grid-cols-[auto_1fr_auto_auto] gap-4">
-              {['Severity', 'Event', 'Details', 'Time'].map((h) => (
-                <span
-                  key={h}
-                  className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em]"
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-            <div className="divide-y divide-[#2d2d2d] max-h-[500px] overflow-y-auto">
-              {recentLogs.map((log) => {
-                const sev = SEVERITY_STYLES[log.severity] ?? SEVERITY_STYLES.info;
-                return (
-                  <div
-                    key={log.id}
-                    className="px-5 py-2.5 grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center text-xs hover:bg-[#1e1e1e] transition-colors"
-                  >
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sev.badge}`}
-                    >
-                      {log.severity}
-                    </span>
-                    <span className="text-[#9ca3af] truncate">
-                      {log.event_type.replace(/_/g, ' ')}
-                    </span>
-                    <span className="text-[#555] truncate max-w-[200px]">
-                      {log.metadata?.claims_created != null
-                        ? `${log.metadata.claims_created} claims · ${log.metadata.duration_ms}ms`
-                        : log.metadata?.action
-                          ? `${log.metadata.action} by ${log.metadata.reviewed_by ?? 'admin'}`
-                          : log.metadata?.error
-                            ? String(log.metadata.error).slice(0, 40)
-                            : '—'}
-                    </span>
-                    <span className="text-[#444] shrink-0 tabular-nums">
-                      {new Date(log.created_at).toLocaleString('en-IN', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <ScrollArea className="h-[420px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+                  <TableHead className="w-[90px]">Severity</TableHead>
+                  <TableHead className="w-[140px]">Event</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead className="w-[120px] text-right">Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentLogs.map((log) => {
+                  const sev =
+                    SEVERITY_STYLES[log.severity] ?? SEVERITY_STYLES.info;
+                  return (
+                    <TableRow key={log.id} className="border-[#2d2d2d]">
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'rounded-full text-[10px] font-semibold px-2 py-0 border',
+                            sev.badgeClass,
+                          )}
+                        >
+                          {log.severity}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-[#9ca3af]">
+                        {log.event_type.replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell className="text-xs text-[#555] truncate max-w-[220px]">
+                        {formatDetails(log.metadata)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-[#555] tabular-nums">
+                        {formatLogTime(log.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </ScrollArea>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

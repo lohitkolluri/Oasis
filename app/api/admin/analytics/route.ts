@@ -132,6 +132,16 @@ export const GET = withAdminAuth(async (ctx, request) => {
     else severityBuckets.high++;
   }
 
+  // ── Events per day (for timeline chart) ─────────────────────────────────
+  const eventsByDay = new Map<string, number>();
+  for (const e of events) {
+    const day = e.created_at.slice(0, 10);
+    eventsByDay.set(day, (eventsByDay.get(day) ?? 0) + 1);
+  }
+  const eventsTimeline = Array.from(eventsByDay.entries())
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   // ── Summary stats ──────────────────────────────────────────────────────
   const totalPayout = claims.reduce(
     (s, c) => s + Number(c.payout_amount_inr),
@@ -165,6 +175,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
     claimsTimeline,
     premiumsTimeline,
     lossRatioTimeline,
+    eventsTimeline,
     triggerBreakdown,
     severityBuckets,
     prediction,

@@ -1,6 +1,7 @@
 import { AdminNav } from '@/components/admin/AdminNav';
 import { AdminSearch } from '@/components/admin/AdminSearch';
 import { Logo } from '@/components/ui/Logo';
+import { Separator } from '@/components/ui/separator';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/auth';
 import { Smartphone } from 'lucide-react';
@@ -37,11 +38,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
         </div>
 
-        <div className="h-px bg-[#2d2d2d] mx-4" />
+        <Separator className="mx-4 bg-[#2d2d2d]" />
 
         <AdminNav />
 
-        <div className="h-px bg-[#2d2d2d] mx-4" />
+        <Separator className="mx-4 bg-[#2d2d2d]" />
 
         <div className="p-3 shrink-0">
           <Link

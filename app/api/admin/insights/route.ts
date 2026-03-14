@@ -132,7 +132,7 @@ export const GET = withAdminAuth(async (_ctx) => {
         label: 'Claims 24h',
         value: String(claimsLast24h),
         note: `Loss ratio ${lossRatio}% · ₹${totalPayouts.toLocaleString('en-IN')} total payouts`,
-        href: '/admin/analytics',
+        href: '/admin',
         tone: Number(lossRatio) > 80 ? 'amber' : 'emerald',
       },
     ],

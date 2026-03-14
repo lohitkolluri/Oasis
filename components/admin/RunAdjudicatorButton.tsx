@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import { gooeyToast } from 'goey-toast';
 import { AlertCircle, CheckCircle, Loader2, Zap } from 'lucide-react';
 import { useState } from 'react';
@@ -38,10 +39,10 @@ export function RunAdjudicatorButton() {
 
   return (
     <div className="flex items-center gap-3">
-      <button
+      <Button
         onClick={handleRun}
         disabled={loading}
-        className="px-4 py-2 rounded-lg bg-[#7dd3fc] text-black text-sm font-semibold hover:bg-[#93dffe] disabled:opacity-40 transition-colors flex items-center gap-2 shrink-0"
+        className="bg-[#7dd3fc] text-black hover:bg-[#93dffe] shrink-0"
       >
         {loading ? (
           <>
@@ -54,7 +55,7 @@ export function RunAdjudicatorButton() {
             Run Adjudicator
           </>
         )}
-      </button>
+      </Button>
 
       {result && (
         <span

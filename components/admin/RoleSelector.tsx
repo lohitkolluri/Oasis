@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import { gooeyToast } from 'goey-toast';
 import { Loader2, Shield, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -40,18 +41,22 @@ export function RoleSelector({ profileId, currentRole }: RoleSelectorProps) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Role</p>
-      {error && <p className="text-sm text-uber-red">{error}</p>}
+      <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider">
+        Role
+      </p>
+      {error && <p className="text-sm text-[#ef4444]">{error}</p>}
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setRole('rider')}
           disabled={loading}
-          className={`inline-flex items-center gap-1.5 text-xs py-2 px-3 rounded-xl border transition-colors disabled:opacity-50 ${
+          className={
             currentRole === 'rider'
-              ? 'bg-white/5 border-white/10 text-white'
-              : 'bg-transparent border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-300'
-          }`}
+              ? 'border-[#2d2d2d] bg-[#1e1e1e] text-white'
+              : 'border-[#2d2d2d] bg-transparent text-[#555] hover:text-[#9ca3af]'
+          }
         >
           {loading && currentRole !== 'rider' ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -59,16 +64,18 @@ export function RoleSelector({ profileId, currentRole }: RoleSelectorProps) {
             <User className="h-3.5 w-3.5" />
           )}
           Rider
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setRole('admin')}
           disabled={loading}
-          className={`inline-flex items-center gap-1.5 text-xs py-2 px-3 rounded-xl border transition-colors disabled:opacity-50 ${
+          className={
             currentRole === 'admin'
-              ? 'bg-uber-blue/15 border-uber-blue/40 text-uber-blue'
-              : 'bg-transparent border-white/10 text-zinc-400 hover:border-uber-blue/30 hover:text-uber-blue'
-          }`}
+              ? 'border-[#7dd3fc]/40 bg-[#7dd3fc]/10 text-[#7dd3fc]'
+              : 'border-[#2d2d2d] bg-transparent text-[#555] hover:border-[#7dd3fc]/30 hover:text-[#7dd3fc]'
+          }
         >
           {loading && currentRole !== 'admin' ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -76,7 +83,7 @@ export function RoleSelector({ profileId, currentRole }: RoleSelectorProps) {
             <Shield className="h-3.5 w-3.5" />
           )}
           Admin
-        </button>
+        </Button>
       </div>
     </div>
   );

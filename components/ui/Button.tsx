@@ -1,7 +1,9 @@
 "use client"
 
+import type { ComponentPropsWithoutRef } from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
+import Link from "next/link"
 
 import { cn } from "@/lib/utils"
 
@@ -11,6 +13,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        primary: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -46,15 +49,37 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  fullWidth,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ComponentPropsWithoutRef<typeof ButtonPrimitive> &
+  VariantProps<typeof buttonVariants> & { fullWidth?: boolean }) {
   return (
     <ButtonPrimitive
       data-slot="button"
+      className={cn(
+        buttonVariants({ variant, size }),
+        fullWidth && "w-full",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function ButtonLink({
+  className,
+  variant = "default",
+  size = "default",
+  href,
+  ...props
+}: ComponentPropsWithoutRef<typeof Link> & VariantProps<typeof buttonVariants>) {
+  return (
+    <Link
+      href={href}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   )
 }
 
-export { Button, buttonVariants }
+export { Button, ButtonLink, buttonVariants }

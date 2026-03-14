@@ -1,4 +1,13 @@
 import { DemoTriggerPanel } from '@/components/admin/DemoTriggerPanel';
+import { Card } from '@/components/ui/Card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { FileCheck, Zap } from 'lucide-react';
 
@@ -35,80 +44,90 @@ export default async function AdminDemoPage() {
       minute: '2-digit',
     });
 
+  const runs = (demoRuns ?? []).map((run) => {
+    const meta = (run.metadata ?? {}) as {
+      candidates_found?: number;
+      claims_created?: number;
+      zones_checked?: number;
+      duration_ms?: number;
+      error?: string;
+    };
+    return { id: run.id, created_at: run.created_at, ...meta };
+  });
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Demo</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          Demo
+        </h1>
         <p className="text-sm text-[#666] mt-1">
-          Trigger synthetic disruptions and manage demo runs for testing and recordings
+          Trigger synthetic disruptions and manage demo runs for testing and
+          recordings
         </p>
       </div>
 
       <DemoTriggerPanel riders={riderList} />
 
-      {/* Recent demo runs */}
-      <div>
-        <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-3">
-          Recent Demo Runs
-        </p>
-
-        <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
-          {demoRuns && demoRuns.length > 0 ? (
-            <>
-              <div className="px-5 py-2.5 border-b border-[#2d2d2d] grid grid-cols-[1fr_auto_auto_auto_auto] gap-4">
-                {['Time', 'Candidates', 'Claims', 'Zones', 'Duration'].map((h) => (
-                  <span
-                    key={h}
-                    className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em]"
-                  >
-                    {h}
-                  </span>
-                ))}
-              </div>
-              <div className="divide-y divide-[#2d2d2d]">
-                {demoRuns.map((run) => {
-                  const meta = (run.metadata ?? {}) as {
-                    candidates_found?: number;
-                    claims_created?: number;
-                    zones_checked?: number;
-                    duration_ms?: number;
-                    error?: string;
-                  };
-                  return (
-                    <div
-                      key={run.id}
-                      className="px-5 py-3 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-[#1e1e1e] transition-colors"
-                    >
-                      <span className="text-xs text-white whitespace-nowrap tabular-nums">
-                        {formatDate(run.created_at)}
-                      </span>
-                      <span className="text-xs text-[#9ca3af] text-center">
-                        {meta.candidates_found ?? '—'}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-[#22c55e] text-xs">
-                        <FileCheck className="h-3 w-3" />
-                        {meta.claims_created ?? '—'}
-                      </span>
-                      <span className="text-xs text-[#9ca3af] text-center">
-                        {meta.zones_checked ?? '—'}
-                      </span>
-                      <span className="text-xs text-[#555] tabular-nums">
-                        {meta.duration_ms != null ? `${meta.duration_ms}ms` : '—'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="py-14 px-4 text-center">
-              <Zap className="h-8 w-8 text-[#3a3a3a] mx-auto mb-3" />
-              <p className="text-sm text-[#555]">No demo runs yet</p>
-              <p className="text-xs text-[#444] mt-1">Fire a demo above to see runs here</p>
-            </div>
+      <Card variant="default" padding="none">
+        <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
+          <p className="text-sm font-semibold text-white">Recent Demo Runs</p>
+          {runs.length > 0 && (
+            <span className="text-[11px] text-[#555] tabular-nums">
+              {runs.length} runs
+            </span>
           )}
         </div>
-      </div>
+        {runs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center px-5">
+            <Zap className="h-10 w-10 text-[#3a3a3a] mb-4" />
+            <p className="text-sm font-medium text-[#555]">No demo runs yet</p>
+            <p className="text-xs text-[#444] mt-1">
+              Fire a demo above to see runs here
+            </p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+                <TableHead className="w-[180px]">Time</TableHead>
+                <TableHead className="w-[90px] text-center">
+                  Candidates
+                </TableHead>
+                <TableHead className="w-[90px] text-center">Claims</TableHead>
+                <TableHead className="w-[80px] text-center">Zones</TableHead>
+                <TableHead className="w-[90px] text-right">Duration</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {runs.map((run) => (
+                <TableRow key={run.id} className="border-[#2d2d2d]">
+                  <TableCell className="text-xs text-white tabular-nums whitespace-nowrap">
+                    {formatDate(run.created_at)}
+                  </TableCell>
+                  <TableCell className="text-center text-xs text-[#9ca3af] tabular-nums">
+                    {run.candidates_found ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[#22c55e]">
+                      <FileCheck className="h-3 w-3" />
+                      {run.claims_created ?? '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center text-xs text-[#9ca3af] tabular-nums">
+                    {run.zones_checked ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-[#555] tabular-nums">
+                    {run.duration_ms != null
+                      ? `${run.duration_ms}ms`
+                      : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
     </div>
   );
 }

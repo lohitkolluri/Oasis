@@ -1,5 +1,13 @@
 'use client';
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Car, Cloud, Megaphone } from 'lucide-react';
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -126,37 +134,24 @@ export function TriggersList({ events }: { events: Event[] }) {
   }
 
   return (
-    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b border-[#2d2d2d]">
-            <th className="px-5 py-2.5 text-left text-[10px] font-medium text-[#555] uppercase tracking-[0.1em]">
-              Event
-            </th>
-            <th className="px-4 py-2.5 text-left text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] w-[140px]">
-              Zone
-            </th>
-            <th className="px-4 py-2.5 text-left text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] w-[100px]">
-              Severity
-            </th>
-            <th className="px-4 py-2.5 text-center text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] w-[72px]">
-              Verified
-            </th>
-            <th className="px-5 py-2.5 text-right text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] w-[140px]">
-              Time
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#2d2d2d]">
+    <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+            <TableHead className="w-[min(280px,35%)]">Event</TableHead>
+            <TableHead className="w-[160px]">Zone</TableHead>
+            <TableHead className="w-[100px]">Severity</TableHead>
+            <TableHead className="w-[72px] text-center">Verified</TableHead>
+            <TableHead className="w-[120px] text-right">Time</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {events.map((e) => {
             const sev = severityStatus(e.severity_score);
             const sourceLabel = formatSource(e.raw_api_data);
             return (
-              <tr
-                key={e.id}
-                className="hover:bg-[#1e1e1e] transition-colors align-top"
-              >
-                <td className="px-5 py-3">
+              <TableRow key={e.id} className="border-[#2d2d2d] align-top">
+                <TableCell>
                   <div className="flex items-center gap-2.5">
                     <span className="text-[#555] shrink-0">
                       {typeIcons[e.event_type] ?? <Cloud className="h-3.5 w-3.5" />}
@@ -170,15 +165,13 @@ export function TriggersList({ events }: { events: Event[] }) {
                     <p className="text-[10px] text-[#444] mt-1">Source: {sourceLabel}</p>
                   )}
                   <AQIBadge raw={e.raw_api_data} />
-                </td>
+                </TableCell>
 
-                <td className="px-4 py-3">
-                  <span className="text-xs text-[#555] leading-relaxed tabular-nums">
-                    {formatZone(e.geofence_polygon)}
-                  </span>
-                </td>
+                <TableCell className="text-xs text-[#9ca3af] tabular-nums">
+                  {formatZone(e.geofence_polygon)}
+                </TableCell>
 
-                <td className="px-4 py-3">
+                <TableCell>
                   <span
                     className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${sev.badge}`}
                   >
@@ -188,31 +181,29 @@ export function TriggersList({ events }: { events: Event[] }) {
                   <p className="text-[10px] text-[#555] mt-1 tabular-nums">
                     {e.severity_score}/10
                   </p>
-                </td>
+                </TableCell>
 
-                <td className="px-4 py-3 text-center">
+                <TableCell className="text-center">
                   {e.verified_by_llm ? (
                     <span className="text-[#22c55e] font-semibold text-[10px]">Yes</span>
                   ) : (
                     <span className="text-[#3a3a3a]">—</span>
                   )}
-                </td>
+                </TableCell>
 
-                <td className="px-5 py-3 text-right">
-                  <span className="text-xs text-[#555] tabular-nums whitespace-nowrap">
-                    {new Date(e.created_at).toLocaleString('en-IN', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </td>
-              </tr>
+                <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums whitespace-nowrap">
+                  {new Date(e.created_at).toLocaleString('en-IN', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

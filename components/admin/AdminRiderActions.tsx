@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { gooeyToast } from 'goey-toast';
 import { Loader2, RefreshCw } from 'lucide-react';
@@ -80,45 +81,49 @@ export function AdminRiderActions({ riderId, policies, plans }: AdminRiderAction
   const activePolicy = policies.find((p) => p.is_active);
 
   return (
-    <Card variant="outline" padding="md" className="w-full sm:max-w-xs border-white/5">
-      <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-3">
+    <Card variant="outline" padding="md" className="w-full sm:max-w-xs border-[#2d2d2d]">
+      <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-3">
         Quick actions
       </p>
-      {error && <p className="text-sm text-uber-red mb-3">{error}</p>}
+      {error && <p className="text-sm text-[#ef4444] mb-3">{error}</p>}
       {activePolicy ? (
         <div className="space-y-3">
           {plans.length > 0 && (
             <div>
-              <p className="text-[11px] text-zinc-500 mb-2">Change plan</p>
+              <p className="text-[10px] text-[#555] mb-2">Change plan</p>
               <div className="flex flex-wrap gap-1.5">
                 {plans.map((plan) => {
                   const isCurrent = activePolicy.plan_id === plan.id;
                   const key = `${activePolicy.id}-${plan.id}`;
                   return (
-                    <button
+                    <Button
                       key={plan.id}
                       type="button"
+                      variant="outline"
+                      size="xs"
                       onClick={() => !isCurrent && changePlan(activePolicy.id, plan.id)}
                       disabled={!!loading || isCurrent}
-                      className={`text-xs py-1.5 px-2.5 rounded-lg border transition-colors disabled:opacity-50 flex items-center gap-1 ${
+                      className={
                         isCurrent
-                          ? 'bg-white/5 border-white/10 text-zinc-400'
-                          : 'bg-transparent border-white/10 text-zinc-300 hover:border-uber-green/50 hover:text-uber-green'
-                      }`}
+                          ? 'border-[#2d2d2d] bg-[#1e1e1e] text-[#555]'
+                          : 'border-[#2d2d2d] bg-transparent text-[#9ca3af] hover:border-[#22c55e]/40 hover:text-[#22c55e]'
+                      }
                     >
                       {loading === key ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                       {plan.name} (₹{plan.weekly_premium_inr})
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
             </div>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => deactivatePolicy(activePolicy.id)}
             disabled={!!loading}
-            className="w-full text-sm py-2.5 px-3 rounded-xl bg-uber-yellow/10 text-uber-yellow hover:bg-uber-yellow/15 border border-uber-yellow/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
+            className="w-full gap-2 border-[#f59e0b]/30 bg-[#f59e0b]/10 text-[#f59e0b] hover:bg-[#f59e0b]/15 hover:border-[#f59e0b]/40"
           >
             {loading === activePolicy.id ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -126,10 +131,10 @@ export function AdminRiderActions({ riderId, policies, plans }: AdminRiderAction
               <RefreshCw className="h-4 w-4" />
             )}
             Deactivate policy
-          </button>
+          </Button>
         </div>
       ) : (
-        <p className="text-sm text-zinc-500">No active policy</p>
+        <p className="text-sm text-[#555]">No active policy</p>
       )}
     </Card>
   );

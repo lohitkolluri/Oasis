@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import { NumberTicker } from '@/components/ui/number-ticker';
+import { BorderBeam } from '@/components/ui/border-beam';
 
 export type KPICardAccent = 'amber' | 'purple' | 'emerald' | 'blue' | 'red' | 'cyan' | 'violet';
 
@@ -21,6 +25,19 @@ export interface KPICardProps {
   href?: string;
   index?: number;
   className?: string;
+  /** Animate numeric value on mount (number or currency string) */
+  animateValue?: boolean;
+  /** Subtle border beam on card (Magic UI style) */
+  showBorderBeam?: boolean;
+}
+
+function formatValue(value: string | number): { num: number; prefix?: string; suffix?: string } {
+  if (typeof value === 'number') return { num: value };
+  const str = String(value).trim();
+  const rupee = str.startsWith('₹');
+  const pct = str.endsWith('%');
+  const num = parseFloat(str.replace(/[₹,%\s]/g, '').replace(/,/g, '')) || 0;
+  return { num, prefix: rupee ? '₹' : undefined, suffix: pct ? '%' : undefined };
 }
 
 export function KPICard({
@@ -31,7 +48,26 @@ export function KPICard({
   accent,
   href,
   className = '',
+  animateValue = false,
+  showBorderBeam = false,
 }: KPICardProps) {
+  const isNumeric = animateValue && (typeof value === 'number' || /^[₹\d.,\s]+%?$/.test(String(value)));
+  const { num, prefix, suffix } = isNumeric ? formatValue(value) : { num: 0, prefix: '', suffix: '' };
+
+  const valueEl = isNumeric ? (
+    <p className="text-xl font-bold text-white tabular-nums tracking-tight mt-auto pt-3">
+      <NumberTicker
+        value={num}
+        prefix={prefix}
+        suffix={suffix}
+        decimalPlaces={String(value).includes('.') ? 1 : 0}
+        className="text-xl font-bold text-white tracking-tight"
+      />
+    </p>
+  ) : (
+    <p className="text-xl font-bold text-white tabular-nums tracking-tight mt-auto pt-3">{value}</p>
+  );
+
   const inner = (
     <>
       <p className="text-sm font-medium text-white/95">
@@ -39,21 +75,26 @@ export function KPICard({
         {count !== undefined && <span className="text-white/80 font-normal"> ({count})</span>}
       </p>
       <p className="text-xs text-white/60 mt-0.5">{label}</p>
-      <p className="text-xl font-bold text-white tabular-nums tracking-tight mt-auto pt-3">
-        {value}
-      </p>
+      {valueEl}
     </>
   );
 
-  const cardClass = `relative rounded-xl border p-3.5 min-h-[100px] flex flex-col ${cardBgStyles[accent]} ${className}`;
+  const cardClass = `relative rounded-xl border p-3.5 min-h-[100px] flex flex-col overflow-hidden ${cardBgStyles[accent]} ${className}`;
+
+  const content = (
+    <>
+      {showBorderBeam && <BorderBeam size={100} duration={6} />}
+      {inner}
+    </>
+  );
 
   if (href) {
     return (
       <Link href={href} className={cardClass}>
-        {inner}
+        {content}
       </Link>
     );
   }
 
-  return <div className={cardClass}>{inner}</div>;
+  return <div className={cardClass}>{content}</div>;
 }

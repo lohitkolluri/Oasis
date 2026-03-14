@@ -37,6 +37,8 @@ export default {
         danger: 'var(--danger)',
         muted: 'var(--muted)',
         'muted-foreground': 'var(--muted-foreground)',
+        ring: 'var(--ring)',
+        input: 'var(--input)',
         neon: {
           cyan: 'var(--neon-cyan)',
           violet: 'var(--neon-violet)',

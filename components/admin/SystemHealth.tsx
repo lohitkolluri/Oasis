@@ -1,7 +1,27 @@
 'use client';
 
-import { Activity, AlertCircle, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
+import { CopyableId } from '@/components/ui/CopyableId';
+import {
+  Activity,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 interface ApiCheck {
   name: string;
@@ -33,33 +53,35 @@ interface HealthData {
   }>;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; border: string }> =
-  {
-    healthy: {
-      label: 'Healthy',
-      dot: 'bg-[#22c55e]',
-      text: 'text-[#22c55e]',
-      border: 'border-[#22c55e]/20',
-    },
-    warning: {
-      label: 'Warning',
-      dot: 'bg-[#f59e0b]',
-      text: 'text-[#f59e0b]',
-      border: 'border-[#f59e0b]/20',
-    },
-    degraded: {
-      label: 'Degraded',
-      dot: 'bg-[#ef4444]',
-      text: 'text-[#ef4444]',
-      border: 'border-[#ef4444]/20',
-    },
-    unhealthy: {
-      label: 'Unhealthy',
-      dot: 'bg-[#ef4444]',
-      text: 'text-[#ef4444]',
-      border: 'border-[#ef4444]/20',
-    },
-  };
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; dot: string; badgeClass: string }
+> = {
+  healthy: {
+    label: 'Healthy',
+    dot: 'bg-[#22c55e]',
+    badgeClass:
+      'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e] text-[10px] font-semibold',
+  },
+  warning: {
+    label: 'Warning',
+    dot: 'bg-[#f59e0b]',
+    badgeClass:
+      'border-[#f59e0b]/25 bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-semibold',
+  },
+  degraded: {
+    label: 'Degraded',
+    dot: 'bg-[#ef4444]',
+    badgeClass:
+      'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-semibold',
+  },
+  unhealthy: {
+    label: 'Unhealthy',
+    dot: 'bg-[#ef4444]',
+    badgeClass:
+      'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-semibold',
+  },
+};
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -97,168 +119,232 @@ export function SystemHealth() {
 
   if (loading) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-8 flex items-center justify-center">
-        <Loader2 className="h-4 w-4 animate-spin text-[#7dd3fc]" />
-      </div>
+      <Card variant="default" padding="lg" className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#7dd3fc]" />
+      </Card>
     );
   }
 
   if (!data) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-5 py-8 text-center">
+      <Card variant="default" padding="lg" className="text-center">
         <p className="text-sm text-[#555]">Unable to load health data</p>
-      </div>
+      </Card>
     );
   }
 
   const s = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.degraded;
+  const run = data.lastAdjudicatorRun;
 
   return (
-    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-[#2d2d2d] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-[#7dd3fc]" />
-          <span className="text-sm font-semibold text-white">System Health</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${s.border} bg-transparent`}
-          >
-            <span className={`h-1.5 w-1.5 rounded-full ${s.dot} shrink-0`} />
-            <span className={`text-[10px] font-semibold ${s.text}`}>{s.label}</span>
+    <Card variant="default" padding="none">
+      <CardHeader
+        icon={<Activity className="h-4 w-4 text-[#7dd3fc]" />}
+        title="System Health"
+        description="API status, last run, and recent events"
+        badge={
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={cn('rounded-full border', s.badgeClass)}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mr-1', s.dot)} />
+              {s.label}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => load(true)}
+              disabled={refreshing}
+              title="Refresh"
+              className="text-[#555] hover:text-white"
+            >
+              <RefreshCw
+                className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')}
+              />
+            </Button>
           </div>
-          <button
-            onClick={() => load(true)}
-            className="text-[#555] hover:text-white transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+        }
+        className="px-5 pt-5 pb-2"
+      />
 
-      <div className="p-5 space-y-4">
-        {/* Last run */}
-        <div>
-          <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-2">
-            Last Adjudicator Run
-          </p>
-          {data.lastAdjudicatorRun ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-white">
-                  {timeAgo(data.lastAdjudicatorRun.at)}
-                </span>
-                {data.lastAdjudicatorRun.runId && (
-                  <span
-                    className="text-[10px] font-mono text-[#555] truncate max-w-[180px]"
-                    title={data.lastAdjudicatorRun.runId}
+      <div className="px-5 pb-5 space-y-5">
+        {/* Last run + Errors row */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] p-4">
+            <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-2">
+              Last Adjudicator Run
+            </p>
+            {run ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-white">
+                    {timeAgo(run.at)}
+                  </span>
+                  {run.runId && (
+                    <CopyableId
+                      value={run.runId}
+                      prefix=""
+                      length={8}
+                      label="Copy run ID"
+                      className="text-[10px]"
+                    />
+                  )}
+                  {run.severity === 'error' && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full border border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px]"
+                    >
+                      Run error
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full border border-[#2d2d2d] bg-[#262626] text-[#666] text-[10px] font-medium px-2 py-0"
                   >
-                    {data.lastAdjudicatorRun.runId.slice(0, 8)}...
-                  </span>
-                )}
-                {data.lastAdjudicatorRun.severity === 'error' && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ef4444]/10 text-[#ef4444]">
-                    Run error
-                  </span>
+                    {run.candidatesFound} events
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full border border-[#7dd3fc]/20 bg-[#7dd3fc]/10 text-[#7dd3fc] text-[10px] font-medium px-2 py-0"
+                  >
+                    {run.claimsCreated} payouts
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full border border-[#2d2d2d] bg-[#262626] text-[#666] text-[10px] font-medium px-2 py-0"
+                  >
+                    {run.durationMs}ms
+                  </Badge>
+                  {((run.payoutFailures ?? 0) > 0 || (run.logFailures ?? 0) > 0) && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full border border-[#f59e0b]/25 bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-medium px-2 py-0"
+                    >
+                      {(run.payoutFailures ?? 0) + (run.logFailures ?? 0)} failures
+                    </Badge>
+                  )}
+                </div>
+                {run.error && (
+                  <p
+                    className="text-[10px] text-[#ef4444] truncate max-w-full"
+                    title={run.error}
+                  >
+                    {run.error}
+                  </p>
                 )}
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666]">
-                  {data.lastAdjudicatorRun.candidatesFound} events
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc]">
-                  {data.lastAdjudicatorRun.claimsCreated} payouts
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#262626] text-[#666]">
-                  {data.lastAdjudicatorRun.durationMs}ms
-                </span>
-                {((data.lastAdjudicatorRun.payoutFailures ?? 0) > 0 ||
-                  (data.lastAdjudicatorRun.logFailures ?? 0) > 0) && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b]">
-                    {(data.lastAdjudicatorRun.payoutFailures ?? 0) +
-                      (data.lastAdjudicatorRun.logFailures ?? 0)}{' '}
-                    failures
-                  </span>
-                )}
-              </div>
-              {data.lastAdjudicatorRun.error && (
-                <p
-                  className="text-[10px] text-[#ef4444] truncate max-w-full"
-                  title={data.lastAdjudicatorRun.error}
-                >
-                  {data.lastAdjudicatorRun.error}
-                </p>
+            ) : (
+              <p className="text-sm text-[#555]">No runs logged yet</p>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] p-4 flex flex-col justify-center">
+            <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1">
+              Errors (24h)
+            </p>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'w-fit rounded-full text-sm font-bold tabular-nums px-2 py-0',
+                data.errors24h > 0
+                  ? 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444]'
+                  : 'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e]',
               )}
-            </div>
-          ) : (
-            <p className="text-sm text-[#555]">No runs logged yet</p>
-          )}
+            >
+              {data.errors24h}
+            </Badge>
+          </div>
         </div>
 
-        {/* Errors */}
-        <div className="flex items-center justify-between py-3 border-t border-[#2d2d2d]">
-          <p className="text-xs font-medium text-[#9ca3af]">Errors (24h)</p>
-          <span
-            className={`text-sm font-bold tabular-nums ${data.errors24h > 0 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}
-          >
-            {data.errors24h}
-          </span>
-        </div>
-
-        {/* APIs */}
+        {/* External APIs */}
         <div>
-          <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-2">
+          <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-2">
             External APIs
           </p>
-          <div className="space-y-2">
-            {data.apis.map((api) => (
-              <div key={api.name} className="flex items-center justify-between">
-                <span className="text-xs text-[#9ca3af]">{api.name}</span>
-                <div className="flex items-center gap-1.5">
-                  {api.ok ? (
-                    <CheckCircle className="h-3.5 w-3.5 text-[#22c55e]" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5 text-[#ef4444]" />
-                  )}
-                  <span
-                    className={`text-[10px] font-semibold ${api.ok ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}
-                  >
-                    {api.ok ? 'OK' : 'DOWN'}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-lg border border-[#2d2d2d] overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+                  <TableHead className="w-[60%]">Service</TableHead>
+                  <TableHead className="w-[40%] text-right">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.apis.map((api) => (
+                  <TableRow key={api.name} className="border-[#2d2d2d]">
+                    <TableCell className="text-xs text-[#9ca3af]">
+                      {api.name}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {api.ok ? (
+                          <CheckCircle className="h-3.5 w-3.5 text-[#22c55e]" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5 text-[#ef4444]" />
+                        )}
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'rounded-full text-[10px] font-semibold px-2 py-0 border',
+                            api.ok
+                              ? 'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e]'
+                              : 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444]',
+                          )}
+                        >
+                          {api.ok ? 'OK' : 'DOWN'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </div>
 
-        {/* Recent logs */}
+        {/* Recent events */}
         {data.recentLogs.length > 0 && (
-          <div className="border-t border-[#2d2d2d] pt-3">
-            <p className="text-[10px] font-medium text-[#555] uppercase tracking-[0.1em] mb-2">
+          <div>
+            <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-2">
               Recent Events
             </p>
-            <div className="space-y-1.5">
-              {data.recentLogs.slice(0, 5).map((log, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  {log.severity === 'error' ? (
-                    <XCircle className="h-3 w-3 text-[#ef4444] shrink-0" />
-                  ) : log.severity === 'warning' ? (
-                    <AlertCircle className="h-3 w-3 text-[#f59e0b] shrink-0" />
-                  ) : (
-                    <CheckCircle className="h-3 w-3 text-[#555] shrink-0" />
-                  )}
-                  <span className="text-[#555] flex-1 truncate">
-                    {log.event_type.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-[#444] shrink-0">{timeAgo(log.created_at)}</span>
-                </div>
-              ))}
+            <div className="rounded-lg border border-[#2d2d2d] overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+                    <TableHead className="w-[80%]">Event</TableHead>
+                    <TableHead className="w-[20%] text-right">Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.recentLogs.slice(0, 5).map((log, i) => (
+                    <TableRow key={i} className="border-[#2d2d2d]">
+                      <TableCell className="flex items-center gap-2">
+                        {log.severity === 'error' ? (
+                          <XCircle className="h-3 w-3 text-[#ef4444] shrink-0" />
+                        ) : log.severity === 'warning' ? (
+                          <AlertCircle className="h-3 w-3 text-[#f59e0b] shrink-0" />
+                        ) : (
+                          <CheckCircle className="h-3 w-3 text-[#555] shrink-0" />
+                        )}
+                        <span className="text-xs text-[#9ca3af]">
+                          {log.event_type.replace(/_/g, ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-[#555] tabular-nums">
+                        {timeAgo(log.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

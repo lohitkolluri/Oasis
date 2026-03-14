@@ -1,6 +1,8 @@
 'use client';
 
-import { Activity, ArrowRight, Flag, Loader2, ShieldAlert, Siren } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Activity, ArrowRight, Flag, ShieldAlert, Siren } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -47,17 +49,24 @@ export function AdminInsights() {
 
   if (loading) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-6 h-full flex items-center justify-center gap-3 text-[#555]">
-        <Loader2 className="h-4 w-4 animate-spin text-[#7dd3fc] shrink-0" />
-        <span className="text-sm">Loading priorities...</span>
-      </div>
+      <Card variant="default" padding="lg" className="h-full flex flex-col">
+        <div className="flex items-center justify-center gap-3 text-muted-foreground">
+          <Skeleton className="h-4 w-4 rounded-full" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <div className="mt-4 grid sm:grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-[120px] rounded-xl" />
+          ))}
+        </div>
+      </Card>
     );
   }
 
   if (!data) return null;
 
   return (
-    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5 h-full flex flex-col">
+    <Card variant="default" padding="md" className="h-full flex flex-col">
       <div className="mb-4">
         <p className="text-sm font-semibold text-white">Priorities</p>
         <p className="text-[10px] text-[#555] mt-0.5">{data.headline}</p>
@@ -70,9 +79,11 @@ export function AdminInsights() {
           const Icon = priorityIcons[priority.id];
 
           return (
-            <div
+            <Card
               key={priority.id}
-              className="rounded-xl border border-[#2d2d2d] bg-[#1b1b1b] p-4"
+              variant="elevated"
+              padding="md"
+              className="rounded-xl"
             >
               <div className="flex items-start justify-between gap-3">
                 <div
@@ -95,7 +106,7 @@ export function AdminInsights() {
                 Open
                 <ArrowRight className="h-3 w-3" />
               </Link>
-            </div>
+            </Card>
           );
         })}
       </div>
@@ -116,6 +127,6 @@ export function AdminInsights() {
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
