@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
 import { motion } from 'framer-motion';
 import { ChevronRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
@@ -72,53 +73,40 @@ export function WalletBalanceCard({
       : [0, balance * 0.3, balance * 0.5, balance * 0.8, balance];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className={`relative overflow-hidden rounded-3xl border transition-all duration-500 active:scale-[0.99] ${
-        justUpdated
-          ? 'border-uber-green/40 shadow-[0_0_32px_rgba(58,167,109,0.2)]'
-          : 'border-white/10'
-      }`}
+    <Card
+      variant="default"
+      padding="none"
+      className={`overflow-hidden rounded-2xl border transition-all duration-500 ${
+        justUpdated ? 'border-uber-green/40 shadow-[0_0_24px_rgba(58,167,109,0.15)]' : 'border-white/10'
+      } bg-[#0c0c0c]`}
     >
-      {/* Background: subtle radial gradients + corner orb (no green–violet band) */}
+      <div className="relative">
       <div
-        className="absolute inset-0 bg-surface-1"
-        aria-hidden
-      />
-      <div
-        className="absolute inset-0 opacity-100"
+        className="absolute inset-0 opacity-100 pointer-events-none rounded-2xl"
         style={{
           background:
-            'radial-gradient(ellipse 120% 100% at 100% 0%, rgba(255,255,255,0.06) 0%, transparent 50%),' +
-            'radial-gradient(ellipse 80% 80% at 0% 100%, rgba(58,167,109,0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse 100% 80% at 100% 0%, rgba(255,255,255,0.05) 0%, transparent 50%),' +
+            'radial-gradient(ellipse 80% 60% at 0% 100%, rgba(58,167,109,0.06) 0%, transparent 50%)',
         }}
         aria-hidden
       />
-      <div
-        className="absolute -top-12 -right-12 w-36 h-36 rounded-full opacity-30"
-        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)' }}
-        aria-hidden
-      />
-
       <div className="relative px-4 pt-4 pb-3.5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-uber-green/15 border border-uber-green/25 shrink-0">
-              <Wallet className="h-[18px] w-[18px] text-uber-green" />
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-uber-green/15 border border-uber-green/25 shrink-0">
+              <Wallet className="h-5 w-5 text-uber-green" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
+              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
                 Payout balance
               </p>
               <motion.p
                 key={balance}
-                initial={justUpdated ? { scale: 1.05, opacity: 0.9 } : false}
+                initial={justUpdated ? { scale: 1.03, opacity: 0.9 } : false}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`text-[28px] leading-tight font-bold tabular-nums tracking-tight text-white ${
-                  justUpdated ? 'text-uber-green' : ''
+                className={`text-2xl font-bold tabular-nums tracking-tight ${
+                  justUpdated ? 'text-uber-green' : 'text-white'
                 }`}
               >
                 ₹{balance.toLocaleString('en-IN')}
@@ -128,7 +116,7 @@ export function WalletBalanceCard({
           {showAction && (
             <Link
               href="/dashboard/wallet"
-              className="shrink-0 flex items-center gap-1 rounded-full bg-black/30 hover:bg-black/40 active:bg-black/50 border border-white/10 px-3 py-2 text-xs font-medium text-white/90 transition-colors min-h-[36px]"
+              className="shrink-0 flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white transition-colors min-h-[36px]"
             >
               Details
               <ChevronRight className="h-3.5 w-3.5" />
@@ -137,8 +125,8 @@ export function WalletBalanceCard({
         </div>
 
         {weeklyChange !== 0 && (
-          <p className="text-xs font-medium mt-1.5 text-white/70">
-            {weeklyChange > 0 ? '+' : ''}₹{weeklyChange.toLocaleString('en-IN')} this week
+          <p className="text-xs font-medium mt-2 text-zinc-400">
+            +₹{weeklyChange.toLocaleString('en-IN')} this week
           </p>
         )}
 
@@ -146,6 +134,7 @@ export function WalletBalanceCard({
           <Sparkline values={spark} />
         </div>
       </div>
-    </motion.div>
+      </div>
+    </Card>
   );
 }

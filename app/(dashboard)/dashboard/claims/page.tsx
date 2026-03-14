@@ -1,11 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { KPICard } from "@/components/ui/KPICard";
+import { Card } from "@/components/ui/Card";
 import { RealtimeProvider } from "@/components/rider/RealtimeProvider";
 import { RealtimeClaimsList } from "@/components/rider/RealtimeClaimsList";
-import {
-    ArrowLeft,
-    Clock,
-} from "lucide-react";
+import { ArrowLeft, Clock, FileCheck, Wallet, Calendar } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -57,57 +54,97 @@ export default async function ClaimsHistoryPage() {
     .filter((c) => c.status === "paid" && !c.is_flagged)
     .reduce((s, c) => s + Number(c.payout_amount_inr), 0);
 
+  const claimCount = claims?.length ?? 0;
+  const policyCount = policies?.length ?? 0;
+
   return (
     <RealtimeProvider profileId={user.id} policyIds={policyIds}>
-      <div className="space-y-5">
+      <div className="space-y-6">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors min-h-[44px] -ml-1 px-1"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 shrink-0" />
           Back to dashboard
         </Link>
+
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Claims History</h1>
-          <p className="text-[13px] text-zinc-500 mt-0.5">Parametric payouts from your policies</p>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            Claims History
+          </h1>
+          <p className="text-[13px] text-zinc-500 mt-0.5">
+            Parametric payouts from your policies
+          </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
-          <KPICard
-            title="Total"
-            count={claims?.length ?? 0}
-            label="Claims"
-            value={claims?.length ?? 0}
-            accent="blue"
-            index={0}
-          />
-          <KPICard
-            title="Paid out"
-            label="Amount"
-            value={`₹${totalPaid.toLocaleString("en-IN")}`}
-            accent="emerald"
-            index={1}
-          />
-          <KPICard
-            title="Policies"
-            count={policies?.length ?? 0}
-            label="Coverage weeks"
-            value={policies?.length ?? 0}
-            accent="violet"
-            index={2}
-          />
-        </div>
+        <Card
+          variant="default"
+          padding="none"
+          className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-stretch">
+            <div className="flex flex-1 items-center gap-3 px-5 py-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#276EF1]/20 border border-[#276EF1]/30">
+                <FileCheck className="h-5 w-5 text-[#276EF1]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  Total
+                </p>
+                <p className="text-lg font-bold tabular-nums text-white">
+                  {claimCount}
+                </p>
+                <p className="text-[11px] text-zinc-500">Claims</p>
+              </div>
+            </div>
+            <div className="h-px w-full bg-white/10 sm:h-auto sm:w-px sm:min-h-[60px]" aria-hidden />
+            <div className="flex flex-1 items-center gap-3 px-5 py-4 border-t border-white/10 sm:border-t-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#3AA76D]/20 border border-[#3AA76D]/30">
+                <Wallet className="h-5 w-5 text-[#3AA76D]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  Paid out
+                </p>
+                <p className="text-lg font-bold tabular-nums text-white">
+                  ₹{totalPaid.toLocaleString("en-IN")}
+                </p>
+                <p className="text-[11px] text-zinc-500">Amount</p>
+              </div>
+            </div>
+            <div className="h-px w-full bg-white/10 sm:h-auto sm:w-px sm:min-h-[60px]" aria-hidden />
+            <div className="flex flex-1 items-center gap-3 px-5 py-4 border-t border-white/10 sm:border-t-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7356BF]/20 border border-[#7356BF]/30">
+                <Calendar className="h-5 w-5 text-[#7356BF]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  Policies
+                </p>
+                <p className="text-lg font-bold tabular-nums text-white">
+                  {policyCount}
+                </p>
+                <p className="text-[11px] text-zinc-500">Coverage weeks</p>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {!claims || claims.length === 0 ? (
-          <div className="rounded-2xl bg-surface-1 border border-white/10 px-5 py-14 text-center">
-            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#1a2030] mx-auto mb-4">
-              <Clock className="text-[#404860]" style={{ width: 24, height: 24 }} />
+          <Card
+            variant="default"
+            padding="lg"
+            className="rounded-2xl border-white/10 bg-surface-1 text-center"
+          >
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-white/5 border border-white/10 mx-auto mb-4">
+              <Clock className="h-6 w-6 text-zinc-500" />
             </div>
-            <p className="text-[14px] font-semibold text-zinc-400">No claims yet</p>
-            <p className="text-[12px] text-zinc-500 mt-1 max-w-xs mx-auto leading-relaxed">
-              Claims appear automatically when a disruption is detected in your zone
+            <p className="text-sm font-semibold text-zinc-300">No claims yet</p>
+            <p className="text-xs text-zinc-500 mt-1 max-w-xs mx-auto leading-relaxed">
+              Claims appear automatically when a disruption is detected in your
+              zone.
             </p>
-          </div>
+          </Card>
         ) : (
           <RealtimeClaimsList claims={claims} policyMap={policyMap} />
         )}

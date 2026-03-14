@@ -129,14 +129,16 @@ export function DashboardContent({
           profileId={user.id}
           claims={claimsFiltered}
           planName={planName}
-          claimIdsNeedingVerification={claimIdsNeedingVerification}
         />
       </motion.div>
       <motion.div variants={item}>
         <WeeklyEarningsChart dailyEarnings={weeklyDailyEarnings} />
       </motion.div>
       <motion.div variants={item}>
-        <ClaimsPreview claims={claimsFiltered} />
+        <ClaimsPreview
+          claims={claimsFiltered}
+          claimIdsNeedingVerification={claimIdsNeedingVerification}
+        />
       </motion.div>
 
       {/* Risk + Insight — secondary info */}

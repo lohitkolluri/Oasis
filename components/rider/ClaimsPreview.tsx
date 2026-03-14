@@ -1,9 +1,11 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Car, ChevronRight, Cloud, FileCheck, Megaphone } from 'lucide-react';
 import type { ParametricClaim } from '@/lib/types/database';
+import { ClaimVerificationPrompt } from './ClaimVerificationPrompt';
 
 type ClaimWithType = ParametricClaim & {
   live_disruption_events?: { event_type?: string } | null;
@@ -54,17 +56,25 @@ interface ClaimsPreviewProps {
   title?: string;
   /** Wallet-style list: icon, label, full date, amount (like expense list) */
   variant?: 'default' | 'wallet';
+  /** Claim IDs that need location verification — show prompt under each */
+  claimIdsNeedingVerification?: string[];
 }
 
-export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'default' }: ClaimsPreviewProps) {
+export function ClaimsPreview({
+  claims,
+  title = 'Recent claims',
+  variant = 'default',
+  claimIdsNeedingVerification = [],
+}: ClaimsPreviewProps) {
   const list = claims.slice(0, variant === 'wallet' ? 5 : 3);
 
   return (
+    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15, duration: 0.3 }}
-      className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden"
+      className="w-full"
     >
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
@@ -102,70 +112,81 @@ export function ClaimsPreview({ claims, title = 'Recent claims', variant = 'defa
 
             if (variant === 'wallet') {
               return (
-                <Link
-                  key={c.id}
-                  href="/dashboard/claims"
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
-                >
-                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 text-zinc-400 shrink-0">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-zinc-200 truncate">
-                      {type}
-                    </p>
-                    <p className="text-[11px] text-zinc-500">{formatFullDate(c.created_at)}</p>
-                    <p className="text-[10px] mt-0.5">
-                      <span
-                        className={
-                          c.is_flagged
-                            ? 'text-uber-yellow font-semibold'
-                            : c.status === 'paid'
-                            ? 'text-uber-green font-semibold'
-                            : 'text-amber-400 font-semibold'
-                        }
-                      >
-                        {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending verification'}
-                      </span>
-                    </p>
-                  </div>
-                  <span
-                    className={`text-[14px] font-bold tabular-nums shrink-0 ${
-                      c.status === 'paid' ? 'text-uber-green' : 'text-zinc-400'
-                    }`}
+                <div key={c.id} className="space-y-1.5">
+                  <Link
+                    href="/dashboard/claims"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
                   >
-                    {c.status === 'paid' ? '+' : ''}₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
-                  </span>
-                </Link>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 text-zinc-400 shrink-0">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-zinc-200 truncate">
+                        {type}
+                      </p>
+                      <p className="text-[11px] text-zinc-500">{formatFullDate(c.created_at)}</p>
+                      <p className="text-[10px] mt-0.5">
+                        <span
+                          className={
+                            c.is_flagged
+                              ? 'text-uber-yellow font-semibold'
+                              : c.status === 'paid'
+                              ? 'text-uber-green font-semibold'
+                              : 'text-amber-400 font-semibold'
+                          }
+                        >
+                          {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending verification'}
+                        </span>
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[14px] font-bold tabular-nums shrink-0 ${
+                        c.status === 'paid' ? 'text-uber-green' : 'text-zinc-400'
+                      }`}
+                    >
+                      {c.status === 'paid' ? '+' : ''}₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                    </span>
+                  </Link>
+                  {claimIdsNeedingVerification.includes(c.id) && (
+                    <div className="px-4">
+                      <ClaimVerificationPrompt claimId={c.id} />
+                    </div>
+                  )}
+                </div>
               );
             }
 
             return (
-              <div
-                key={c.id}
-                className="flex items-center gap-3 rounded-xl bg-black/40 border border-white/10 px-3 py-3 active:bg-white/5 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-zinc-200 truncate">
-                    {type}
-                  </p>
-                  <p className="text-[11px] text-zinc-500">
-                    {formatTimeAgo(c.created_at)}
-                  </p>
+              <div key={c.id} className="space-y-1.5">
+                <div
+                  className="flex items-center gap-3 rounded-xl bg-black/40 border border-white/10 px-3 py-3 active:bg-white/5 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-zinc-200 truncate">
+                      {type}
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      {formatTimeAgo(c.created_at)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[13px] font-bold text-uber-green tabular-nums">
+                      ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[10px] font-semibold text-uber-green/80 bg-uber-green/10 px-2 py-0.5 rounded-full">
+                      {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[13px] font-bold text-uber-green tabular-nums">
-                    ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-[10px] font-semibold text-uber-green/80 bg-uber-green/10 px-2 py-0.5 rounded-full">
-                    {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending'}
-                  </span>
-                </div>
+                {claimIdsNeedingVerification.includes(c.id) && (
+                  <ClaimVerificationPrompt claimId={c.id} />
+                )}
               </div>
             );
           })}
         </div>
       )}
     </motion.div>
+    </Card>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Activity, MapPin, Cloud, Car, Megaphone } from "lucide-react";
+import { Card } from "@/components/ui/Card";
 
 interface DisruptionEvent {
   id: string;
@@ -90,8 +91,7 @@ export function RiskRadar() {
   if (loading && events.length === 0) return null;
 
   return (
-    <div className="rounded-2xl bg-surface-1 border border-white/10 overflow-hidden">
-      {/* Header */}
+    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-uber-yellow/12">
@@ -140,6 +140,6 @@ export function RiskRadar() {
           </AnimatePresence>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

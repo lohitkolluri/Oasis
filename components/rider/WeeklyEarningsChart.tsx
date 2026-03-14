@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
 import { motion } from 'framer-motion';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -29,11 +30,12 @@ export function WeeklyEarningsChart({
   const tooltipCursor = { fill: 'rgba(255,255,255,0.04)' };
 
   return (
+    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.12, duration: 0.3 }}
-      className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden"
+      className="w-full"
     >
       <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
         <h3 className="text-[12px] font-semibold text-zinc-200">Earnings this week</h3>
@@ -99,5 +101,6 @@ export function WeeklyEarningsChart({
         )}
       </div>
     </motion.div>
+    </Card>
   );
 }

@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileCheck, Shield, TrendingUp } from "lucide-react";
 import { WalletBalanceCard } from "@/components/rider/WalletBalanceCard";
 import { WalletActions } from "@/components/rider/WalletActions";
 import { WeeklyEarningsChart } from "@/components/rider/WeeklyEarningsChart";
 import { ClaimsPreview } from "@/components/rider/ClaimsPreview";
 import { RealtimeProvider } from "@/components/rider/RealtimeProvider";
+import { Card } from "@/components/ui/Card";
 import {
   deriveWalletStats,
   getRiderPoliciesAndWallet,
@@ -61,6 +62,32 @@ export default async function WalletPage() {
               : undefined
           }
         />
+
+        <Card variant="default" padding="none" className="rounded-2xl border border-white/10 bg-[#0c0c0c] overflow-hidden">
+          <div className="grid grid-cols-3 gap-px bg-white/5">
+            <div className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[72px]">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <TrendingUp className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <span className="text-[11px] font-medium text-zinc-500">Total Earnings</span>
+              </div>
+              <p className="text-lg font-bold tabular-nums text-white">₹{stats.totalPayouts.toLocaleString("en-IN")}</p>
+            </div>
+            <div className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[72px]">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <FileCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                <span className="text-[11px] font-medium text-zinc-500">Claims Paid</span>
+              </div>
+              <p className="text-lg font-bold tabular-nums text-white">{stats.totalClaimCount}</p>
+            </div>
+            <div className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[72px]">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Shield className="h-3.5 w-3.5 text-uber-green shrink-0" />
+                <span className="text-[11px] font-medium text-zinc-500">Coverage</span>
+              </div>
+              <p className="text-lg font-bold text-uber-green">{result.activePolicy ? "Active" : "None"}</p>
+            </div>
+          </div>
+        </Card>
 
         <WalletActions />
 

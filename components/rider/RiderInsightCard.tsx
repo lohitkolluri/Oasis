@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 
 const MAX_COLLAPSED = 120;
 
@@ -25,11 +26,12 @@ export function RiderInsightCard() {
     : insight;
 
   return (
+    <Card variant="default" padding="none" className="rounded-2xl border-uber-yellow/20 bg-uber-yellow/5 overflow-hidden">
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.3 }}
-      className="rounded-2xl border border-uber-yellow/20 bg-uber-yellow/5 overflow-hidden"
+      className="w-full"
     >
       <div className="h-0.5 bg-gradient-to-r from-uber-yellow/50 via-uber-yellow/25 to-transparent" />
       <div className="flex items-start gap-2.5 px-3.5 py-3.5">
@@ -63,5 +65,6 @@ export function RiderInsightCard() {
         </div>
       </div>
     </motion.div>
+    </Card>
   );
 }
