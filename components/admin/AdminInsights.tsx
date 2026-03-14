@@ -49,7 +49,7 @@ export function AdminInsights() {
     return (
       <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-6 h-full flex items-center justify-center gap-3 text-[#555]">
         <Loader2 className="h-4 w-4 animate-spin text-[#7dd3fc] shrink-0" />
-        <span className="text-sm">Analyzing platform data...</span>
+        <span className="text-sm">Loading priorities...</span>
       </div>
     );
   }
@@ -59,7 +59,7 @@ export function AdminInsights() {
   return (
     <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5 h-full flex flex-col">
       <div className="mb-4">
-        <p className="text-sm font-semibold text-white">Operations Brief</p>
+        <p className="text-sm font-semibold text-white">Priorities</p>
         <p className="text-[10px] text-[#555] mt-0.5">{data.headline}</p>
       </div>
 

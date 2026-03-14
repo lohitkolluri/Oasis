@@ -1,14 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import "./globals.css";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { AddToHomeScreen } from "@/components/pwa/AddToHomeScreen";
 import { GoeyToaster } from "@/components/ui/GoeyToaster";
+import { cn } from "@/lib/utils";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
@@ -51,9 +49,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
       <body
-        className={`${inter.variable} ${mono.variable} font-sans antialiased min-h-screen bg-black text-white`}
+        className={`${geist.variable} ${mono.variable} font-sans antialiased min-h-screen bg-black text-white`}
       >
         {children}
         <GoeyToaster />

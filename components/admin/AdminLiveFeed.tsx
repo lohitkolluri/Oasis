@@ -39,7 +39,17 @@ function timeAgo(date: Date): string {
   return `${Math.floor(mins / 60)}h ago`;
 }
 
-export function AdminLiveFeed() {
+export interface Summary24h {
+  claims: number;
+  payoutsTotal: number;
+  flagged: number;
+}
+
+interface AdminLiveFeedProps {
+  summary24h?: Summary24h | null;
+}
+
+export function AdminLiveFeed({ summary24h }: AdminLiveFeedProps) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const counterRef = useRef(0);
 
@@ -65,10 +75,10 @@ export function AdminLiveFeed() {
               : 'claim_created';
           const title =
             type === 'claim_flagged'
-              ? 'Claim flagged'
+              ? 'Claim under review'
               : type === 'claim_paid'
-                ? 'Claim paid'
-                : 'Claim created';
+                ? 'Payout completed'
+                : 'New claim';
           pushEvent({
             type,
             title,
@@ -90,14 +100,14 @@ export function AdminLiveFeed() {
           if (old?.status !== 'paid' && row.status === 'paid') {
             pushEvent({
               type: 'claim_paid',
-              title: 'Claim paid',
-              detail: `₹${Number(row.payout_amount_inr).toLocaleString('en-IN')} credited to rider wallet`,
+              title: 'Payout completed',
+              detail: `₹${Number(row.payout_amount_inr).toLocaleString('en-IN')} credited to rider`,
             });
           }
           if (row.is_flagged && !old?.status) {
             pushEvent({
               type: 'claim_flagged',
-              title: 'Claim flagged for review',
+              title: 'Claim under review',
               detail: `₹${Number(row.payout_amount_inr).toLocaleString('en-IN')}`,
             });
           }
@@ -113,8 +123,8 @@ export function AdminLiveFeed() {
           };
           pushEvent({
             type: 'disruption',
-            title: `${(row.event_type ?? 'unknown').charAt(0).toUpperCase() + (row.event_type ?? 'unknown').slice(1)} disruption`,
-            detail: `Severity ${row.severity_score ?? '?'}/10`,
+            title: `${((row.event_type ?? 'weather').charAt(0).toUpperCase() + (row.event_type ?? 'weather').slice(1))} event`,
+            detail: `Coverage zone affected`,
           });
         },
       )
@@ -131,8 +141,8 @@ export function AdminLiveFeed() {
           if (!old?.is_active && row.is_active) {
             pushEvent({
               type: 'policy_activated',
-              title: 'Policy activated',
-              detail: `New weekly policy live`,
+              title: 'Policy started',
+              detail: 'New weekly coverage active',
             });
           }
         },
@@ -156,18 +166,48 @@ export function AdminLiveFeed() {
 
   return (
     <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#2d2d2d]">
-        <p className="text-sm font-semibold text-white">Activity Feed</p>
-        <span className="text-[10px] text-[#555]">Real-time events via Supabase</span>
+      <div className="px-5 py-3 border-b border-[#2d2d2d]">
+        <p className="text-sm font-semibold text-white">Recent activity</p>
       </div>
 
       <div className="max-h-[280px] overflow-y-auto">
         {events.length === 0 ? (
-          <div className="px-5 py-8 text-center">
-            <p className="text-xs text-[#555]">Waiting for events...</p>
-            <p className="text-[10px] text-[#444] mt-1">
-              Claims, payouts, and disruptions appear here in real time
-            </p>
+          <div className="px-5 py-6">
+            {summary24h && (summary24h.claims > 0 || summary24h.payoutsTotal > 0 || summary24h.flagged > 0) ? (
+              <>
+                <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-3">
+                  Last 24 hours
+                </p>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#9ca3af]">Claims</span>
+                    <span className="font-medium text-white tabular-nums">{summary24h.claims}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#9ca3af]">Payouts</span>
+                    <span className="font-medium text-white tabular-nums">
+                      ₹{summary24h.payoutsTotal.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  {summary24h.flagged > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#9ca3af]">Under review</span>
+                      <span className="font-medium text-[#ef4444] tabular-nums">{summary24h.flagged}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-[#444] mt-4">
+                  Live claims and payouts will appear here as they happen
+                </p>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-xs text-[#555]">No recent activity</p>
+                <p className="text-[10px] text-[#444] mt-1">
+                  Claims and payouts will appear here when they occur
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-[#2d2d2d]">
