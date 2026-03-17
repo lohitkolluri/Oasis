@@ -28,7 +28,7 @@ export function KPIGrid({
   const items = [
     {
       id: 'earnings',
-      title: 'Total Earnings',
+      title: 'Earnings',
       value: `₹${totalEarnings.toLocaleString('en-IN')}`,
       label: 'This period',
       icon: TrendingUp,
@@ -72,15 +72,15 @@ export function KPIGrid({
           return (
             <div
               key={m.id}
-              className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[88px]"
+              className="bg-[#0c0c0c] p-3.5 flex flex-col items-center text-center min-h-[92px]"
             >
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center justify-center gap-2 mb-1 w-full">
                 <Icon className={`h-3.5 w-3.5 shrink-0 ${m.accent}`} />
-                <span className="text-xs font-medium text-zinc-500 truncate">
+                <span className="text-xs font-medium text-zinc-500 truncate max-w-[12ch]">
                   {m.title}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-600 mb-0.5">{m.label}</p>
+              <p className="text-[11px] text-zinc-600 mb-0.5 truncate max-w-full">{m.label}</p>
               <p
                 className={`text-lg font-bold tabular-nums tracking-tight mt-auto ${m.accent}`}
               >

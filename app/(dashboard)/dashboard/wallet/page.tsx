@@ -63,26 +63,38 @@ export default async function WalletPage() {
           }
         />
 
-        <Card variant="default" padding="none" className="rounded-2xl border border-white/10 bg-[#0c0c0c] overflow-hidden">
+        <Card
+          variant="default"
+          padding="none"
+          className="rounded-2xl border border-white/10 bg-[#0c0c0c] overflow-hidden"
+        >
           <div className="grid grid-cols-3 gap-px bg-white/5">
-            <div className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[72px]">
-              <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="bg-[#0c0c0c] p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
+              <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
                 <TrendingUp className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                <span className="text-[11px] font-medium text-zinc-500">Total Earnings</span>
+                <span className="text-[11px] font-medium text-zinc-500 truncate max-w-[12ch]">
+                  Earnings
+                </span>
               </div>
-              <p className="text-lg font-bold tabular-nums text-white">₹{stats.totalPayouts.toLocaleString("en-IN")}</p>
+              <p className="text-lg font-bold tabular-nums text-white">
+                ₹{stats.totalPayouts.toLocaleString("en-IN")}
+              </p>
             </div>
-            <div className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[72px]">
-              <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="bg-[#0c0c0c] p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
+              <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
                 <FileCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />
-                <span className="text-[11px] font-medium text-zinc-500">Claims Paid</span>
+                <span className="text-[11px] font-medium text-zinc-500 truncate max-w-[12ch]">
+                  Claims Paid
+                </span>
               </div>
               <p className="text-lg font-bold tabular-nums text-white">{stats.totalClaimCount}</p>
             </div>
-            <div className="bg-[#0c0c0c] p-3.5 flex flex-col min-h-[72px]">
-              <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="bg-[#0c0c0c] p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
+              <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
                 <Shield className="h-3.5 w-3.5 text-uber-green shrink-0" />
-                <span className="text-[11px] font-medium text-zinc-500">Coverage</span>
+                <span className="text-[11px] font-medium text-zinc-500 truncate max-w-[12ch]">
+                  Coverage
+                </span>
               </div>
               <p className="text-lg font-bold text-uber-green">{result.activePolicy ? "Active" : "None"}</p>
             </div>
