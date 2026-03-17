@@ -89,7 +89,10 @@ function TriggersPanel() {
             return (
               <div
                 key={`${t.type}-${t.name}-${idx}`}
-                className="group relative rounded-2xl border border-[#2d2d2d] bg-black/20 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] transition-colors hover:bg-white/[0.02] hover:border-white/15 min-h-[160px] sm:min-h-[168px] flex flex-col items-center justify-center"
+                className={[
+                  idx >= 4 ? 'hidden sm:flex' : 'flex',
+                  'group relative rounded-2xl border border-[#2d2d2d] bg-black/20 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] transition-colors hover:bg-white/[0.02] hover:border-white/15 min-h-[140px] sm:min-h-[168px] flex-col items-center justify-center',
+                ].join(' ')}
                 title={t.name}
               >
                 <div
@@ -139,7 +142,7 @@ function PricingPanel() {
         </p>
       </div>
 
-      <div className="group relative border-t border-[#2d2d2d] bg-black/20 px-6 py-10 overflow-hidden min-h-[320px] flex items-center justify-center">
+      <div className="group relative border-t border-[#2d2d2d] bg-black/20 px-6 py-8 sm:py-10 overflow-hidden min-h-[240px] sm:min-h-[320px] flex items-center justify-center">
         <div
           className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
           aria-hidden
@@ -165,7 +168,7 @@ function PricingPanel() {
         />
 
         <div
-          className="pointer-events-none absolute right-6 top-10 text-[160px] font-semibold leading-none tracking-[-0.06em] text-white/[0.03]"
+          className="pointer-events-none absolute right-6 top-10 hidden sm:block text-[160px] font-semibold leading-none tracking-[-0.06em] text-white/[0.03]"
           aria-hidden
         >
           ₹
@@ -175,7 +178,7 @@ function PricingPanel() {
           {WORD_CLOUD.map((w) => (
             <div
               key={w.text}
-              className={`absolute ${w.x} ${w.y} ${w.rotate} select-none whitespace-nowrap text-[14px] sm:text-[16px] font-semibold tracking-[-0.02em] text-white/10 bg-gradient-to-r ${w.gradient} bg-clip-text text-transparent`}
+              className={`absolute hidden sm:block ${w.x} ${w.y} ${w.rotate} select-none whitespace-nowrap text-[16px] font-semibold tracking-[-0.02em] text-white/10 bg-gradient-to-r ${w.gradient} bg-clip-text text-transparent`}
             >
               {w.text}
             </div>
@@ -226,8 +229,8 @@ function CoverageBoundary({ className = '' }: { className?: string }) {
 
 export function MiddleSection() {
   return (
-    <section className="mx-auto max-w-6xl px-5 py-14 sm:py-18">
-      <div className="grid gap-6 lg:grid-cols-2">
+    <section className="mx-auto max-w-6xl px-5 py-10 sm:py-18">
+      <div className="grid gap-6 lg:grid-cols-2 reveal-in-up" style={{ ['--d' as any]: '60ms' }}>
         <TriggersPanel />
         <div className="space-y-6">
           <PricingPanel />

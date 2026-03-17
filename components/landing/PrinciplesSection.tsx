@@ -7,7 +7,7 @@ const principles = [
 export function PrinciplesSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
-      <div className="rounded-[28px] border border-[#2d2d2d] bg-[#161616] p-6 sm:p-8">
+      <div className="rounded-[28px] border border-[#2d2d2d] bg-[#161616] p-6 sm:p-8 reveal-in-up" style={{ ['--d' as any]: '60ms' }}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
           Principles
         </p>
@@ -15,7 +15,13 @@ export function PrinciplesSection() {
           Opinionated and simple.
         </h2>
         <p className="mt-3 max-w-[75ch] text-[13px] leading-relaxed text-white/45 sm:text-[14px]">
-          Keep it simple · weekly windows, clear limits, and automated payouts. Coverage is strictly for income loss from external disruptions.
+          <span className="sm:hidden">
+            Weekly windows, clear limits, automated payouts.
+          </span>
+          <span className="hidden sm:inline">
+            Keep it simple · weekly windows, clear limits, and automated payouts. Coverage is strictly for income loss
+            from external disruptions.
+          </span>
         </p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">

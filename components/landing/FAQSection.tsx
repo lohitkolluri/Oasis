@@ -35,7 +35,7 @@ export function FAQSection() {
 
       <div className="relative">
         <div className="mx-auto w-full">
-          <div className="rounded-[28px] border border-[#2d2d2d] bg-[#161616] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden">
+          <div className="rounded-[28px] border border-[#2d2d2d] bg-[#161616] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden reveal-in-up" style={{ ['--d' as any]: '80ms' }}>
             <div className="px-6 pt-6 pb-3 sm:px-8 sm:pt-8">
               <p className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.04em] text-white">
                 <span className="bg-gradient-to-b from-[#a78bfa] to-[#7dd3fc] bg-clip-text text-transparent">

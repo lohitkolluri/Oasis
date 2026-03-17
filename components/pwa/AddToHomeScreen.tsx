@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Logo } from "@/components/ui/Logo";
+import { Share2, PlusSquare, X } from "lucide-react";
 
 /**
  * Shows "Add to Home Screen" hint for iOS/Safari (which lacks beforeinstallprompt).
@@ -8,48 +10,102 @@ import { useState, useEffect } from "react";
  */
 export function AddToHomeScreen() {
   const [show, setShow] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     const ua = navigator.userAgent;
     const ios = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as { standalone?: boolean }).standalone === true;
 
-    setIsIOS(!!ios);
     setIsStandalone(standalone);
 
-    if (ios && !standalone) {
-      const dismissed = sessionStorage.getItem("oasis-ios-hint-dismissed");
-      if (!dismissed) setShow(true);
+    if (ios && isSafari && !standalone) {
+      const key = "oasis-ios-a2hs-dismissed";
+      const dismissedAt = Number(localStorage.getItem(key) ?? "0");
+      const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+      if (!dismissedAt || Date.now() - dismissedAt > THIRTY_DAYS) setShow(true);
     }
   }, []);
 
+  useEffect(() => {
+    if (!show) return;
+    setClosing(false);
+    setMounted(false);
+    const id = window.setTimeout(() => setMounted(true), 10);
+    return () => window.clearTimeout(id);
+  }, [show]);
+
   function handleDismiss() {
-    setShow(false);
-    sessionStorage.setItem("oasis-ios-hint-dismissed", "1");
+    setClosing(true);
+    localStorage.setItem("oasis-ios-a2hs-dismissed", String(Date.now()));
+    window.setTimeout(() => setShow(false), 220);
   }
 
   if (!show || isStandalone) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-50 p-4 rounded-xl bg-zinc-900 border border-zinc-700 shadow-xl">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-medium text-sm">Add Oasis to Home Screen</p>
-          <p className="text-zinc-400 text-xs mt-0.5">
-            Tap <span className="inline-flex items-center gap-1">Share → Add to Home Screen</span>
-          </p>
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-50">
+      <div
+        className={[
+          "rounded-2xl border border-white/10 bg-zinc-950/90 backdrop-blur-xl overflow-hidden",
+          "shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_60px_rgba(0,0,0,0.65)]",
+          "transition-all duration-200 ease-out will-change-transform",
+          mounted && !closing ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-3 scale-[0.98]",
+        ].join(" ")}
+      >
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-uber-green-500/15 border border-uber-green-500/20 flex items-center justify-center shrink-0">
+              <Logo size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white tracking-tight">Add Oasis to your Home Screen</p>
+              <p className="mt-0.5 text-xs text-white/55 leading-relaxed">
+                Open faster, get an app-like experience.
+              </p>
+            </div>
+            <button
+              onClick={handleDismiss}
+              className="text-white/45 hover:text-white/70 transition-colors active:scale-95"
+              aria-label="Dismiss"
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-2">
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 grid place-items-center shrink-0">
+                <Share2 className="h-4 w-4 text-white/70" />
+              </div>
+              <p className="text-[12px] text-white/70">
+                Tap <span className="font-semibold text-white/85">Share</span> in Safari
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 grid place-items-center shrink-0">
+                <PlusSquare className="h-4 w-4 text-white/70" />
+              </div>
+              <p className="text-[12px] text-white/70">
+                Choose <span className="font-semibold text-white/85">Add to Home Screen</span>
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleDismiss}
+            className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-semibold text-white/80 hover:bg-white/[0.06] active:scale-[0.99] transition-all"
+            type="button"
+          >
+            Got it
+          </button>
         </div>
-        <button
-          onClick={handleDismiss}
-          className="text-zinc-500 hover:text-zinc-400 text-xl leading-none shrink-0"
-          aria-label="Dismiss"
-        >
-          ×
-        </button>
       </div>
     </div>
   );

@@ -22,20 +22,20 @@ flowchart TB
         Admin[Admin Dashboard]
     end
 
-    subgraph NextJS["Next.js App Router"]
-        Pages["Auth, Dashboard, Admin"]
-        API["/api/admin, rider, payments, cron, claims"]
-        Lib["adjudicator, fraud, ml, supabase"]
+    subgraph App["App Server (Next.js)"]
+        Pages["Pages & layouts\n(auth · dashboard · admin)"]
+        API["API routes\n(payments · cron · admin)"]
+        Logic["Core logic\n(trigger engine · fraud checks · pricing)"]
     end
 
     subgraph Data["Data & Services"]
         Supabase[Supabase]
-        ExtAPI[Tomorrow.io, WAQI, Open-Meteo, TomTom, NewsData, OpenRouter, Stripe]
+        ExtAPI[External APIs\n(weather · AQI · traffic · news · payments · LLM)]
     end
 
-    Client --> NextJS
-    NextJS --> Supabase
-    NextJS --> ExtAPI
+    Client --> App
+    App --> Supabase
+    App --> ExtAPI
 ```
 
 **In plain language:**
@@ -83,7 +83,7 @@ flowchart TB
 ```mermaid
 flowchart TB
     Start["Every 15 minutes"] --> Z["1. Find zones with active weekly coverage"]
-    Z --> T["2. Ask APIs:\nIs heat / rain / AQI / traffic / curfew bad enough?"]
+    Z --> T["2. Ask APIs:\nIs weather / AQI / traffic / restriction bad enough?"]
     T --> DD["3. Group nearby events\n(avoid double-counting same disruption)"]
 
     DD --> Loop["4. For each real disruption"]

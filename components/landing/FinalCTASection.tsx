@@ -3,7 +3,7 @@ import { ButtonLink } from '@/components/ui/Button';
 export function FinalCTASection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-12 sm:py-16">
-      <div className="relative overflow-hidden rounded-[28px] border border-[#2d2d2d] bg-[#161616] p-7 sm:p-10 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_28px_90px_rgba(0,0,0,0.6)]">
+      <div className="relative overflow-hidden rounded-[28px] border border-[#2d2d2d] bg-[#161616] p-7 sm:p-10 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_28px_90px_rgba(0,0,0,0.6)] reveal-in-up" style={{ ['--d' as any]: '60ms' }}>
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.35]"
           aria-hidden

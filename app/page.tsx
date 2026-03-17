@@ -8,8 +8,19 @@ import { FeatureGridSection } from '@/components/landing/FeatureGridSection';
 import { PrinciplesSection } from '@/components/landing/PrinciplesSection';
 import { FinalCTASection } from '@/components/landing/FinalCTASection';
 import { EditorialTextSection } from '@/components/landing/EditorialTextSection';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect('/dashboard');
+  }
+
   return (
     <LandingShell>
       <LandingNav />

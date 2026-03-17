@@ -24,9 +24,12 @@ export function AdminPreviewFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-[#0f0f0f] overflow-hidden">
       {/* Embedded preview sizing (avoid full-page feel) */}
-      <div className="flex h-[640px] lg:h-[720px]">
-        {/* Sidebar (static preview) */}
-        <aside className="hidden md:flex w-[260px] bg-[#161616] border-r border-[#2d2d2d] flex-col">
+      <div className="relative h-[250px] sm:h-[340px] md:h-[470px] lg:h-[720px] overflow-hidden">
+        {/* On mobile, keep the desktop admin layout but scale it down to fit */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 origin-top scale-[0.38] sm:scale-[0.52] md:scale-[0.7] lg:static lg:left-auto lg:translate-x-0 lg:origin-top-left lg:scale-100 w-[1100px] lg:w-full">
+          <div className="flex h-[640px] lg:h-[720px]">
+            {/* Sidebar (static preview) */}
+            <aside className="flex w-[260px] bg-[#161616] border-r border-[#2d2d2d] flex-col">
           <div className="flex items-center gap-2 px-3 py-3 mb-2 shrink-0">
             <div className="flex items-center gap-2">
               <Logo size={28} className="shrink-0" />
@@ -166,17 +169,17 @@ export function AdminPreviewFrame({ children }: { children: React.ReactNode }) {
           <div className="p-3 mt-auto shrink-0">
             <SidebarUser name="John Doe" email="john@example.com" />
           </div>
-        </aside>
+            </aside>
 
-        {/* Main */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          <header className="sticky top-0 z-10 h-[48px] border-b border-[#2d2d2d] bg-[#0f0f0f] px-5 flex items-center justify-between shrink-0">
-            <div className="hidden md:flex items-center gap-2 rounded-lg border border-[#2d2d2d] bg-[#161616] px-3 h-8 w-[280px]">
+            {/* Main */}
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+              <header className="sticky top-0 z-10 h-[48px] border-b border-[#2d2d2d] bg-[#0f0f0f] px-5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2 rounded-lg border border-[#2d2d2d] bg-[#161616] px-3 h-8 w-[280px]">
               <Search className="h-4 w-4 text-[#666]" />
               <span className="text-[12px] text-[#666]">Search admin…</span>
             </div>
             <div className="flex items-center gap-3 ml-auto">
-              <span className="hidden md:flex items-center gap-1.5 text-xs text-[#555]">
+              <span className="flex items-center gap-1.5 text-xs text-[#555]">
                 <Smartphone className="h-3.5 w-3.5" />
                 Rider App
               </span>
@@ -188,6 +191,8 @@ export function AdminPreviewFrame({ children }: { children: React.ReactNode }) {
               {children}
             </main>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

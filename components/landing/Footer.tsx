@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export function Footer() {
   return (
-    <footer className="border-t border-[#2d2d2d] bg-[#0f0f0f]">
+    <footer className="border-t border-[#2d2d2d] bg-[#0f0f0f] reveal-in" style={{ ['--d' as any]: '40ms' }}>
       <div className="mx-auto max-w-6xl px-5 py-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>

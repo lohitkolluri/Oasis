@@ -10,7 +10,7 @@ oasis/
 ├── app/                        # Next.js 15 App Router
 │   ├── (auth)/                 # Route group: login, register, onboarding
 │   ├── (dashboard)/            # Route group: rider-facing dashboard
-│   ├── (admin)/                # Route group: admin portal
+│   ├── (admin)/                # Route group: admin console (ops, financial, health)
 │   ├── api/                    # REST API handlers
 │   │   ├── admin/              # Admin-only endpoints
 │   │   ├── auth/               # Supabase signout
@@ -59,7 +59,7 @@ oasis/
 │   │   └── enterprise-adjudicator/   # Deno Edge Function (alternative)
 │   └── migrations/             # SQL migrations (timestamp order)
 │
-├── docs/                       # This Starlight docs site
+├── Docs/                       # This Starlight docs site
 │
 ├── scripts/
 │   ├── setup-storage.ts        # One-time Supabase storage bucket setup
@@ -70,7 +70,7 @@ oasis/
 ├── next.config.ts              # Next.js config (PWA, standalone output)
 ├── tailwind.config.ts
 ├── tsconfig.json
-└── vercel.json                 # Cron schedules, Mumbai region
+└── (Vercel config via dashboard)  # Region + scheduled jobs configured in Vercel UI
 ```
 
 ---

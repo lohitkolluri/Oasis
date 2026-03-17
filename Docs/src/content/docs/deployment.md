@@ -43,7 +43,7 @@ Oasis is deployed on **Vercel** in the Mumbai region (`bom1`) for low-latency se
 ### 3. Node version & region
 
 - **Node:** project pins Node in `package.json` (`engines.node`). Match this in Vercel (Settings → General → Node.js Version).
-- **Region:** `vercel.json` pins the app to `bom1` so it sits close to a Mumbai Supabase project (`ap-south-1`).
+- **Region:** set Vercel region close to your Supabase project (Mumbai / `ap-south-1`) for lower latency.
 
 :::note Vercel Hobby and cron
 Vercel Hobby plans allow only **daily** cron jobs. Hourly crons require Pro. Use GitHub Actions (Option A) or Supabase Cron (Option C) for free hourly triggers.
@@ -98,7 +98,7 @@ GitHub Actions provides 2,000 minutes/month free for private repos; public repos
 
 ### Option B: Vercel Cron (Pro)
 
-On **Vercel Pro**, you can add hourly crons in `vercel.json` that call the two paths above. Vercel sends `Authorization: Bearer <CRON_SECRET>` automatically.
+On **Vercel Pro**, you can configure scheduled jobs in the Vercel dashboard to call the two paths above. Send `Authorization: Bearer <CRON_SECRET>` with each request.
 
 ### Option C: Supabase Cron
 

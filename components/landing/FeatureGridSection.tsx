@@ -35,12 +35,20 @@ export function FeatureGridSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
       <div className="max-w-[62rem]">
-        <p className="text-[clamp(28px,3.1vw,40px)] font-semibold tracking-[-0.045em] text-white/90 leading-[1.08]">
-          A new species of insurance tool. Built for weekly income protection with parametric automation at its core.
+        <p
+          className="text-[clamp(28px,3.1vw,40px)] font-semibold tracking-[-0.045em] text-white/90 leading-[1.08] reveal-in-up"
+          style={{ ['--d' as any]: '40ms' }}
+        >
+          <span className="sm:hidden">
+            Weekly income protection—automated by external signals.
+          </span>
+          <span className="hidden sm:inline">
+            A new species of insurance tool. Built for weekly income protection with parametric automation at its core.
+          </span>
         </p>
       </div>
 
-      <div className="mt-8 grid gap-3 md:grid-cols-3">
+      <div className="mt-8 grid gap-3 md:grid-cols-3 reveal-in-up" style={{ ['--d' as any]: '140ms' }}>
         <Figure
           label="FIG 0.2"
           title="Built for automation"
