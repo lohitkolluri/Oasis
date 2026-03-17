@@ -1,5 +1,5 @@
-import dynamic from 'next/dynamic';
 import { RunAdjudicatorButton } from '@/components/admin/RunAdjudicatorButton';
+import dynamic from 'next/dynamic';
 
 const AnalyticsCharts = dynamic(
   () => import('@/components/admin/AnalyticsCharts').then((m) => m.AnalyticsCharts),

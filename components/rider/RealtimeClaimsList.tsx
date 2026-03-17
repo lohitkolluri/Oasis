@@ -94,7 +94,7 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
         <Badge
           variant="outline"
           className={cn(
-            'border font-medium',
+            'rounded-full border font-semibold px-2.5 py-0.5 text-[11px] leading-none',
             claim.is_flagged &&
               'bg-[#ffc043]/15 text-[#ffc043] border-[#ffc043]/30',
             !claim.is_flagged &&
@@ -110,7 +110,7 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
         {justPaid && (
           <Badge
             variant="outline"
-            className="bg-[#3AA76D]/15 text-[#3AA76D] border-[#3AA76D]/30 animate-pulse text-[10px]"
+            className="rounded-full bg-[#3AA76D]/15 text-[#3AA76D] border-[#3AA76D]/30 animate-pulse text-[10px] font-semibold px-2 py-0.5 leading-none"
           >
             Just paid
           </Badge>

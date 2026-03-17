@@ -135,75 +135,77 @@ export function TriggersList({ events }: { events: Event[] }) {
 
   return (
     <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent border-[#2d2d2d]">
-            <TableHead className="w-[min(280px,35%)]">Event</TableHead>
-            <TableHead className="w-[160px]">Zone</TableHead>
-            <TableHead className="w-[100px]">Severity</TableHead>
-            <TableHead className="w-[72px] text-center">Verified</TableHead>
-            <TableHead className="w-[120px] text-right">Time</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {events.map((e) => {
-            const sev = severityStatus(e.severity_score);
-            const sourceLabel = formatSource(e.raw_api_data);
-            return (
-              <TableRow key={e.id} className="border-[#2d2d2d] align-top">
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-[#555] shrink-0">
-                      {typeIcons[e.event_type] ?? <Cloud className="h-3.5 w-3.5" />}
+      <div className="max-h-[420px] overflow-y-auto">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-[#161616]">
+            <TableRow className="hover:bg-transparent border-[#2d2d2d]">
+              <TableHead className="w-[min(260px,32%)]">Event</TableHead>
+              <TableHead className="w-[180px]">Zone (lat, lng · radius)</TableHead>
+              <TableHead className="w-[100px]">Severity</TableHead>
+              <TableHead className="w-[72px] text-center">Verified</TableHead>
+              <TableHead className="w-[120px] text-right">Time</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {events.map((e) => {
+              const sev = severityStatus(e.severity_score);
+              const sourceLabel = formatSource(e.raw_api_data);
+              return (
+                <TableRow key={e.id} className="border-[#2d2d2d] align-top">
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[#555] shrink-0">
+                        {typeIcons[e.event_type] ?? <Cloud className="h-3.5 w-3.5" />}
+                      </span>
+                      <span className="text-sm font-medium text-white capitalize">
+                        {e.event_type}
+                      </span>
+                    </div>
+                    <TriggerSubtitle raw={e.raw_api_data} />
+                    {sourceLabel && (
+                      <p className="text-[10px] text-[#444] mt-1">Source: {sourceLabel}</p>
+                    )}
+                    <AQIBadge raw={e.raw_api_data} />
+                  </TableCell>
+
+                  <TableCell className="text-xs text-[#9ca3af] tabular-nums">
+                    {formatZone(e.geofence_polygon)}
+                  </TableCell>
+
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${sev.badge}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sev.dot}`} />
+                      {sev.label}
                     </span>
-                    <span className="text-sm font-medium text-white capitalize">
-                      {e.event_type}
-                    </span>
-                  </div>
-                  <TriggerSubtitle raw={e.raw_api_data} />
-                  {sourceLabel && (
-                    <p className="text-[10px] text-[#444] mt-1">Source: {sourceLabel}</p>
-                  )}
-                  <AQIBadge raw={e.raw_api_data} />
-                </TableCell>
+                    <p className="text-[10px] text-[#555] mt-1 tabular-nums">
+                      {e.severity_score}/10
+                    </p>
+                  </TableCell>
 
-                <TableCell className="text-xs text-[#9ca3af] tabular-nums">
-                  {formatZone(e.geofence_polygon)}
-                </TableCell>
+                  <TableCell className="text-center">
+                    {e.verified_by_llm ? (
+                      <span className="text-[#22c55e] font-semibold text-[10px]">Yes</span>
+                    ) : (
+                      <span className="text-[#3a3a3a]">—</span>
+                    )}
+                  </TableCell>
 
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${sev.badge}`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sev.dot}`} />
-                    {sev.label}
-                  </span>
-                  <p className="text-[10px] text-[#555] mt-1 tabular-nums">
-                    {e.severity_score}/10
-                  </p>
-                </TableCell>
-
-                <TableCell className="text-center">
-                  {e.verified_by_llm ? (
-                    <span className="text-[#22c55e] font-semibold text-[10px]">Yes</span>
-                  ) : (
-                    <span className="text-[#3a3a3a]">—</span>
-                  )}
-                </TableCell>
-
-                <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums whitespace-nowrap">
-                  {new Date(e.created_at).toLocaleString('en-IN', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums whitespace-nowrap">
+                    {new Date(e.created_at).toLocaleString('en-IN', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 'use client';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { CopyableId } from '@/components/ui/CopyableId';
 import {
   Table,
   TableBody,
@@ -8,20 +12,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardHeader } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/Button';
-import { CopyableId } from '@/components/ui/CopyableId';
+import { cn } from '@/lib/utils';
 import {
   Activity,
   AlertCircle,
   CheckCircle,
+  Clock,
+  Globe2,
   Loader2,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
 
 interface ApiCheck {
   name: string;
@@ -53,33 +55,26 @@ interface HealthData {
   }>;
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; dot: string; badgeClass: string }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; dot: string; badgeClass: string }> = {
   healthy: {
     label: 'Healthy',
     dot: 'bg-[#22c55e]',
-    badgeClass:
-      'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e] text-[10px] font-semibold',
+    badgeClass: 'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e] text-[10px] font-semibold',
   },
   warning: {
     label: 'Warning',
     dot: 'bg-[#f59e0b]',
-    badgeClass:
-      'border-[#f59e0b]/25 bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-semibold',
+    badgeClass: 'border-[#f59e0b]/25 bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-semibold',
   },
   degraded: {
     label: 'Degraded',
     dot: 'bg-[#ef4444]',
-    badgeClass:
-      'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-semibold',
+    badgeClass: 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-semibold',
   },
   unhealthy: {
     label: 'Unhealthy',
     dot: 'bg-[#ef4444]',
-    badgeClass:
-      'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-semibold',
+    badgeClass: 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-semibold',
   },
 };
 
@@ -92,7 +87,11 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export function SystemHealth() {
+interface SystemHealthProps {
+  showRecentEvents?: boolean;
+}
+
+export function SystemHealth({ showRecentEvents = true }: SystemHealthProps) {
   const [data, setData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -119,7 +118,11 @@ export function SystemHealth() {
 
   if (loading) {
     return (
-      <Card variant="default" padding="lg" className="flex items-center justify-center min-h-[200px]">
+      <Card
+        variant="default"
+        padding="lg"
+        className="flex items-center justify-center min-h-[200px]"
+      >
         <Loader2 className="h-6 w-6 animate-spin text-[#7dd3fc]" />
       </Card>
     );
@@ -144,10 +147,7 @@ export function SystemHealth() {
         description="API status, last run, and recent events"
         badge={
           <div className="flex items-center gap-2">
-            <Badge
-              variant="secondary"
-              className={cn('rounded-full border', s.badgeClass)}
-            >
+            <Badge variant="secondary" className={cn('rounded-full border', s.badgeClass)}>
               <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mr-1', s.dot)} />
               {s.label}
             </Badge>
@@ -159,9 +159,7 @@ export function SystemHealth() {
               title="Refresh"
               className="text-[#555] hover:text-white"
             >
-              <RefreshCw
-                className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')}
-              />
+              <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
             </Button>
           </div>
         }
@@ -171,8 +169,8 @@ export function SystemHealth() {
       <div className="px-5 pb-5 space-y-5">
         {/* Last run + Errors row */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] p-4">
-            <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-2">
+          <div className="rounded-lg border border-[#2d2d2d] bg-[#111111] p-4">
+            <p className="text-[10px] font-medium text-[#6b7280] uppercase tracking-wider mb-2">
               Last Adjudicator Run
             </p>
             {run ? (
@@ -228,10 +226,7 @@ export function SystemHealth() {
                   )}
                 </div>
                 {run.error && (
-                  <p
-                    className="text-[10px] text-[#ef4444] truncate max-w-full"
-                    title={run.error}
-                  >
+                  <p className="text-[10px] text-[#ef4444] truncate max-w-full" title={run.error}>
                     {run.error}
                   </p>
                 )}
@@ -241,42 +236,66 @@ export function SystemHealth() {
             )}
           </div>
 
-          <div className="rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] p-4 flex flex-col justify-center">
-            <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1">
+          <div className="rounded-lg border border-[#2d2d2d] bg-[#111111] p-4 flex flex-col justify-center">
+            <p className="text-[10px] font-medium text-[#6b7280] uppercase tracking-wider mb-1">
               Errors (24h)
             </p>
-            <Badge
-              variant="secondary"
-              className={cn(
-                'w-fit rounded-full text-sm font-bold tabular-nums px-2 py-0',
-                data.errors24h > 0
-                  ? 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444]'
-                  : 'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e]',
-              )}
-            >
-              {data.errors24h}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="secondary"
+                className={cn(
+                  'w-fit rounded-full text-sm font-bold tabular-nums px-2 py-0',
+                  data.errors24h > 0
+                    ? 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444]'
+                    : 'border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e]',
+                )}
+              >
+                {data.errors24h}
+              </Badge>
+              <span className="text-xs text-[#9ca3af]">
+                {data.errors24h > 0 ? 'Issues in the last 24h' : 'No errors in the last 24h'}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* External APIs */}
         <div>
-          <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-2">
-            External APIs
-          </p>
-          <div className="rounded-lg border border-[#2d2d2d] overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-medium text-[#6b7280] uppercase tracking-wider flex items-center gap-1.5">
+              <Globe2 className="h-3 w-3 text-[#9ca3af]" />
+              External APIs
+            </p>
+            <span className="text-[11px] text-[#6b7280]">
+              Polled every 60s
+            </span>
+          </div>
+          <div className="rounded-xl border border-[#232323] overflow-hidden bg-[#161616] shadow-[0_0_0_1px_rgba(15,15,15,0.6)]">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent border-[#2d2d2d]">
-                  <TableHead className="w-[60%]">Service</TableHead>
-                  <TableHead className="w-[40%] text-right">Status</TableHead>
+                <TableRow className="hover:bg-transparent border-[#2d2d2d] bg-[#181818]">
+                  <TableHead className="w-[55%] text-xs text-[#9ca3af]">
+                    Service
+                  </TableHead>
+                  <TableHead className="w-[25%] text-xs text-right text-[#9ca3af]">
+                    Status
+                  </TableHead>
+                  <TableHead className="w-[20%] text-xs text-right text-[#9ca3af]">
+                    HTTP
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.apis.map((api) => (
-                  <TableRow key={api.name} className="border-[#2d2d2d]">
-                    <TableCell className="text-xs text-[#9ca3af]">
-                      {api.name}
+                  <TableRow
+                    key={api.name}
+                    className={cn(
+                      'border-[#2d2d2d] transition-colors',
+                      'hover:bg-[#191919]',
+                    )}
+                  >
+                    <TableCell className="text-xs">
+                      <span className="font-medium text-[#e5e5e5]">{api.name}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -294,9 +313,12 @@ export function SystemHealth() {
                               : 'border-[#ef4444]/25 bg-[#ef4444]/10 text-[#ef4444]',
                           )}
                         >
-                          {api.ok ? 'OK' : 'DOWN'}
+                          {api.ok ? 'Operational' : 'Down'}
                         </Badge>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-right text-[11px] text-[#7a7a7a] tabular-nums">
+                      {api.status || '—'}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -306,7 +328,7 @@ export function SystemHealth() {
         </div>
 
         {/* Recent events */}
-        {data.recentLogs.length > 0 && (
+        {showRecentEvents && data.recentLogs.length > 0 && (
           <div>
             <p className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-2">
               Recent Events

@@ -8,9 +8,13 @@ import { useState } from 'react';
 export function ClaimReviewButtons({
   claimId,
   disabled,
+  currentStatus,
+  claimStatus,
 }: {
   claimId: string;
   disabled?: boolean;
+  currentStatus?: 'approved' | 'rejected' | null;
+  claimStatus?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<'approved' | 'rejected' | null>(null);
@@ -35,14 +39,20 @@ export function ClaimReviewButtons({
     }
   }
 
+  const effectiveStatus: 'approved' | 'rejected' | null =
+    currentStatus ?? (claimStatus === 'paid' ? 'approved' : null);
+
+  const approveDisabled = disabled || !!loading || effectiveStatus === 'approved';
+  const rejectDisabled = disabled || !!loading || effectiveStatus === 'rejected';
+
   return (
     <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={() => act('approved')}
-        disabled={disabled || !!loading}
+        disabled={approveDisabled}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 hover:bg-[#22c55e]/15 hover:border-[#22c55e]/30 transition-colors disabled:opacity-50"
-        title="Mark reviewed: approved"
+        title={effectiveStatus === 'approved' ? 'Already approved (paid)' : 'Mark reviewed: approved'}
       >
         {loading === 'approved' ? (
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -54,9 +64,9 @@ export function ClaimReviewButtons({
       <button
         type="button"
         onClick={() => act('rejected')}
-        disabled={disabled || !!loading}
+        disabled={rejectDisabled}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20 hover:bg-[#ef4444]/15 hover:border-[#ef4444]/30 transition-colors disabled:opacity-50"
-        title="Mark reviewed: rejected"
+        title={effectiveStatus === 'rejected' ? 'Already rejected' : 'Mark reviewed: rejected'}
       >
         {loading === 'rejected' ? (
           <Loader2 className="h-3 w-3 animate-spin" />

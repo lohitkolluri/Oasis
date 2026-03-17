@@ -1,13 +1,6 @@
-import { CopyableId } from '@/components/ui/CopyableId';
 import { KPICard } from '@/components/ui/KPICard';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { PaymentTransactionsTable } from '@/components/admin/PaymentTransactionsTable';
+import { Card } from '@/components/ui/Card';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CreditCard } from 'lucide-react';
 
@@ -139,44 +132,25 @@ export default async function AdminPaymentsPage() {
           value={`₹${totalCollected.toLocaleString('en-IN')}`}
           accent="cyan"
         />
-        {stripeIntentsAvailable ? (
-          <>
-            <KPICard
-              title="Mismatches"
-              label="Amount or status"
-              value={mismatchCount}
-              accent={mismatchCount > 0 ? 'amber' : 'emerald'}
-            />
-            <KPICard
-              title="Reconciliation"
-              label="Match rate"
-              value={`${reconciliationRate ?? '—'}%`}
-              accent={
-                reconciliationRate != null && Number(reconciliationRate) < 95
-                  ? 'amber'
-                  : 'emerald'
-              }
-            />
-          </>
-        ) : (
-          <>
-            <KPICard
-              title="Paid"
-              label="Count"
-              value={paidCount}
-              accent="emerald"
-            />
-            <KPICard
-              title="With Stripe PI"
-              label="Recorded IDs"
-              value={withStripeIdCount}
-              accent={withStripeIdCount > 0 ? 'violet' : 'blue'}
-            />
-          </>
-        )}
+        <KPICard
+          title="Paid"
+          label="Transactions"
+          value={paidCount}
+          accent="emerald"
+        />
+        <KPICard
+          title="Stripe coverage"
+          label="With payment_intent_id"
+          value={
+            rows.length > 0
+              ? `${Math.round((withStripeIdCount / rows.length) * 100)}%`
+              : '—'
+          }
+          accent={withStripeIdCount > 0 ? 'violet' : 'blue'}
+        />
       </div>
 
-      <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden">
+      <Card variant="default" padding="none">
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <CreditCard className="h-10 w-10 text-[#3a3a3a] mb-4" />
@@ -188,107 +162,40 @@ export default async function AdminPaymentsPage() {
             </p>
           </div>
         ) : (
-          <>
-            <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">
-                Recent payments
-              </p>
-              <span className="text-[11px] text-[#555] tabular-nums">
-                Last {rows.length} transactions
-              </span>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-[#2d2d2d]">
-                  <TableHead className="w-[min(200px,25%)]">Status</TableHead>
-                  <TableHead className="w-[100px] text-right">
-                    Amount
-                  </TableHead>
-                  <TableHead className="w-[100px]">Policy</TableHead>
-                  {stripeIntentsAvailable && (
-                    <TableHead className="w-[120px]">Stripe</TableHead>
-                  )}
-                  <TableHead className="w-[120px] text-right">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map(({ db, intent, amountMatch }) => {
-                  const hasStripeId = !!db.stripe_payment_intent_id;
-                  const statusMismatch =
-                    stripeIntentsAvailable &&
-                    intent &&
-                    db.status === 'paid'
-                      ? intent.status !== 'succeeded'
-                      : false;
-                  const hasIssue =
-                    stripeIntentsAvailable &&
-                    (amountMatch === false ||
-                      statusMismatch ||
-                      (hasStripeId && !intent));
+          <PaymentTransactionsTable
+            rows={rows.map(({ db, intent, amountMatch }) => {
+              const hasStripeId = !!db.stripe_payment_intent_id;
+              const statusMismatch =
+                stripeIntentsAvailable &&
+                intent &&
+                db.status === 'paid'
+                  ? intent.status !== 'succeeded'
+                  : false;
+              const hasIssue =
+                stripeIntentsAvailable &&
+                (amountMatch === false ||
+                  statusMismatch ||
+                  (hasStripeId && !intent));
 
-                  return (
-                    <TableRow key={db.id} className="border-[#2d2d2d]">
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center rounded-full border border-[#2d2d2d] bg-[#1e1e1e] px-2 py-0.5 text-[10px] font-medium text-[#9ca3af]">
-                            {db.status}
-                          </span>
-                          {stripeIntentsAvailable && intent && (
-                            <span className="inline-flex items-center rounded-full border border-[#7dd3fc]/20 bg-[#7dd3fc]/10 px-2 py-0.5 text-[10px] font-medium text-[#7dd3fc]">
-                              {intent.status ?? 'unknown'}
-                            </span>
-                          )}
-                          {hasIssue && (
-                            <span className="inline-flex items-center rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-2 py-0.5 text-[10px] font-medium text-[#f97316]">
-                              {amountMatch === false
-                                ? 'Amount mismatch'
-                                : statusMismatch
-                                  ? 'Status mismatch'
-                                  : 'No Stripe match'}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums text-white">
-                        ₹{Number(db.amount_inr).toLocaleString('en-IN')}
-                      </TableCell>
-                      <TableCell>
-                        {db.weekly_policy_id ? (
-                          <CopyableId
-                            value={db.weekly_policy_id}
-                            prefix=""
-                            length={8}
-                            label="Copy policy ID"
-                          />
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      {stripeIntentsAvailable && (
-                        <TableCell>
-                          {db.stripe_payment_intent_id ? (
-                            <CopyableId
-                              value={db.stripe_payment_intent_id}
-                              prefix=""
-                              length={12}
-                              label="Copy Stripe payment intent ID"
-                            />
-                          ) : (
-                            '—'
-                          )}
-                        </TableCell>
-                      )}
-                      <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums">
-                        {formatDate(db.created_at)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </>
+              return {
+                id: db.id,
+                status: db.status,
+                amountInr: Number(db.amount_inr),
+                profileId: db.profile_id,
+                weeklyPolicyId: db.weekly_policy_id,
+                stripePaymentIntentId: db.stripe_payment_intent_id,
+                createdAt: db.created_at,
+                paidAt: db.paid_at,
+                stripeStatus: intent?.status ?? null,
+                amountMatch,
+                statusMismatch,
+                hasIssue,
+              };
+            })}
+            stripeIntentsAvailable={stripeIntentsAvailable}
+          />
         )}
-      </div>
+      </Card>
     </div>
   );
 }

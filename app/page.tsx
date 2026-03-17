@@ -1,20 +1,59 @@
-import { AuthBackground } from '@/components/auth/AuthBackground';
-import { ButtonLink } from '@/components/ui/Button';
+import { Footer } from '@/components/landing/Footer';
+import { HeroSection } from '@/components/landing/HeroSection';
+import { LandingNav } from '@/components/landing/LandingNav';
+import { LandingShell } from '@/components/landing/LandingShell';
+import { FAQSection } from '@/components/landing/FAQSection';
+import { MiddleSection } from '@/components/landing/MiddleSection';
+import { FeatureGridSection } from '@/components/landing/FeatureGridSection';
+import { PrinciplesSection } from '@/components/landing/PrinciplesSection';
+import { FinalCTASection } from '@/components/landing/FinalCTASection';
+import { EditorialTextSection } from '@/components/landing/EditorialTextSection';
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen bg-[#0f0f0f] bg-gradient-to-b from-zinc-950 to-zinc-900">
-      <AuthBackground />
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-start pt-[64vh] sm:pt-[60vh] px-6 pb-6">
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <ButtonLink href="/login" variant="primary" size="lg">
-            Sign in
-          </ButtonLink>
-          <ButtonLink href="/register" variant="secondary" size="lg">
-            Get started
-          </ButtonLink>
-        </div>
-      </div>
-    </div>
+    <LandingShell>
+      <LandingNav />
+      <main>
+        <HeroSection />
+
+        <EditorialTextSection
+          eyebrow="Built for purpose"
+          body={
+            <>
+              Oasis is purpose-built for weekly income protection. External signals are mapped to where you work, and
+              parametric rules create payouts automatically when disruption thresholds match.
+            </>
+          }
+          right={
+            <>
+              Minimal primitives, strong defaults, and predictable outcomes. Weekly by design.
+            </>
+          }
+        />
+        <FeatureGridSection />
+
+        <EditorialTextSection
+          eyebrow="Signals → payouts"
+          body={
+            <>
+              Triggers are transparent and auditable. When the week is active and a zone crosses thresholds, payouts
+              happen automatically—no manual claims processing.
+            </>
+          }
+          right={
+            <>
+              Weather, AQI, restrictions, traffic. Only external disruptions.
+            </>
+          }
+        />
+        <MiddleSection />
+
+        <PrinciplesSection />
+
+        <FinalCTASection />
+        <FAQSection />
+      </main>
+      <Footer />
+    </LandingShell>
   );
 }

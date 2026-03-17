@@ -1,16 +1,15 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/Card';
-import { Lock, ShieldCheck, X, ZoomIn } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Separator } from '@/components/ui/separator';
+import { ShieldCheck, Lock, X, Eye } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 interface AdminRiderGovIdCardProps {
   riderId: string;
   riderName: string;
-  /** True if rider has uploaded a gov ID (even if we don't have a URL yet). */
   hasGovId: boolean;
-  /** When provided, the ID image is shown as thumbnail; click zooms. Omit to load on demand. */
   imageUrl?: string | null;
   governmentIdVerified?: boolean | null;
 }
@@ -55,64 +54,65 @@ export function AdminRiderGovIdCard({
 
   return (
     <>
-      <Card variant="default" padding="lg" className="border-[#2d2d2d] h-full flex flex-col">
-        <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="h-full flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+        <div className="border-b border-zinc-800 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-[#7dd3fc] shrink-0" />
-            <h2 className="text-sm font-semibold text-white">Government ID (KYC)</h2>
+            <ShieldCheck className="h-4 w-4 text-zinc-500" />
+            <h2 className="text-sm font-semibold text-white">KYC Verification</h2>
           </div>
-          {governmentIdVerified && (
+          {governmentIdVerified ? (
             <Badge
               variant="secondary"
-              className="rounded-full border-[#22c55e]/25 bg-[#22c55e]/10 text-[#22c55e] text-[10px] font-semibold"
+              className="rounded-full border-emerald-500/25 bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold"
             >
               Verified
+            </Badge>
+          ) : (
+            <Badge
+              variant="secondary"
+              className="rounded-full border-amber-500/25 bg-amber-500/10 text-amber-400 text-[10px] font-semibold"
+            >
+              Not Verified
             </Badge>
           )}
         </div>
 
-        {!hasGovId ? (
-          <div
-            className="w-full h-[200px] flex flex-col items-center justify-center rounded-xl border border-[#2d2d2d] bg-[#1a1a1a] text-center shrink-0"
-            aria-hidden
-          >
-            <Lock className="h-10 w-10 text-[#3a3a3a] mb-2" />
-            <p className="text-sm text-[#555]">No ID on file</p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={openZoom}
-            disabled={loading}
-            className="group relative w-full h-[200px] rounded-xl border border-[#2d2d2d] bg-[#1a1a1a] overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7dd3fc]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616] hover:border-[#3a3a3a] transition-colors shrink-0"
-            aria-label="View government ID (click to zoom)"
-          >
-            {initialImageUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={initialImageUrl}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-contain object-center"
-                />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ZoomIn className="h-10 w-10 text-white" />
-                </span>
-              </>
-            ) : loading ? (
-              <span className="text-sm text-[#555]">Loading…</span>
-            ) : fetchError ? (
-              <span className="text-sm text-[#ef4444] px-2">{fetchError}</span>
-            ) : (
-              <span className="text-sm text-[#555]">Click to view</span>
-            )}
-          </button>
-        )}
-      </Card>
+        <div className="p-5 space-y-3">
+          <p className="text-[13px] text-zinc-400">
+            {hasGovId
+              ? 'Government ID document is on file.'
+              : 'No government ID has been uploaded yet.'}
+          </p>
 
+          {hasGovId ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openZoom}
+              disabled={loading}
+              className="w-full gap-2 border-zinc-700 text-zinc-300 hover:bg-white/[0.04] hover:text-white hover:border-zinc-600 transition-colors duration-150"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              {loading ? 'Loading…' : 'View ID Document'}
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2 text-zinc-600 text-xs py-1">
+              <Lock className="h-3.5 w-3.5" />
+              <span>No ID on file</span>
+            </div>
+          )}
+
+          {fetchError && (
+            <p className="text-xs text-red-400 mt-1">{fetchError}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Zoom Modal */}
       {zoomUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm"
           onClick={closeZoom}
           onKeyDown={(e) => e.key === 'Escape' && closeZoom()}
           role="dialog"

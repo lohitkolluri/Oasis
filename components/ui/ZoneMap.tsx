@@ -37,8 +37,28 @@ export function ZoneMap({
   const mapsHref = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(
     centerLat,
   )}&mlon=${encodeURIComponent(centerLng)}#map=14/${encodeURIComponent(
-    centerLat,
+  centerLat,
   )}/${encodeURIComponent(centerLng)}`;
+
+  // Small bounding box for embedded map (roughly a few km around center)
+  const delta = 0.06;
+  const minLat = centerLat - delta;
+  const maxLat = centerLat + delta;
+  const minLng = centerLng - delta;
+  const maxLng = centerLng + delta;
+
+  const embedHref = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
+    minLng,
+  )}%2C${encodeURIComponent(minLat)}%2C${encodeURIComponent(
+    maxLng,
+  )}%2C${encodeURIComponent(maxLat)}&layer=mapnik&marker=${encodeURIComponent(
+    centerLat,
+  )}%2C${encodeURIComponent(centerLng)}`;
+
+  // Approximate pixel radius for visual overlay (scaled by km)
+  const baseRadiusPx = 120;
+  const radiusScale = radiusKm / 15;
+  const visualRadiusPx = Math.max(60, Math.min(220, baseRadiusPx * radiusScale));
 
   return (
     <div
@@ -65,21 +85,21 @@ export function ZoneMap({
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="rounded-lg border border-[#2d2d2d] bg-[#161616] px-3 py-2">
-            <p className="text-[10px] text-[#555] uppercase tracking-[0.12em]">Center</p>
-            <p className="text-xs text-[#9ca3af] font-mono tabular-nums mt-1">
-              {centerLat.toFixed(2)},{centerLng.toFixed(2)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-[#2d2d2d] bg-[#161616] px-3 py-2">
-            <p className="text-[10px] text-[#555] uppercase tracking-[0.12em]">Radius</p>
-            <p className="text-xs text-white tabular-nums mt-1">{radiusKm} km</p>
-          </div>
-          <div className="rounded-lg border border-[#2d2d2d] bg-[#161616] px-3 py-2">
-            <p className="text-[10px] text-[#555] uppercase tracking-[0.12em]">Events</p>
-            <p className="text-xs text-white tabular-nums mt-1">—</p>
-          </div>
+        {/* Embedded OpenStreetMap minimap with radius overlay */}
+        <div className="mt-4 h-40 rounded-lg border border-[#2d2d2d] overflow-hidden bg-black relative">
+          <iframe
+            title="Delivery zone map preview"
+            src={embedHref}
+            className="h-full w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            style={{ pointerEvents: 'none' }}
+          />
+          {/* Radius overlay centred on rider zone */}
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-400/45 bg-emerald-400/10 shadow-[0_0_32px_rgba(52,211,153,0.5)]"
+            style={{ width: `${visualRadiusPx}px`, height: `${visualRadiusPx}px` }}
+          />
         </div>
       </div>
     </div>

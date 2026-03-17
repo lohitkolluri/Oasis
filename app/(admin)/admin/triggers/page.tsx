@@ -1,4 +1,5 @@
 import { TriggersList } from '@/components/admin/TriggersList';
+import { TriggerAnalytics } from '@/components/admin/TriggerAnalytics';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Zap } from 'lucide-react';
 
@@ -9,10 +10,27 @@ export default async function TriggersPage() {
     .from('live_disruption_events')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(100);
 
-  const highCount = events?.filter((e) => e.severity_score >= 8).length ?? 0;
-  const medCount = events?.filter((e) => e.severity_score >= 5 && e.severity_score < 8).length ?? 0;
+  const list = events ?? [];
+  const total = list.length;
+  const highCount = list.filter((e) => e.severity_score >= 8).length;
+  const medCount = list.filter((e) => e.severity_score >= 5 && e.severity_score < 8).length;
+
+  const zones = list.map((e) => {
+    const gf = e.geofence_polygon as { lat?: number; lng?: number; radius_km?: number } | null;
+    const lat = typeof gf?.lat === 'number' ? gf.lat.toFixed(2) : null;
+    const lng = typeof gf?.lng === 'number' ? gf.lng.toFixed(2) : null;
+    const radius = typeof gf?.radius_km === 'number' ? gf.radius_km : null;
+    if (!lat || !lng) return null;
+    const key = `${lat},${lng}${radius != null ? `_${radius}` : ''}`;
+    return key;
+  }).filter(Boolean) as string[];
+
+  const zoneCounts = zones.reduce<Record<string, number>>((acc, key) => {
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6">
@@ -46,7 +64,10 @@ export default async function TriggersPage() {
         </div>
       </div>
 
-      <TriggersList events={events ?? []} />
+      {/* Analytics charts */}
+      {list.length > 0 && <TriggerAnalytics events={list} />}
+
+      <TriggersList events={list} />
     </div>
   );
 }

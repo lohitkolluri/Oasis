@@ -1,23 +1,23 @@
 'use client';
 
+import { cn } from '@/lib/utils';
 import {
   Activity,
-  ChevronDown,
+  BarChart,
   ChevronRight,
+  ClipboardCheck,
   CreditCard,
   FileCheck,
   FlaskConical,
   Folder,
-  FolderOpen,
   LayoutDashboard,
-  ShieldAlert,
   Users,
+  Wallet,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
 
 const STORAGE_KEY = 'oasis-admin-nav-open';
 
@@ -35,20 +35,37 @@ const navSections = [
   {
     id: 'financial',
     label: 'Financial',
-    items: [{ href: '/admin/payments', label: 'Payments', icon: CreditCard }],
+    items: [
+      { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+      { href: '/admin/financial/revenue', label: 'Revenue & Loss', icon: BarChart },
+      { href: '/admin/financial/plans', label: 'Plans & Pricing', icon: Wallet },
+    ],
   },
   {
     id: 'review',
     label: 'Review',
     items: [
-      { href: '/admin/fraud', label: 'Fraud Queue', icon: ShieldAlert },
-      { href: '/admin/health', label: 'System Health', icon: Activity },
+      { href: '/admin/fraud', label: 'Fraud Queue', icon: ClipboardCheck },
+      {
+        href: '/admin/health',
+        label: 'System Health',
+        icon: Activity,
+        children: [
+          { href: '/admin/health/api', label: 'API Health', icon: Activity },
+          { href: '/admin/health/logs', label: 'System Logs', icon: ClipboardCheck },
+        ],
+      },
       { href: '/admin/demo', label: 'Demo', icon: FlaskConical },
     ],
   },
 ];
 
 export const adminNavItems = navSections.flatMap((s) => s.items);
+
+type NavSection = (typeof navSections)[number];
+type NavItem = NavSection['items'][number] & {
+  children?: NavItem[];
+};
 
 function readOpenState(): Record<string, boolean> {
   if (typeof window === 'undefined') return {};
@@ -86,7 +103,7 @@ export function AdminNav() {
   }, []);
 
   const hasActiveChild = useCallback(
-    (section: (typeof navSections)[0]) => {
+    (section: NavSection) => {
       return section.items.some((item) => {
         if (item.href === '/admin') return pathname === '/admin' || pathname === '/admin/';
         return pathname.startsWith(item.href);
@@ -96,95 +113,179 @@ export function AdminNav() {
   );
 
   return (
-    <nav className="flex-1 px-2 py-3 overflow-y-auto min-h-0">
-      <ul className="space-y-0.5" role="tree" aria-label="Admin navigation">
+    <nav className="flex flex-1 flex-col px-2 py-3 overflow-y-auto min-h-0">
+      <ul className="space-y-5" role="tree" aria-label="Admin navigation">
         {navSections.map((section) => {
           const isOpen = openSections[section.id] ?? true;
           const hasActive = hasActiveChild(section);
-          const hasSingleItem = section.items.length === 1;
 
           return (
             <li key={section.id} className="relative" role="none">
-              {/* Section header (tree node) */}
-              <button
-                type="button"
-                onClick={() => setSectionOpen(section.id, !isOpen)}
-                className={cn(
-                  'w-full flex items-center gap-2.5 py-2 px-2.5 rounded-lg text-left transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-[#7dd3fc]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[#161616]',
-                  hasActive && isOpen
-                    ? 'text-[#9ca3af]'
-                    : 'text-[#737373] hover:text-[#9ca3af] hover:bg-[#1e1e1e]',
-                )}
-                aria-expanded={isOpen}
-                aria-label={`${section.label}, ${isOpen ? 'collapse' : 'expand'}`}
+              <SidebarSection
+                section={section}
+                isOpen={isOpen}
+                hasActive={hasActive}
+                onToggle={() => setSectionOpen(section.id, !isOpen)}
               >
-                <span className="flex items-center justify-center w-5 h-5 shrink-0 text-[#555]">
-                  {isOpen ? (
-                    <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-                  ) : (
-                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                </span>
-                <span className="flex items-center justify-center w-5 h-5 shrink-0 text-[#555]">
-                  {isOpen ? (
-                    <FolderOpen className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <Folder className="h-4 w-4" aria-hidden />
-                  )}
-                </span>
-                <span className="text-xs font-medium truncate">{section.label}</span>
-              </button>
-
-              {/* Children (tree leaves) */}
-              <div
-                className={cn(
-                  'grid transition-[grid-template-rows] duration-200 ease-out',
-                  isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-                )}
-                role="group"
-                aria-label={section.label}
-              >
-                <div className="overflow-hidden">
-                  <div
-                    className={cn(
-                      'border-l border-[#2d2d2d] ml-4 mt-0.5 pl-1 space-y-0.5',
-                      hasSingleItem && 'pb-0.5',
-                    )}
-                  >
-                    {section.items.map(({ href, label, icon: Icon }) => {
-                      const isActive =
-                        href === '/admin'
-                          ? pathname === '/admin' || pathname === '/admin/'
-                          : pathname.startsWith(href);
-                      return (
-                        <Link
-                          key={href}
-                          href={href}
-                          className={cn(
-                            'group/item relative flex items-center gap-2.5 py-2 px-2.5 rounded-md text-sm font-medium transition-colors duration-150 -ml-px border-l-2',
-                            isActive
-                              ? 'bg-[#1e1e1e] text-white border-[#7dd3fc]'
-                              : 'border-transparent text-[#737373] hover:text-white hover:bg-[#1e1e1e]',
-                          )}
-                          aria-current={isActive ? 'page' : undefined}
-                        >
-                          <Icon
-                            className={cn(
-                              'h-4 w-4 shrink-0 transition-colors',
-                              isActive ? 'text-[#7dd3fc]' : 'text-[#555] group-hover/item:text-[#9ca3af]',
-                            )}
-                          />
-                          <span className="truncate">{label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+                {section.items.map((item) => (
+                  <SidebarItem
+                    key={item.href}
+                    item={item as NavItem}
+                    pathname={pathname}
+                    depth={0}
+                  />
+                ))}
+              </SidebarSection>
             </li>
           );
         })}
       </ul>
     </nav>
+  );
+}
+
+interface SidebarSectionProps {
+  section: NavSection;
+  isOpen: boolean;
+  hasActive: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+function SidebarSection({ section, isOpen, hasActive, onToggle, children }: SidebarSectionProps) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          'flex w-full items-center gap-1.5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] rounded-md',
+          'text-muted-foreground/60 hover:text-muted-foreground/90',
+          'transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          hasActive && 'text-muted-foreground/80',
+        )}
+        aria-expanded={isOpen}
+        aria-label={`${section.label}, ${isOpen ? 'collapse' : 'expand'}`}
+      >
+        <span className="truncate">{section.label}</span>
+        <ChevronRight
+          className={cn(
+            'ml-auto h-3 w-3 opacity-40 transition-transform duration-200',
+            isOpen && 'rotate-90',
+          )}
+          aria-hidden
+        />
+      </button>
+
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-out',
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+        role="group"
+        aria-label={section.label}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-1 space-y-0.5 pl-3">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SidebarItemProps {
+  item: NavItem;
+  pathname: string;
+  depth: number;
+  parentActive?: boolean;
+}
+
+function SidebarItem({ item, pathname, depth, parentActive = false }: SidebarItemProps) {
+  const { href, label, icon: Icon, children } = item;
+
+  const hasChildren = Array.isArray(children) && children.length > 0;
+  const hasActiveChild =
+    hasChildren &&
+    children!.some((child) =>
+      child.href === '/admin'
+        ? pathname === '/admin' || pathname === '/admin/'
+        : pathname.startsWith(child.href),
+    );
+
+  const isFolder = hasChildren;
+  const isActive =
+    isFolder && hasActiveChild
+      ? true
+      : href === '/admin'
+        ? pathname === '/admin' || pathname === '/admin/'
+        : pathname.startsWith(href);
+
+  const [open, setOpen] = useState(() => (hasChildren ? hasActiveChild : false));
+
+  return (
+    <div className="space-y-0.5">
+      {hasChildren ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-md text-sm h-9 px-3',
+            'cursor-pointer select-none text-left',
+            'text-[#9ca3af] hover:bg-muted/40',
+            isActive &&
+              'bg-[#111827] text-[#e5e7eb] font-semibold shadow-[0_0_0_1px_rgba(15,23,42,0.8)]',
+          )}
+          aria-current={isActive ? 'page' : undefined}
+          aria-expanded={open}
+        >
+          <Folder className="h-4 w-4 shrink-0 text-[#9ca3af]" aria-hidden />
+          <span className="truncate flex-1">{label}</span>
+          <ChevronRight
+            className={cn('h-3 w-3 text-[#4b5563] transition-transform', open && 'rotate-90')}
+            aria-hidden
+          />
+        </button>
+      ) : (
+        <Link
+          href={href}
+          className={cn(
+            'flex items-center gap-2 rounded-lg text-[13px] h-8',
+            'hover:bg-muted/50 transition-colors duration-150',
+            !isActive && !parentActive && (depth === 0 ? 'text-[#9ca3af]' : 'text-[#a3a3a3]'),
+            !isActive && parentActive && 'text-[#e5e7eb]',
+            isActive &&
+              'bg-white/[0.06] text-white font-medium',
+            depth > 0 ? 'pl-8 pr-3' : 'px-3',
+          )}
+          aria-current={isActive ? 'page' : undefined}
+        >
+          <Icon className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="truncate">{label}</span>
+        </Link>
+      )}
+
+      {hasChildren && open && (
+        <div
+          className={cn(
+            'ml-2 border-l',
+            isActive || hasActiveChild ? 'border-[#1f2933]' : 'border-[#262626]',
+          )}
+        >
+          <div className="mt-1 space-y-0.5">
+            {children!.map((child) => (
+              <SidebarItem
+                key={child.href}
+                item={child}
+                pathname={pathname}
+                depth={depth + 1}
+                parentActive={isActive || parentActive}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

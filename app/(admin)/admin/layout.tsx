@@ -1,4 +1,5 @@
 import { AdminNav } from '@/components/admin/AdminNav';
+import { SidebarUser } from '@/components/admin/SidebarUser';
 import { AdminSearch } from '@/components/admin/AdminSearch';
 import { Logo } from '@/components/ui/Logo';
 import { Separator } from '@/components/ui/separator';
@@ -28,30 +29,28 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-[#0f0f0f] flex">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 w-[260px] bg-[#161616] border-r border-[#2d2d2d] flex flex-col z-20 hidden md:flex">
-        <div className="h-[56px] px-6 flex items-center shrink-0">
-          <Link href="/admin" className="flex items-center gap-3">
+        <div className="flex items-center gap-2 px-3 py-3 mb-2 shrink-0">
+          <Link href="/admin" className="flex items-center gap-2">
             <Logo size={28} className="shrink-0" />
-            <div>
+            <div className="flex flex-col">
               <p className="text-sm font-semibold text-white leading-tight tracking-tight">Oasis</p>
-              <p className="text-[10px] text-[#555] leading-tight">Admin Console</p>
+              <p className="text-xs text-muted-foreground leading-tight">Admin Console</p>
             </div>
           </Link>
         </div>
 
-        <Separator className="mx-4 bg-[#2d2d2d]" />
+        <Separator className="mx-3 bg-[#2d2d2d]" />
 
         <AdminNav />
 
-        <Separator className="mx-4 bg-[#2d2d2d]" />
+        <Separator className="mx-3 bg-[#2d2d2d]" />
 
-        <div className="p-3 shrink-0">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[#555] hover:text-white hover:bg-[#1e1e1e] transition-colors duration-150"
-          >
-            <Smartphone className="h-4 w-4 shrink-0" />
-            Rider App
-          </Link>
+        <div className="p-3 mt-auto shrink-0">
+          <SidebarUser
+            name={(user.user_metadata as any)?.full_name ?? user.email ?? 'Oasis Admin'}
+            role={profile?.role}
+            email={user.email}
+          />
         </div>
       </aside>
 

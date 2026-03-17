@@ -6,14 +6,14 @@ import { BorderBeam } from '@/components/ui/border-beam';
 
 export type KPICardAccent = 'amber' | 'purple' | 'emerald' | 'blue' | 'red' | 'cyan' | 'violet';
 
-const cardBgStyles: Record<KPICardAccent, string> = {
-  amber: 'bg-[#c17d3a]/25 border-amber-500/20',
-  purple: 'bg-[#7356BF]/25 border-[#7356BF]/30',
-  emerald: 'bg-[#3AA76D]/25 border-[#3AA76D]/30',
-  blue: 'bg-[#276EF1]/25 border-[#276EF1]/30',
-  red: 'bg-[#D44333]/25 border-[#D44333]/30',
-  cyan: 'bg-[#0ea5e9]/25 border-[#0ea5e9]/30',
-  violet: 'bg-[#a78bfa]/25 border-[#a78bfa]/30',
+const accentRingStyles: Record<KPICardAccent, string> = {
+  amber: 'border-amber-500/40 shadow-[0_0_18px_rgba(245,158,11,0.25)]',
+  purple: 'border-[#7356BF]/40 shadow-[0_0_18px_rgba(115,86,191,0.25)]',
+  emerald: 'border-[#3AA76D]/40 shadow-[0_0_18px_rgba(34,197,94,0.25)]',
+  blue: 'border-[#276EF1]/40 shadow-[0_0_18px_rgba(37,99,235,0.25)]',
+  red: 'border-[#D44333]/40 shadow-[0_0_18px_rgba(239,68,68,0.25)]',
+  cyan: 'border-[#0ea5e9]/40 shadow-[0_0_18px_rgba(14,165,233,0.25)]',
+  violet: 'border-[#a78bfa]/40 shadow-[0_0_18px_rgba(167,139,250,0.25)]',
 };
 
 export interface KPICardProps {
@@ -55,7 +55,7 @@ export function KPICard({
   const { num, prefix, suffix } = isNumeric ? formatValue(value) : { num: 0, prefix: '', suffix: '' };
 
   const valueEl = isNumeric ? (
-    <p className="text-xl font-bold text-white tabular-nums tracking-tight mt-auto pt-3">
+    <p className="text-xl font-bold text-white tabular-nums tracking-tight leading-none">
       <NumberTicker
         value={num}
         prefix={prefix}
@@ -65,21 +65,25 @@ export function KPICard({
       />
     </p>
   ) : (
-    <p className="text-xl font-bold text-white tabular-nums tracking-tight mt-auto pt-3">{value}</p>
+    <p className="text-xl font-bold text-white tabular-nums tracking-tight leading-none">{value}</p>
   );
 
   const inner = (
     <>
-      <p className="text-sm font-medium text-white/95">
-        {title}
-        {count !== undefined && <span className="text-white/80 font-normal"> ({count})</span>}
-      </p>
-      <p className="text-xs text-white/60 mt-0.5">{label}</p>
-      {valueEl}
+      <div className="w-full text-center">
+        <p className="text-sm font-medium text-white/95 whitespace-nowrap truncate">
+          {title}
+          {count !== undefined && <span className="text-white/80 font-normal"> ({count})</span>}
+        </p>
+        <p className="text-xs text-white/60 mt-0.5 whitespace-nowrap truncate">{label}</p>
+      </div>
+      <div className="flex-1 w-full flex items-center justify-center">
+        {valueEl}
+      </div>
     </>
   );
 
-  const cardClass = `relative rounded-xl border p-3.5 min-h-[100px] flex flex-col overflow-hidden ${cardBgStyles[accent]} ${className}`;
+  const cardClass = `relative bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-4 h-[110px] flex flex-col items-center overflow-hidden transition-all duration-200 hover:border-[#3a3a3a] hover:shadow-[0_0_22px_rgba(15,23,42,0.85)] ${accentRingStyles[accent]} ${className}`;
 
   const content = (
     <>

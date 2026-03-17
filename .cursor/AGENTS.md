@@ -1,18 +1,17 @@
 ## Learned User Preferences
 
 - Use gitmoji-style commits with clear, concise messages
-- No em dashes (`--`) in AI-generated content; post-process LLM output to replace them with periods
-- Dark charcoal theme (`#0f0f0f` bg, `#161616` panels, `#1e1e1e` cards), not pure black; neon accents (cyan, violet, emerald)
-- Clean, minimal UI inspired by Linear/Vercel/Stripe; avoid "vibe coded" or generic AI-generated patterns (gradient cards, stagger animations, opacity icon boxes)
-- No "Active"/"Live" tags or flashy badges; prefer understated status indicators
-- Use Mermaid diagrams over text flows in documentation; minimize raw code blocks, use collapsible `<details>` sections
+- Avoid em dashes and double-hyphen separators in copy; prefer simple punctuation or `·`
+- Dark charcoal theme (`#0f0f0f` bg, `#161616` panels, `#1e1e1e` cards) with neon accents (cyan, violet, emerald)
+- Clean, minimal UI inspired by Linear/Vercel/Stripe; avoid generic “vibe-coded” gradients and noisy animations
+- Prefer an editorial landing rhythm: paragraph → single focused component → paragraph → component
+- Prefer understated status indicators; avoid flashy “Active/Live” badges
+- Use Framer Motion for subtle reveal + parallax effects; keep motion clean and non-distracting
 - Use Supabase MCP plugin for database migrations and operations when available
-- No Guidewire/DEVTrails branding anywhere; treat as personal project
+- No Guidewire/DEVTrails branding anywhere; treat as a personal project
 - Glass card panel style: `backdrop-blur`, `rounded-2xl`, soft shadow (`shadow-[0_0_20px_rgba(255,255,255,0.03)]`)
-- AI assistant is named "Lumo", not "AI Intelligence"
-- Mobile UX: top-center toasts, 44-48px minimum touch targets, 16px minimum font on inputs to prevent iOS auto-zoom
+- Mobile UX: top-center toasts, 44–48px minimum touch targets, 16px minimum font on inputs to prevent iOS auto-zoom
 - Actionable metrics over vague AI summaries; disable buttons until fully validated; icon buttons over text links
-- Avoid mock or synthetic data in the product UI; prefer honest empty states over fake metrics or placeholders
 
 ## Learned Workspace Facts
 

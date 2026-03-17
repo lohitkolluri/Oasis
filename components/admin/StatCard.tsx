@@ -62,14 +62,12 @@ export function StatCard({
   value,
   icon,
   accent = 'default',
-  subtext,
-  trend,
 }: StatCardProps) {
   const Icon = iconMap[icon] ?? TrendingUp;
   const styles = accentMap[accent] ?? accentMap.default;
 
   return (
-    <div className="relative bg-[#161616] border border-[#2d2d2d] rounded-xl p-5 overflow-hidden">
+    <div className="relative bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.03)] transition-all duration-200 hover:border-[#3a3a3a] hover:shadow-[0_0_24px_rgba(125,211,252,0.07)]">
       <div className="flex items-start justify-between mb-4">
         <span className="text-[11px] font-medium text-[#555] tracking-wide uppercase">
           {label}
@@ -86,28 +84,6 @@ export function StatCard({
       >
         {value}
       </p>
-
-      <div className="mt-3 flex items-center gap-2 flex-wrap">
-        {subtext && (
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles.badge}`}>
-            {subtext}
-          </span>
-        )}
-        {trend && (
-          <span
-            className={`flex items-center gap-0.5 text-[10px] font-medium ${
-              trend.direction === 'up' ? 'text-[#22c55e]' : 'text-[#ef4444]'
-            }`}
-          >
-            {trend.direction === 'up' ? (
-              <TrendingUp className="h-3 w-3" />
-            ) : (
-              <TrendingDown className="h-3 w-3" />
-            )}
-            {trend.label}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

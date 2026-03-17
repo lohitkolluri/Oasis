@@ -14,6 +14,10 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         primary: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        landingPrimary:
+          "!rounded-full border-white/15 bg-white text-black shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_22px_70px_rgba(0,0,0,0.55)] hover:bg-white/95 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_26px_90px_rgba(0,0,0,0.6)] focus-visible:ring-white/25",
+        landingSecondary:
+          "!rounded-full border-white/15 bg-transparent text-white/85 hover:bg-white/[0.06] hover:text-white hover:shadow-[0_0_0_1px_rgba(255,255,255,0.10)] focus-visible:ring-white/20",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -76,7 +80,7 @@ function ButtonLink({
   return (
     <Link
       href={href}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />
   )

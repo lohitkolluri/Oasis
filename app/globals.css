@@ -267,6 +267,35 @@ body {
   animation: scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Subtle float (used for landing signal icons) */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Shimmer sweep (used for quote preview card) */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%) rotate(12deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%) rotate(12deg);
+    opacity: 0;
+  }
+}
+
 /* Status pulse */
 @keyframes neon-pulse {
   0%,

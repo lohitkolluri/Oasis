@@ -198,7 +198,7 @@ export default async function AdminPoliciesPage() {
       ) : (
         <div className="space-y-8">
           {/* Active policies — primary focus */}
-          <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden">
+          <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden flex flex-col">
             <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-white">
                 Active policies
@@ -207,15 +207,17 @@ export default async function AdminPoliciesPage() {
                 {activeCount} policy{activeCount !== 1 ? 'ies' : ''}
               </span>
             </div>
-            <PolicyTable
-              policies={activePolicies}
-              showStatus={false}
-              emptyMessage="No active policies this week"
-            />
+            <div className="max-h-[360px] overflow-y-auto">
+              <PolicyTable
+                policies={activePolicies}
+                showStatus={false}
+                emptyMessage="No active policies this week"
+              />
+            </div>
           </div>
 
           {/* Expired policies — secondary, limited list */}
-          <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden">
+          <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden flex flex-col">
             <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-[#737373]">
                 Expired (past weeks)
@@ -226,11 +228,13 @@ export default async function AdminPoliciesPage() {
                   : 'None'}
               </span>
             </div>
-            <PolicyTable
-              policies={expiredToShow}
-              showStatus={false}
-              emptyMessage="No expired policies"
-            />
+            <div className="max-h-[360px] overflow-y-auto">
+              <PolicyTable
+                policies={expiredToShow}
+                showStatus={false}
+                emptyMessage="No expired policies"
+              />
+            </div>
           </div>
         </div>
       )}

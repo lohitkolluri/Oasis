@@ -222,13 +222,17 @@ export function AnalyticsCharts() {
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-4 py-4"
+            className="bg-[#161616] border border-[#2d2d2d] rounded-xl px-4 py-4 h-[104px] flex flex-col items-center text-center"
           >
-            <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest mb-2">
+            <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest whitespace-nowrap truncate w-full">
               {s.label}
             </p>
-            <p className={`text-xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
-            <span className={`inline-block mt-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full ${s.accent}`}>
+            <div className="flex-1 flex items-center">
+              <p className={`text-xl font-bold tabular-nums leading-none ${s.color}`}>{s.value}</p>
+            </div>
+            <span
+              className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${s.accent}`}
+            >
               {s.sub}
             </span>
           </div>

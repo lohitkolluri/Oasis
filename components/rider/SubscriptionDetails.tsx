@@ -74,7 +74,9 @@ export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsPro
         <div className="relative px-4 py-4 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/15 shrink-0">
-              <span className="text-white text-lg leading-none" aria-hidden>◇</span>
+              <span className="text-white text-lg leading-none" aria-hidden>
+                ◇
+              </span>
             </div>
             <div>
               <p className="text-[11px] font-medium text-white/70 uppercase tracking-wider">
