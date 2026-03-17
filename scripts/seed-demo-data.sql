@@ -26,6 +26,7 @@ DECLARE
   r3 UUID := 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f'; -- Amit, Delhi
   r4 UUID := 'd4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a'; -- Sneha, Hyderabad
   r5 UUID := 'e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b'; -- Vijay, Chennai
+  admin1 UUID := '0a0b0c0d-1111-4aaa-8bbb-222233334444'; -- Admin user
 
   -- Event UUIDs (current + previous week)
   ev_heat    UUID := 'e1e1e1e1-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -37,6 +38,7 @@ DECLARE
   ev_heat2   UUID := 'e7e7e7e7-1111-4111-8111-111111111111';
   ev_rain_pw UUID := 'e8e8e8e8-2222-4222-8222-222222222222'; -- prev week rain
   ev_aqi_pw  UUID := 'e9e9e9e9-3333-4333-8333-333333333333'; -- prev week AQI
+  ev_restrict UUID := 'eaeaeaea-4444-4444-8444-444444444444'; -- restriction demo
 
   -- Policy UUIDs: current week (pol1..pol5), previous week (pol_pw1..pol_pw5)
   pol1 UUID := 'f1f1f1f1-1111-4111-8111-111111111111';
@@ -58,6 +60,21 @@ DECLARE
   cl_flag UUID := 'c5050505-eeee-4eee-8eee-eeeeeeeeeeee'; -- flagged for fraud queue demo
   cl_pw1 UUID := 'd1010101-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   cl_pw2 UUID := 'd2020202-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  cl_rejected UUID := 'd3030303-cccc-4ccc-8ccc-cccccccccccc'; -- rejected admin review demo
+
+  -- Claim verification UUIDs (schema has no unique on claim_id/profile_id)
+  cv1 UUID := 'aa111111-0000-4000-8000-000000000001';
+  cv2 UUID := 'aa111111-0000-4000-8000-000000000002';
+  cv3 UUID := 'aa111111-0000-4000-8000-000000000003';
+  cv_pw1 UUID := 'aa111111-0000-4000-8000-000000000004';
+  cv_pw2 UUID := 'aa111111-0000-4000-8000-000000000005';
+
+  -- Premium recommendation UUIDs (schema has no unique on profile_id/week_start_date)
+  pr1 UUID := 'bb222222-0000-4000-8000-000000000001';
+  pr2 UUID := 'bb222222-0000-4000-8000-000000000002';
+  pr3 UUID := 'bb222222-0000-4000-8000-000000000003';
+  pr4 UUID := 'bb222222-0000-4000-8000-000000000004';
+  pr5 UUID := 'bb222222-0000-4000-8000-000000000005';
 
   -- Plan IDs (looked up)
   plan_basic    UUID;
@@ -78,19 +95,20 @@ BEGIN
   hashed_pw := crypt('Demo@1234', gen_salt('bf'));
 
   -- ─── Clean up previous demo data (safe re-run) ───────────
+  DELETE FROM claim_verifications    WHERE id IN (cv1, cv2, cv3, cv_pw1, cv_pw2);
   DELETE FROM rider_notifications    WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM payout_ledger          WHERE profile_id IN (r1, r2, r3, r4, r5);
-  DELETE FROM claim_verifications    WHERE profile_id IN (r1, r2, r3, r4, r5);
-  DELETE FROM parametric_claims      WHERE id IN (cl1, cl2, cl3, cl4, cl_flag, cl_pw1, cl_pw2);
+  DELETE FROM parametric_claims      WHERE id IN (cl1, cl2, cl3, cl4, cl_flag, cl_pw1, cl_pw2, cl_rejected);
   DELETE FROM payment_transactions   WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM weekly_policies        WHERE id IN (pol1, pol2, pol3, pol4, pol5, pol_pw1, pol_pw2, pol_pw3, pol_pw4, pol_pw5);
-  DELETE FROM premium_recommendations WHERE profile_id IN (r1, r2, r3, r4, r5);
+  DELETE FROM premium_recommendations WHERE id IN (pr1, pr2, pr3, pr4, pr5);
   DELETE FROM rider_delivery_reports WHERE profile_id IN (r1, r2, r3, r4, r5);
-  DELETE FROM live_disruption_events  WHERE id IN (ev_heat, ev_rain_m, ev_aqi, ev_traffic, ev_curfew, ev_rain_c, ev_heat2, ev_rain_pw, ev_aqi_pw);
+  DELETE FROM live_disruption_events  WHERE id IN (ev_heat, ev_rain_m, ev_aqi, ev_traffic, ev_curfew, ev_rain_c, ev_heat2, ev_rain_pw, ev_aqi_pw, ev_restrict);
   DELETE FROM system_logs             WHERE (event_type IN ('adjudicator_run', 'adjudicator_demo') AND (metadata->>'run_id') = 'demo-seed')
     OR (metadata->>'seed') = 'true';
   DELETE FROM weekly_policies        WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM profiles               WHERE id IN (r1, r2, r3, r4, r5);
+  DELETE FROM profiles               WHERE id IN (admin1);
 
   -- ─── Ensure plan packages exist ───────────────────────────
   INSERT INTO plan_packages (slug, name, description, weekly_premium_inr, payout_per_claim_inr, max_claims_per_week, sort_order)
@@ -104,6 +122,14 @@ BEGIN
   SELECT id INTO plan_standard FROM plan_packages WHERE slug = 'standard';
   SELECT id INTO plan_premium  FROM plan_packages WHERE slug = 'premium';
 
+  -- ─── App config (safe defaults for demos) ─────────────────
+  INSERT INTO app_config (key, value)
+  VALUES
+    ('demo_seed', 'true'),
+    ('adjudicator_interval_minutes', '15'),
+    ('pricing_basis', 'weekly')
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
   -- ─── Auth users (demo accounts) ──────────────────────────
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, confirmation_token, recovery_token, email_change_token_new, email_change)
   VALUES
@@ -111,7 +137,8 @@ BEGIN
     (r2, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'priya.demo@oasis.app',  hashed_pw, NOW() - interval '28 days', NOW() - interval '28 days', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Priya Patel"}',   false, '', '', '', ''),
     (r3, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'amit.demo@oasis.app',   hashed_pw, NOW() - interval '25 days', NOW() - interval '25 days', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Amit Kumar"}',    false, '', '', '', ''),
     (r4, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sneha.demo@oasis.app',  hashed_pw, NOW() - interval '20 days', NOW() - interval '20 days', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Sneha Reddy"}',   false, '', '', '', ''),
-    (r5, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'vijay.demo@oasis.app',  hashed_pw, NOW() - interval '18 days', NOW() - interval '18 days', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Vijay Singh"}',   false, '', '', '', '')
+    (r5, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'vijay.demo@oasis.app',  hashed_pw, NOW() - interval '18 days', NOW() - interval '18 days', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Vijay Singh"}',   false, '', '', '', ''),
+    (admin1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin.demo@oasis.app', hashed_pw, NOW() - interval '60 days', NOW() - interval '60 days', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"John Doe"}', false, '', '', '', '')
   ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
@@ -120,7 +147,8 @@ BEGIN
     (r2, r2, jsonb_build_object('sub', r2::text, 'email', 'priya.demo@oasis.app'), 'email', r2::text, NOW(), NOW() - interval '28 days', NOW()),
     (r3, r3, jsonb_build_object('sub', r3::text, 'email', 'amit.demo@oasis.app'),  'email', r3::text, NOW(), NOW() - interval '25 days', NOW()),
     (r4, r4, jsonb_build_object('sub', r4::text, 'email', 'sneha.demo@oasis.app'), 'email', r4::text, NOW(), NOW() - interval '20 days', NOW()),
-    (r5, r5, jsonb_build_object('sub', r5::text, 'email', 'vijay.demo@oasis.app'), 'email', r5::text, NOW(), NOW() - interval '18 days', NOW())
+    (r5, r5, jsonb_build_object('sub', r5::text, 'email', 'vijay.demo@oasis.app'), 'email', r5::text, NOW(), NOW() - interval '18 days', NOW()),
+    (admin1, admin1, jsonb_build_object('sub', admin1::text, 'email', 'admin.demo@oasis.app'), 'email', admin1::text, NOW(), NOW() - interval '60 days', NOW())
   ON CONFLICT DO NOTHING;
 
   -- ─── Profiles ─────────────────────────────────────────────
@@ -130,7 +158,8 @@ BEGIN
     (r2, 'Priya Patel',  '+919876543211', 'blinkit', 19.1136, 72.8697, 'rider', true, true, '{"type":"circle","lat":19.1136,"lng":72.8697,"radius_km":5}'),
     (r3, 'Amit Kumar',   '+919876543212', 'zepto',   28.6315, 77.2167, 'rider', true, true, '{"type":"circle","lat":28.6315,"lng":77.2167,"radius_km":5}'),
     (r4, 'Sneha Reddy',  '+919876543213', 'blinkit', 17.4483, 78.3915, 'rider', true, true, '{"type":"circle","lat":17.4483,"lng":78.3915,"radius_km":5}'),
-    (r5, 'Vijay Singh',  '+919876543214', 'zepto',   13.0418, 80.2341, 'rider', true, true, '{"type":"circle","lat":13.0418,"lng":80.2341,"radius_km":5}')
+    (r5, 'Vijay Singh',  '+919876543214', 'zepto',   13.0418, 80.2341, 'rider', true, true, '{"type":"circle","lat":13.0418,"lng":80.2341,"radius_km":5}'),
+    (admin1, 'John Doe', '+910000000000', NULL, NULL, NULL, 'admin', false, false, NULL)
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     phone_number = EXCLUDED.phone_number,
@@ -179,7 +208,11 @@ BEGIN
     (ev_aqi_pw, 'weather', 'severe_aqi', 7.0,
      '{"type":"circle","lat":28.6315,"lng":77.2167,"radius_km":20}',
      false, '{"trigger":"severe_aqi","source":"waqi","current_aqi":288}',
-     pw_start::timestamptz + interval '2 days')
+     pw_start::timestamptz + interval '2 days'),
+    (ev_restrict, 'social', 'local_restriction', 8.2,
+     '{"type":"circle","lat":12.9352,"lng":77.6245,"radius_km":12}',
+     true, '{"trigger":"local_restriction","source":"newsdata_llm","summary":"Local restriction announced in zone"}',
+     NOW() - interval '12 hours')
   ON CONFLICT (id) DO NOTHING;
 
   -- ─── Weekly Policies: current week + previous week ───────
@@ -221,18 +254,28 @@ BEGIN
      pw_start::timestamptz + interval '5 days'),
     (cl_pw2, pol_pw3, ev_aqi_pw, 169, 'paid', false, NULL,
      'oasis_verify_pw_' || extract(epoch from NOW())::bigint || '_2',
-     pw_start::timestamptz + interval '3 days')
+     pw_start::timestamptz + interval '3 days'),
+    (cl_rejected, pol5, ev_restrict, 0, 'triggered', true, 'Device fingerprint mismatch', NULL,
+     NOW() - interval '9 hours')
   ON CONFLICT (id) DO NOTHING;
 
+  -- mark rejected claim for admin review demo
+  UPDATE parametric_claims
+    SET admin_review_status = 'rejected',
+        reviewed_by = 'admin.demo@oasis.app',
+        reviewed_at = NOW() - interval '8 hours',
+        updated_at = NOW()
+    WHERE id = cl_rejected;
+
   -- ─── Claim Verifications (for paid claims) ───────────────
-  INSERT INTO claim_verifications (claim_id, profile_id, verified_lat, verified_lng, verified_at, status, declaration_confirmed, declaration_at)
+  INSERT INTO claim_verifications (id, claim_id, profile_id, verified_lat, verified_lng, verified_at, status, declaration_confirmed, declaration_at)
   VALUES
-    (cl1, r1, 12.9360, 77.6250, NOW() - interval '4 hours 50 minutes', 'inside_geofence', true, NOW() - interval '4 hours 50 minutes'),
-    (cl2, r2, 19.1140, 72.8700, NOW() - interval '21 hours', 'inside_geofence', true, NOW() - interval '21 hours'),
-    (cl3, r3, 28.6320, 77.2170, NOW() - interval '45 hours', 'inside_geofence', true, NOW() - interval '45 hours'),
-    (cl_pw1, r2, 19.1140, 72.8700, pw_start::timestamptz + interval '5 days 1 hour', 'inside_geofence', true, pw_start::timestamptz + interval '5 days 1 hour'),
-    (cl_pw2, r3, 28.6320, 77.2170, pw_start::timestamptz + interval '3 days 2 hours', 'inside_geofence', true, pw_start::timestamptz + interval '3 days 2 hours')
-  ON CONFLICT (claim_id, profile_id) DO NOTHING;
+    (cv1, cl1, r1, 12.9360, 77.6250, NOW() - interval '4 hours 50 minutes', 'inside_geofence', true, NOW() - interval '4 hours 50 minutes'),
+    (cv2, cl2, r2, 19.1140, 72.8700, NOW() - interval '21 hours', 'inside_geofence', true, NOW() - interval '21 hours'),
+    (cv3, cl3, r3, 28.6320, 77.2170, NOW() - interval '45 hours', 'inside_geofence', true, NOW() - interval '45 hours'),
+    (cv_pw1, cl_pw1, r2, 19.1140, 72.8700, pw_start::timestamptz + interval '5 days 1 hour', 'inside_geofence', true, pw_start::timestamptz + interval '5 days 1 hour'),
+    (cv_pw2, cl_pw2, r3, 28.6320, 77.2170, pw_start::timestamptz + interval '3 days 2 hours', 'inside_geofence', true, pw_start::timestamptz + interval '3 days 2 hours')
+  ON CONFLICT (id) DO NOTHING;
 
   -- ─── Payout Ledger (for paid claims only) ─────────────────
   INSERT INTO payout_ledger (claim_id, profile_id, amount_inr, payout_method, status, mock_upi_ref, initiated_at, completed_at, metadata)
@@ -245,14 +288,14 @@ BEGIN
   ON CONFLICT DO NOTHING;
 
   -- ─── Premium Recommendations (next week) ─────────────────
-  INSERT INTO premium_recommendations (profile_id, week_start_date, recommended_premium_inr, historical_event_count, forecast_risk_factor, created_at)
+  INSERT INTO premium_recommendations (id, profile_id, week_start_date, recommended_premium_inr, historical_event_count, forecast_risk_factor, created_at)
   VALUES
-    (r1, ws + 7,  89, 3, 0.35, NOW()),
-    (r2, ws + 7, 159, 5, 0.62, NOW()),
-    (r3, ws + 7,  69, 4, 0.55, NOW()),
-    (r4, ws + 7,  79, 2, 0.28, NOW()),
-    (r5, ws + 7, 139, 3, 0.48, NOW())
-  ON CONFLICT (profile_id, week_start_date) DO NOTHING;
+    (pr1, r1, ws + 7,  89, 3, 0.35, NOW()),
+    (pr2, r2, ws + 7, 159, 5, 0.62, NOW()),
+    (pr3, r3, ws + 7,  69, 4, 0.55, NOW()),
+    (pr4, r4, ws + 7,  79, 2, 0.28, NOW()),
+    (pr5, r5, ws + 7, 139, 3, 0.48, NOW())
+  ON CONFLICT (id) DO NOTHING;
 
   -- ─── Rider Notifications (payouts, reminders, system) ───
   INSERT INTO rider_notifications (profile_id, title, body, type, metadata, created_at)
@@ -293,6 +336,13 @@ BEGIN
     (gen_random_uuid(), r3, pol_pw3,  49, 'paid', 'cs_pw_amit',   'pi_pw_amit',   pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day'),
     (gen_random_uuid(), r4, pol_pw4,  99, 'paid', 'cs_pw_sneha',  'pi_pw_sneha',  pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day'),
     (gen_random_uuid(), r5, pol_pw5, 199, 'paid', 'cs_pw_vijay',  'pi_pw_vijay',  pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day')
+  ON CONFLICT DO NOTHING;
+
+  -- A couple of non-paid transactions for UI states (not tied to policies)
+  INSERT INTO payment_transactions (id, profile_id, amount_inr, status, created_at)
+  VALUES
+    (gen_random_uuid(), r1,  99, 'failed', NOW() - interval '6 days'),
+    (gen_random_uuid(), r2, 199, 'pending', NOW() - interval '2 days')
   ON CONFLICT DO NOTHING;
 
   -- ─── System Logs (Health + Demo pages) ─────────────────────

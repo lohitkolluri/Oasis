@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { getGovIdEncryptionKey, getOpenRouterApiKey } from '@/lib/config/env';
+import { getAppUrl, getGovIdEncryptionKey, getOpenRouterApiKey } from '@/lib/config/env';
 
 const BUCKET = 'government-ids';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -78,12 +78,50 @@ function nameSimilarity(claimed: string, card: string): number {
   const a = normalizeNameForCompare(claimed).split(' ').filter(Boolean);
   const b = normalizeNameForCompare(card).split(' ').filter(Boolean);
   if (a.length === 0 || b.length === 0) return 0;
+
+  // If first or last names match (ignoring middle names / order), treat as strong match.
+  const firstMatch = a[0] && b.includes(a[0]);
+  const lastMatch = a[a.length - 1] && b.includes(a[a.length - 1]);
+  if (firstMatch && lastMatch) return 1;
+
+  // Otherwise fall back to token overlap (order-insensitive).
   const setB = new Set(b);
   let overlap = 0;
   for (const part of a) {
     if (setB.has(part)) overlap++;
   }
   return overlap / Math.min(a.length, b.length);
+}
+
+async function safeReadOpenRouterError(res: Response): Promise<{
+  status: number;
+  requestId: string | null;
+  message: string;
+}> {
+  const requestId =
+    res.headers.get('x-request-id') ??
+    res.headers.get('x-openrouter-request-id') ??
+    res.headers.get('cf-ray');
+
+  let message = `OpenRouter request failed (HTTP ${res.status}).`;
+  try {
+    const ct = res.headers.get('content-type') ?? '';
+    if (ct.includes('application/json')) {
+      const data = (await res.json()) as any;
+      const errMsg =
+        data?.error?.message ??
+        data?.message ??
+        (typeof data?.error === 'string' ? data.error : null);
+      if (typeof errMsg === 'string' && errMsg.trim()) message = errMsg.trim();
+    } else {
+      const text = (await res.text()).trim();
+      if (text) message = text.slice(0, 400);
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  return { status: res.status, requestId, message };
 }
 
 export async function POST(request: Request) {
@@ -221,12 +259,15 @@ export async function POST(request: Request) {
       const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
       const mime = file.type;
       const dataUrl = `data:${mime};base64,${base64}`;
+      const appUrl = getAppUrl();
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${openRouterKey}`,
+          'HTTP-Referer': appUrl,
+          'X-OpenRouter-Title': 'Oasis',
         },
         body: JSON.stringify({
           model: VISION_MODEL,
@@ -296,11 +337,19 @@ Rules:
             finalReason = 'Aadhaar number appears invalid or failed internal checksum verification';
           }
 
-          // Enforce that card name and claimed name are reasonably similar.
+          // Enforce that card name and claimed name are reasonably similar,
+          // but allow common gig-worker variations (missing/extra middle names, order changes).
           const similarity = cardName && fullName ? nameSimilarity(fullName, cardName) : 0;
-          if (similarity < 0.5) {
-            finalVerified = false;
-            finalReason = 'Name on Aadhaar does not closely match the name you entered';
+          if (similarity < 0.3) {
+            // Treat as clearly different only when there is effectively no shared token at all.
+            const claimedParts = normalizeNameForCompare(fullName || '').split(' ').filter(Boolean);
+            const cardParts = normalizeNameForCompare(cardName || '').split(' ').filter(Boolean);
+            const cardSet = new Set(cardParts);
+            const shared = claimedParts.some((p) => cardSet.has(p));
+            if (!shared) {
+              finalVerified = false;
+              finalReason = 'Name on Aadhaar does not closely match the name you entered';
+            }
           }
 
           verification = {
@@ -309,9 +358,12 @@ Rules:
           };
         }
       } else {
+        const err = await safeReadOpenRouterError(res);
         verification = {
           verified: false,
-          reason: 'Government ID could not be verified due to an OpenRouter API error.',
+          reason: err.requestId
+            ? `Government ID verification failed: ${err.message} (request ${err.requestId})`
+            : `Government ID verification failed: ${err.message}`,
         };
       }
     } catch {
@@ -325,3 +377,4 @@ Rules:
     reason: verification.reason,
   });
 }
+

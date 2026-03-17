@@ -9,7 +9,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { getFacePhotoEncryptionKey, getGovIdEncryptionKey, getOpenRouterApiKey } from '@/lib/config/env';
+import {
+  getAppUrl,
+  getFacePhotoEncryptionKey,
+  getGovIdEncryptionKey,
+  getOpenRouterApiKey,
+} from '@/lib/config/env';
 
 const BUCKET = 'face-photos';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -25,6 +30,37 @@ const GESTURES = [
   'turn your head slightly to the right',
   'look up toward the camera',
 ] as const;
+
+async function safeReadOpenRouterError(res: Response): Promise<{
+  status: number;
+  requestId: string | null;
+  message: string;
+}> {
+  const requestId =
+    res.headers.get('x-request-id') ??
+    res.headers.get('x-openrouter-request-id') ??
+    res.headers.get('cf-ray');
+
+  let message = `OpenRouter request failed (HTTP ${res.status}).`;
+  try {
+    const ct = res.headers.get('content-type') ?? '';
+    if (ct.includes('application/json')) {
+      const data = (await res.json()) as any;
+      const errMsg =
+        data?.error?.message ??
+        data?.message ??
+        (typeof data?.error === 'string' ? data.error : null);
+      if (typeof errMsg === 'string' && errMsg.trim()) message = errMsg.trim();
+    } else {
+      const text = (await res.text()).trim();
+      if (text) message = text.slice(0, 400);
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  return { status: res.status, requestId, message };
+}
 
 export async function GET() {
   const openRouterKey = getOpenRouterApiKey();
@@ -178,12 +214,15 @@ export async function POST(request: Request) {
     const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
     const mime = file.type;
     const dataUrl = `data:${mime};base64,${base64}`;
+    const appUrl = getAppUrl();
 
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${openRouterKey}`,
+        'HTTP-Referer': appUrl,
+        'X-OpenRouter-Title': 'Oasis',
       },
       body: JSON.stringify({
         model: VISION_MODEL,
@@ -191,7 +230,26 @@ export async function POST(request: Request) {
           {
             role: 'system',
             content:
-              'You are a strict KYC liveness verifier. REJECT by default. Only verify when you are highly confident. When in doubt, set verified: false. Be strict to prevent fraud.',
+              [
+                'You are a KYC liveness verifier for gig workers using average phones (sometimes low light, low resolution, or noisy cameras).',
+                '',
+                'Your job is to reject clear fraud (screens, printed photos, multiple people, AI faces), but NOT to punish honest riders for imperfect camera quality.',
+                '',
+                'Reject (verified: false) when ANY of these are true:',
+                '1. It is clearly a photo of a screen, printed photo, or another device.',
+                '2. There is more than one real human face clearly visible.',
+                '3. The requested gesture is NOT clearly and unmistakably performed (wrong eye, totally different pose, no visible gesture).',
+                '4. The face is so small/obscured that you cannot reasonably tell if a real person is doing the gesture.',
+                '',
+                'DO NOT reject ONLY because of:',
+                '- Mild blur or motion, as long as you can still see one real human face doing roughly the right gesture.',
+                '- Low light, grain, or low resolution that still allows you to see a face and the gesture.',
+                '- Slight off‑center framing, as long as the face is mostly inside the frame.',
+                '',
+                'When in doubt between “real gig worker with bad camera” vs “fraud”, lean towards rejecting ONLY if strong fraud indicators are present.',
+                '',
+                'Reply ONLY with valid JSON: {"verified": true/false, "reason": "brief explanation"}',
+              ].join('\n'),
           },
           {
             role: 'user',
@@ -248,7 +306,10 @@ Reply ONLY with valid JSON: {"verified": true/false, "reason": "brief explanatio
         reason = parsed.reason ?? 'Could not verify liveness.';
       }
     } else {
-      reason = 'Verification service error.';
+      const err = await safeReadOpenRouterError(res);
+      reason = err.requestId
+        ? `Face verification failed: ${err.message} (request ${err.requestId})`
+        : `Face verification failed: ${err.message}`;
     }
   } catch {
     reason = 'Verification service error.';
@@ -260,3 +321,4 @@ Reply ONLY with valid JSON: {"verified": true/false, "reason": "brief explanatio
     reason,
   });
 }
+

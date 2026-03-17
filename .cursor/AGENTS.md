@@ -7,8 +7,8 @@
 - Prefer an editorial landing rhythm: paragraph → single focused component → paragraph → component
 - Prefer pill-shaped buttons/filters/badges; avoid square tags and boxy segmented controls
 - Prefer understated status indicators; avoid flashy “Active/Live” badges
+- Prefer high-contrast white primary buttons on dark UI (black text)
 - In docs/diagrams, keep labels human-readable; avoid code-path names and overly detailed node text
-- Use Supabase MCP plugin for database migrations and operations when available
 - No Guidewire/DEVTrails branding anywhere; treat as a personal project
 - Mobile UX: top-center toasts, 44–48px minimum touch targets, 16px minimum font on inputs to prevent iOS auto-zoom
 - Actionable metrics over vague AI summaries; disable buttons until fully validated; icon buttons over text links

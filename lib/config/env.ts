@@ -101,3 +101,4 @@ export function getAppUrl(): string {
   if (raw) return raw.replace(/\/$/, '');
   return 'http://localhost:3000';
 }
+

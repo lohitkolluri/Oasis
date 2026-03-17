@@ -30,6 +30,7 @@ interface GeoResult {
 }
 
 export default function OnboardingPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const [platform, setPlatform] = useState<PlatformType | null>(null);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -46,6 +47,7 @@ export default function OnboardingPage() {
   const [showCamera, setShowCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [captureReady, setCaptureReady] = useState(false);
+  const [capturingGovId, setCapturingGovId] = useState(false);
   const autoCaptureTriggeredRef = useRef(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -80,6 +82,10 @@ export default function OnboardingPage() {
 
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Prefill name from auth metadata if available
   useEffect(() => {
@@ -619,23 +625,37 @@ export default function OnboardingPage() {
   }, [showCamera]);
 
   async function capturePhoto() {
-    if (!videoRef.current) return;
+    if (!videoRef.current || capturingGovId) return;
     const video = videoRef.current;
+    if (video.readyState < 2) {
+      setCameraError('Camera is still loading. Hold steady for a second and try again.');
+      return;
+    }
+    setCameraError(null);
+    setCapturingGovId(true);
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      setCapturingGovId(false);
+      return;
+    }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(
       (blob) => {
-        if (!blob) return;
+        if (!blob) {
+          setCapturingGovId(false);
+          setCameraError('Could not capture image. Please try again.');
+          return;
+        }
         const file = new File([blob], 'government-id-camera.jpg', {
           type: 'image/jpeg',
         });
         setGovIdFile(file);
         void verifyGovernmentId(file);
         stopCamera();
+        setCapturingGovId(false);
       },
       'image/jpeg',
       0.9,
@@ -954,7 +974,7 @@ export default function OnboardingPage() {
                   </div>
                 </div>
               </div>
-              {typeof navigator !== 'undefined' && !isMobileForGps(navigator.userAgent) && (
+              {isMounted && !isMobileForGps(navigator.userAgent) && (
                 <p className="text-xs text-amber-400/90 text-center rounded-lg bg-amber-500/10 border border-amber-500/30 p-2">
                   Zone and location work best on a mobile device. You can continue and set your zone manually (e.g. search).
                 </p>
@@ -1260,14 +1280,15 @@ export default function OnboardingPage() {
                             <span className="text-xs text-zinc-400">
                               {captureReady
                                 ? 'Hold steady — capturing...'
-                                : 'Align your Aadhaar in the landscape frame. Auto-capture when clear.'}
+                                : 'Point your camera at the Aadhaar card (not your face). Fill the frame as much as possible; tap Capture if auto-capture doesn\'t trigger.'}
                             </span>
                             <button
                               type="button"
                               onClick={capturePhoto}
-                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-uber-green-500 px-4 py-2 text-sm font-semibold text-zinc-950 shadow-md shadow-uber-green-500/30 hover:bg-uber-green-400 active:scale-[0.98] transition"
+                              disabled={capturingGovId}
+                              className="relative z-10 pointer-events-auto touch-manipulation w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-uber-green-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-uber-green-500/30 hover:bg-uber-green-400 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-uber-green-500"
                             >
-                              Capture now
+                              {capturingGovId ? 'Capturing…' : 'Capture now'}
                             </button>
                           </div>
                         </div>
