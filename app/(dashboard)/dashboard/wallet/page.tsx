@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowLeft, FileCheck, Shield, TrendingUp } from "lucide-react";
 import { WalletBalanceCard } from "@/components/rider/WalletBalanceCard";
 import { WalletActions } from "@/components/rider/WalletActions";
-import { WeeklyEarningsChart } from "@/components/rider/WeeklyEarningsChart";
 import { ClaimsPreview } from "@/components/rider/ClaimsPreview";
 import { RealtimeProvider } from "@/components/rider/RealtimeProvider";
 import { Card } from "@/components/ui/Card";
@@ -12,6 +11,7 @@ import {
   deriveWalletStats,
   getRiderPoliciesAndWallet,
 } from "@/lib/data/rider";
+import { WeeklyEarningsChartLazy } from "@/components/rider/WeeklyEarningsChartLazy";
 
 export default async function WalletPage() {
   const supabase = await createClient();
@@ -107,7 +107,7 @@ export default async function WalletPage() {
           <ClaimsPreview claims={result.claims} title="Recent activity" variant="wallet" />
         </section>
 
-        <WeeklyEarningsChart dailyEarnings={stats.weeklyDailyEarnings} />
+        <WeeklyEarningsChartLazy dailyEarnings={stats.weeklyDailyEarnings} />
       </div>
     </RealtimeProvider>
   );

@@ -1,15 +1,14 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { domAnimation, LazyMotion, m } from 'framer-motion';
 import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import type { User } from '@supabase/supabase-js';
+import dynamic from 'next/dynamic';
 import { PolicyCard } from './PolicyCard';
 import { PolicyDocumentsLink } from './PolicyDocumentsLink';
 import { PredictiveAlert } from './PredictiveAlert';
 import { WalletBalanceCard } from './WalletBalanceCard';
 import { KPIGrid } from './KPIGrid';
-import { WeeklyEarningsChart } from './WeeklyEarningsChart';
-import { RiskRadar } from './RiskRadar';
 import { ClaimsPreview } from './ClaimsPreview';
 import { RiderInsightCard } from './RiderInsightCard';
 import { ReportDeliveryImpact } from './ReportDeliveryImpact';
@@ -46,6 +45,36 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
 };
 
+const WeeklyEarningsChart = dynamic(
+  () => import('./WeeklyEarningsChart').then((m) => m.WeeklyEarningsChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden">
+        <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
+          <div className="h-4 w-40 rounded bg-white/10 animate-pulse" />
+          <div className="h-4 w-20 rounded bg-white/10 animate-pulse" />
+        </div>
+        <div className="w-full h-[160px] px-3 pb-3">
+          <div className="h-full w-full rounded-xl bg-white/5 animate-pulse" />
+        </div>
+      </div>
+    ),
+  },
+);
+
+const RiskRadar = dynamic(() => import('./RiskRadar').then((m) => m.RiskRadar), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden">
+      <div className="px-4 pt-4 pb-4">
+        <div className="h-4 w-28 rounded bg-white/10 animate-pulse" />
+        <div className="mt-3 h-20 w-full rounded-xl bg-white/5 animate-pulse" />
+      </div>
+    </div>
+  ),
+});
+
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -70,89 +99,89 @@ export function DashboardContent({
   const firstName = profile?.full_name?.split(' ')[0] ?? '';
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="space-y-3 pb-2"
-    >
-      {/* Greeting — personal touch */}
-      <motion.div variants={item} className="pt-1 pb-1">
-        <h2 className="text-lg font-bold text-white tracking-tight">
-          {getGreeting()}{firstName ? `, ${firstName}` : ''}
-        </h2>
-        <p className="text-[13px] text-zinc-500 mt-0.5">
-          {activePolicy ? 'Your coverage is active' : 'Subscribe to get covered'}
-        </p>
-      </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="space-y-3 pb-2"
+      >
+        {/* Greeting — personal touch */}
+        <m.div variants={item} className="pt-1 pb-1">
+          <h2 className="text-lg font-bold text-white tracking-tight">
+            {getGreeting()}
+            {firstName ? `, ${firstName}` : ''}
+          </h2>
+          <p className="text-[13px] text-zinc-500 mt-0.5">
+            {activePolicy ? 'Your coverage is active' : 'Subscribe to get covered'}
+          </p>
+        </m.div>
 
-      {/* Urgent: predictive alert at the top when active */}
-      <motion.div variants={item}>
-        <PredictiveAlert />
-      </motion.div>
+        {/* Urgent: predictive alert at the top when active */}
+        <m.div variants={item}>
+          <PredictiveAlert />
+        </m.div>
 
-      {/* Wallet + KPIs — at a glance */}
-      <motion.div variants={item}>
-        <WalletBalanceCard
-          initialBalance={totalPayouts}
-          weeklyChange={thisWeekEarned}
-          policyIds={policyIds}
-          showAction
-          sparklineData={
-            weeklyDailyEarnings.some((n) => n > 0)
-              ? weeklyDailyEarnings
-              : undefined
-          }
-        />
-      </motion.div>
-      <motion.div variants={item}>
-        <KPIGrid
-          totalEarnings={totalPayouts}
-          claimsPaid={totalClaimCount}
-          hasActiveCoverage={activePolicy != null}
-          riskLevel={riskLevel}
-        />
-      </motion.div>
+        {/* Wallet + KPIs — at a glance */}
+        <m.div variants={item}>
+          <WalletBalanceCard
+            initialBalance={totalPayouts}
+            weeklyChange={thisWeekEarned}
+            policyIds={policyIds}
+            showAction
+            sparklineData={
+              weeklyDailyEarnings.some((n) => n > 0)
+                ? weeklyDailyEarnings
+                : undefined
+            }
+          />
+        </m.div>
+        <m.div variants={item}>
+          <KPIGrid
+            totalEarnings={totalPayouts}
+            claimsPaid={totalClaimCount}
+            hasActiveCoverage={activePolicy != null}
+            riskLevel={riskLevel}
+          />
+        </m.div>
 
-      {/* Primary CTA — report delivery issue */}
-      <motion.div variants={item} className="w-full">
-        <ReportDeliveryImpact
-          renderTrigger={true}
-          triggerClassName="w-full"
-        />
-      </motion.div>
+        {/* Primary CTA — report delivery issue */}
+        <m.div variants={item} className="w-full">
+          <ReportDeliveryImpact renderTrigger={true} triggerClassName="w-full" />
+        </m.div>
 
-      {/* Policy + Earnings — core content */}
-      <motion.div variants={item}>
-        <PolicyCard
-          policy={activePolicy}
-          profileId={user.id}
-          claims={claimsFiltered}
-          planName={planName}
-        />
-      </motion.div>
-      <motion.div variants={item}>
-        <WeeklyEarningsChart dailyEarnings={weeklyDailyEarnings} />
-      </motion.div>
-      <motion.div variants={item}>
-        <ClaimsPreview
-          claims={claimsFiltered}
-          claimIdsNeedingVerification={claimIdsNeedingVerification}
-        />
-      </motion.div>
+        {/* Policy + Earnings — core content */}
+        <m.div variants={item}>
+          <PolicyCard
+            policy={activePolicy}
+            profileId={user.id}
+            claims={claimsFiltered}
+            planName={planName}
+          />
+        </m.div>
+        <m.div variants={item}>
+          <WeeklyEarningsChart dailyEarnings={weeklyDailyEarnings} />
+        </m.div>
+        <m.div variants={item}>
+          <ClaimsPreview
+            claims={claimsFiltered}
+            claimIdsNeedingVerification={claimIdsNeedingVerification}
+          />
+        </m.div>
 
-      {/* Risk + Insight — secondary info */}
-      <motion.div variants={item}>
-        <RiskRadar />
-      </motion.div>
-      <motion.div variants={item}>
-        <RiderInsightCard />
-      </motion.div>
+        {/* Risk + Insight — secondary info */}
+        <m.div variants={item}>
+          <RiskRadar />
+        </m.div>
+        <m.div variants={item}>
+          <RiderInsightCard />
+        </m.div>
 
-      {/* Policy docs — quick access at bottom */}
-      <motion.div variants={item}>
-        <PolicyDocumentsLink />
-      </motion.div>
-    </motion.div>
+        {/* Policy docs — quick access at bottom */}
+        <m.div variants={item}>
+          <PolicyDocumentsLink />
+        </m.div>
+      </m.div>
+    </LazyMotion>
   );
 }

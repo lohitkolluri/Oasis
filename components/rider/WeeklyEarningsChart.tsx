@@ -1,7 +1,6 @@
 'use client';
 
 import { Card } from '@/components/ui/Card';
-import { motion } from 'framer-motion';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -31,12 +30,7 @@ export function WeeklyEarningsChart({
 
   return (
     <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.12, duration: 0.3 }}
-      className="w-full"
-    >
+    <div className="w-full">
       <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
         <h3 className="text-[12px] font-semibold text-zinc-200">Earnings this week</h3>
         <span className="text-[13px] font-bold text-uber-green tabular-nums">
@@ -100,7 +94,7 @@ export function WeeklyEarningsChart({
           </ResponsiveContainer>
         )}
       </div>
-    </motion.div>
+    </div>
     </Card>
   );
 }
