@@ -30,6 +30,9 @@ interface RidersTableProps {
   profiles: ProfileRow[];
 }
 
+type PlatformFilter = 'all' | string;
+type RoleFilter = 'all' | 'admin' | 'rider';
+
 function zoneName(gf: unknown): string {
   const z = gf as { zone_name?: string; name?: string; label?: string } | null;
   return (
@@ -50,7 +53,8 @@ function formatDate(d: string) {
 
 export function RidersTable({ profiles }: RidersTableProps) {
   const [query, setQuery] = useState('');
-  const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -68,6 +72,12 @@ export function RidersTable({ profiles }: RidersTableProps) {
 
   const filtered = useMemo(() => {
     return profiles.filter((p) => {
+      if (roleFilter === 'admin' && p.role !== 'admin') {
+        return false;
+      }
+      if (roleFilter === 'rider' && (p.role === 'admin' || p.role == null)) {
+        return false;
+      }
       if (platformFilter !== 'all' && p.platform !== platformFilter) {
         return false;
       }
@@ -113,44 +123,75 @@ export function RidersTable({ profiles }: RidersTableProps) {
         </div>
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center">
-          <div className="inline-flex rounded-lg bg-[#111111] p-0.5 text-[11px] border border-[#262626]">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setPlatformFilter('all');
-                setPage(1);
-              }}
-              className={cn(
-                'h-7 px-2 text-[11px] font-medium rounded-[4px]',
-                'hover:bg-[#111111]',
-                platformFilter === 'all' &&
-                  'bg-[#1f2933] text-white hover:bg-[#1f2933]',
-              )}
-            >
-              All platforms
-            </Button>
-            {platforms.map((plat) => (
+          <div className="inline-flex max-w-full overflow-x-auto scrollbar-hide">
+            <div className="inline-flex rounded-full bg-[#101010] p-1 text-[11px] border border-[#2d2d2d] shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
               <Button
-                key={plat}
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setPlatformFilter(plat);
+                  setPlatformFilter('all');
                   setPage(1);
                 }}
                 className={cn(
-                  'h-7 px-2 text-[11px] font-medium rounded-[4px]',
-                  'hover:bg-[#111111]',
-                  platformFilter === plat &&
-                    'bg-[#1f2933] text-white hover:bg-[#1f2933]',
+                  'h-8 px-3 text-[11px] font-medium !rounded-full',
+                  'text-[#9ca3af] hover:text-white hover:bg-white/[0.04]',
+                  platformFilter === 'all' &&
+                    'bg-[#161616] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.10)] hover:bg-[#161616]',
                 )}
               >
-                {plat}
+                All platforms
               </Button>
-            ))}
+              {platforms.map((plat) => (
+                <Button
+                  key={plat}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPlatformFilter(plat);
+                    setPage(1);
+                  }}
+                  className={cn(
+                    'h-8 px-3 text-[11px] font-medium !rounded-full',
+                    'text-[#9ca3af] hover:text-white hover:bg-white/[0.04]',
+                    platformFilter === plat &&
+                      'bg-[#161616] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.10)] hover:bg-[#161616]',
+                  )}
+                >
+                  {plat}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="inline-flex max-w-full overflow-x-auto scrollbar-hide">
+            <div className="inline-flex rounded-full bg-[#101010] p-1 text-[11px] border border-[#2d2d2d] shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+              {(['all', 'admin', 'rider'] as RoleFilter[]).map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setRoleFilter(value);
+                    setPage(1);
+                  }}
+                  className={cn(
+                    'h-8 px-3 text-[11px] font-medium !rounded-full',
+                    'text-[#9ca3af] hover:text-white hover:bg-white/[0.04]',
+                    roleFilter === value &&
+                      'bg-[#161616] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.10)] hover:bg-[#161616]',
+                  )}
+                >
+                  {value === 'all'
+                    ? 'All roles'
+                    : value === 'admin'
+                      ? 'Admins'
+                      : 'Riders'}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <div className="relative w-full md:w-56">
@@ -248,7 +289,7 @@ export function RidersTable({ profiles }: RidersTableProps) {
                   setPageSize(Number(e.target.value));
                   setPage(1);
                 }}
-                className="h-7 rounded-md border border-[#262626] bg-[#111111] px-2 text-[11px] outline-none text-[#e5e7eb]"
+                className="h-8 rounded-full border border-[#2d2d2d] bg-[#111111] px-3 text-[11px] outline-none text-[#e5e7eb] focus-visible:ring-2 focus-visible:ring-white/10"
               >
                 {[10, 25, 50].map((size) => (
                   <option key={size} value={size}>
@@ -262,14 +303,18 @@ export function RidersTable({ profiles }: RidersTableProps) {
               <span className="tabular-nums text-[#9ca3af]">
                 Page {currentPage} of {totalPages}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   disabled={currentPage === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="h-7 px-2 text-[11px]"
+                  className={cn(
+                    'h-8 px-4 text-[11px] !rounded-full border border-white/20 bg-transparent text-white',
+                    'hover:bg-white hover:text-black hover:border-white',
+                    'disabled:opacity-100 disabled:text-white/50 disabled:border-white/10 disabled:hover:bg-transparent disabled:hover:text-white/50 disabled:hover:border-white/10',
+                  )}
                 >
                   Prev
                 </Button>
@@ -279,7 +324,11 @@ export function RidersTable({ profiles }: RidersTableProps) {
                   size="sm"
                   disabled={currentPage === totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="h-7 px-2 text-[11px]"
+                  className={cn(
+                    'h-8 px-4 text-[11px] !rounded-full border border-white/20 bg-transparent text-white',
+                    'hover:bg-white hover:text-black hover:border-white',
+                    'disabled:opacity-100 disabled:text-white/50 disabled:border-white/10 disabled:hover:bg-transparent disabled:hover:text-white/50 disabled:hover:border-white/10',
+                  )}
                 >
                   Next
                 </Button>
