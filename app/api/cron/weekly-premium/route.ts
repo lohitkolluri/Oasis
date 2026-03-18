@@ -61,6 +61,7 @@ export async function GET(request: Request) {
     const zoneCache = new Map<string, { historicalEvents: number; forecastRisk: number; socialRisk: number }>();
     let processed = 0;
     const BATCH_SIZE = 5;
+    let computedWeekStartDate: string | null = null;
 
     // Precompute 4-week window for claim frequency and social risk
     const fourWeeksAgo = new Date();
@@ -110,6 +111,7 @@ export async function GET(request: Request) {
           const nextMonday = new Date(now);
           nextMonday.setDate(now.getDate() + daysUntilMonday);
           const weekStartDate = toDateString(nextMonday);
+          computedWeekStartDate = computedWeekStartDate ?? weekStartDate;
 
           await admin.from('premium_recommendations').upsert(
             {
@@ -133,6 +135,65 @@ export async function GET(request: Request) {
           processed++;
         }),
       );
+    }
+
+    // Optional: persist a model-derived plan pricing snapshot for next week (audit trail)
+    // Uses the distribution of premium_recommendations and maps percentiles to tier prices.
+    if (computedWeekStartDate) {
+      try {
+        const { data: activePlans } = await admin
+          .from('plan_packages')
+          .select('id, sort_order, is_active')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+
+        const plans = (activePlans ?? []) as Array<{ id: string; sort_order: number }>;
+
+        const { data: recs } = await admin
+          .from('premium_recommendations')
+          .select('recommended_premium_inr')
+          .eq('week_start_date', computedWeekStartDate);
+
+        const values = (recs ?? [])
+          .map((r: any) => Number(r.recommended_premium_inr))
+          .filter((n: number) => Number.isFinite(n))
+          .sort((a: number, b: number) => a - b);
+
+        function pct(p: number): number {
+          if (values.length === 0) return 0;
+          if (values.length === 1) return values[0]!;
+          const idx = (values.length - 1) * p;
+          const lo = Math.floor(idx);
+          const hi = Math.ceil(idx);
+          if (lo === hi) return values[lo]!;
+          const w = idx - lo;
+          return values[lo]! * (1 - w) + values[hi]! * w;
+        }
+
+        if (plans.length >= 3 && values.length > 0) {
+          const predicted = [
+            Math.round(pct(0.3)),
+            Math.round(pct(0.6)),
+            Math.round(pct(0.85)),
+          ];
+
+          await Promise.all(
+            plans.slice(0, 3).map((p, i) =>
+              admin.from('plan_pricing_snapshots').upsert(
+                {
+                  week_start_date: computedWeekStartDate,
+                  plan_id: p.id,
+                  weekly_premium_inr: predicted[i]!,
+                  source: 'model',
+                },
+                { onConflict: 'week_start_date,plan_id' },
+              ),
+            ),
+          );
+        }
+      } catch {
+        // Best-effort only — cron should still succeed even if snapshots aren't configured yet.
+      }
     }
 
     return NextResponse.json({

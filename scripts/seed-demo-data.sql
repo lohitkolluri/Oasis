@@ -51,6 +51,12 @@ DECLARE
   pol_pw3 UUID := 'a3a3a3a3-3333-4333-8333-333333333333';
   pol_pw4 UUID := 'a4a4a4a4-4444-4444-8444-444444444444';
   pol_pw5 UUID := 'a5a5a5a5-5555-4555-8555-555555555555';
+  -- Two weeks ago (for pricing timeline)
+  pol_tw1 UUID := 'b1b1b1b1-1111-4111-8111-111111111111';
+  pol_tw2 UUID := 'b2b2b2b2-2222-4222-8222-222222222222';
+  pol_tw3 UUID := 'b3b3b3b3-3333-4333-8333-333333333333';
+  pol_tw4 UUID := 'b4b4b4b4-4444-4444-8444-444444444444';
+  pol_tw5 UUID := 'b5b5b5b5-5555-4555-8555-555555555555';
 
   -- Claim UUIDs: current week (cl1..cl4, cl_flag), previous week (cl_pw1, cl_pw2)
   cl1 UUID := 'c1010101-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -86,12 +92,16 @@ DECLARE
   we  DATE;
   pw_start DATE;
   pw_end   DATE;
+  tw_start DATE;
+  tw_end   DATE;
 
   hashed_pw TEXT;
 BEGIN
   we := ws + 6;
   pw_start := ws - 7;
   pw_end := ws - 1;
+  tw_start := ws - 14;
+  tw_end := ws - 8;
   hashed_pw := crypt('Demo@1234', gen_salt('bf'));
 
   -- ─── Clean up previous demo data (safe re-run) ───────────
@@ -100,10 +110,12 @@ BEGIN
   DELETE FROM payout_ledger          WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM parametric_claims      WHERE id IN (cl1, cl2, cl3, cl4, cl_flag, cl_pw1, cl_pw2, cl_rejected);
   DELETE FROM payment_transactions   WHERE profile_id IN (r1, r2, r3, r4, r5);
-  DELETE FROM weekly_policies        WHERE id IN (pol1, pol2, pol3, pol4, pol5, pol_pw1, pol_pw2, pol_pw3, pol_pw4, pol_pw5);
+  DELETE FROM weekly_policies        WHERE id IN (pol1, pol2, pol3, pol4, pol5, pol_pw1, pol_pw2, pol_pw3, pol_pw4, pol_pw5, pol_tw1, pol_tw2, pol_tw3, pol_tw4, pol_tw5);
   DELETE FROM premium_recommendations WHERE id IN (pr1, pr2, pr3, pr4, pr5);
   DELETE FROM rider_delivery_reports WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM live_disruption_events  WHERE id IN (ev_heat, ev_rain_m, ev_aqi, ev_traffic, ev_curfew, ev_rain_c, ev_heat2, ev_rain_pw, ev_aqi_pw, ev_restrict);
+  -- Pricing snapshots (new widget)
+  DELETE FROM plan_pricing_snapshots WHERE week_start_date IN (ws, pw_start, tw_start);
   DELETE FROM system_logs             WHERE (event_type IN ('adjudicator_run', 'adjudicator_demo') AND (metadata->>'run_id') = 'demo-seed')
     OR (metadata->>'seed') = 'true';
   DELETE FROM weekly_policies        WHERE profile_id IN (r1, r2, r3, r4, r5);
@@ -217,19 +229,41 @@ BEGIN
 
   -- ─── Weekly Policies: current week + previous week ───────
   -- Current week: 5 riders, total premium 645. Target loss ratio ~70% → payouts ~452.
-  INSERT INTO weekly_policies (id, profile_id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, created_at)
+  INSERT INTO weekly_policies (id, profile_id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, payment_status, created_at)
   VALUES
-    (pol1, r1, plan_standard, ws, we,  99, true, ws::timestamptz),
-    (pol2, r2, plan_premium,  ws, we, 199, true, ws::timestamptz),
-    (pol3, r3, plan_basic,    ws, we,  49, true, ws::timestamptz),
-    (pol4, r4, plan_standard, ws, we,  99, true, ws::timestamptz),
-    (pol5, r5, plan_premium,  ws, we, 199, true, ws::timestamptz),
-    (pol_pw1, r1, plan_standard, pw_start, pw_end,  99, false, pw_start::timestamptz),
-    (pol_pw2, r2, plan_premium,  pw_start, pw_end, 199, false, pw_start::timestamptz),
-    (pol_pw3, r3, plan_basic,    pw_start, pw_end,  49, false, pw_start::timestamptz),
-    (pol_pw4, r4, plan_standard, pw_start, pw_end,  99, false, pw_start::timestamptz),
-    (pol_pw5, r5, plan_premium,  pw_start, pw_end, 199, false, pw_start::timestamptz)
+    (pol1, r1, plan_standard, ws, we,  99, true,  'paid', ws::timestamptz),
+    (pol2, r2, plan_premium,  ws, we, 199, true,  'paid', ws::timestamptz),
+    (pol3, r3, plan_basic,    ws, we,  49, true,  'paid', ws::timestamptz),
+    (pol4, r4, plan_standard, ws, we,  99, true,  'paid', ws::timestamptz),
+    (pol5, r5, plan_premium,  ws, we, 199, true,  'paid', ws::timestamptz),
+    (pol_pw1, r1, plan_standard, pw_start, pw_end,  99, false, 'paid', pw_start::timestamptz),
+    (pol_pw2, r2, plan_premium,  pw_start, pw_end, 199, false, 'paid', pw_start::timestamptz),
+    (pol_pw3, r3, plan_basic,    pw_start, pw_end,  49, false, 'paid', pw_start::timestamptz),
+    (pol_pw4, r4, plan_standard, pw_start, pw_end,  99, false, 'paid', pw_start::timestamptz),
+    (pol_pw5, r5, plan_premium,  pw_start, pw_end, 199, false, 'paid', pw_start::timestamptz),
+    (pol_tw1, r1, plan_basic,    tw_start, tw_end,  52, false, 'paid', tw_start::timestamptz),
+    (pol_tw2, r2, plan_standard, tw_start, tw_end, 105, false, 'paid', tw_start::timestamptz),
+    (pol_tw3, r3, plan_basic,    tw_start, tw_end,  52, false, 'paid', tw_start::timestamptz),
+    (pol_tw4, r4, plan_standard, tw_start, tw_end, 105, false, 'paid', tw_start::timestamptz),
+    (pol_tw5, r5, plan_premium,  tw_start, tw_end, 210, false, 'paid', tw_start::timestamptz)
   ON CONFLICT (id) DO NOTHING;
+
+  -- ─── Plan pricing snapshots (last 3 weeks) ────────────────
+  -- These drive the admin pricing timeline + forecast chart.
+  INSERT INTO plan_pricing_snapshots (week_start_date, plan_id, weekly_premium_inr, source)
+  VALUES
+    (tw_start, plan_basic,    52,  'manual'),
+    (tw_start, plan_standard, 105, 'manual'),
+    (tw_start, plan_premium,  210, 'manual'),
+    (pw_start, plan_basic,    47,  'manual'),
+    (pw_start, plan_standard, 95,  'manual'),
+    (pw_start, plan_premium,  189, 'manual'),
+    (ws,       plan_basic,    49,  'manual'),
+    (ws,       plan_standard, 99,  'manual'),
+    (ws,       plan_premium,  199, 'manual')
+  ON CONFLICT (week_start_date, plan_id) DO UPDATE SET
+    weekly_premium_inr = EXCLUDED.weekly_premium_inr,
+    source = EXCLUDED.source;
 
   -- ─── Parametric Claims ───────────────────────────────────
   -- Current week: 5 claims (4 paid + 1 pending + 1 flagged), total payout 452 (~70% loss ratio).

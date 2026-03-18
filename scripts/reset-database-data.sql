@@ -9,7 +9,7 @@
 -- This truncates all 15 app tables in FK-safe order:
 --   rider_notifications, payout_ledger, claim_verifications,
 --   parametric_claims, payment_transactions, weekly_policies,
---   premium_recommendations, rider_delivery_reports, profiles,
+--   premium_recommendations, plan_pricing_snapshots, rider_delivery_reports, profiles,
 --   live_disruption_events, plan_packages, stripe_webhook_events,
 --   rate_limit_entries, system_logs, app_config
 --
@@ -47,6 +47,7 @@ TRUNCATE TABLE parametric_claims CASCADE;
 TRUNCATE TABLE payment_transactions CASCADE;
 TRUNCATE TABLE weekly_policies CASCADE;
 TRUNCATE TABLE premium_recommendations CASCADE;
+TRUNCATE TABLE plan_pricing_snapshots CASCADE;
 TRUNCATE TABLE rider_delivery_reports CASCADE;
 TRUNCATE TABLE profiles CASCADE;
 TRUNCATE TABLE live_disruption_events CASCADE;
