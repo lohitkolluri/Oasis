@@ -5,12 +5,12 @@ description: Local setup, env vars, migrations
 
 ## Prerequisites
 
-| Tool         | Minimum version | Notes                                               |
-| ------------ | --------------- | --------------------------------------------------- |
-| Node.js      | 20+             | Pinned in `package.json` `engines`; LTS recommended |
-| Yarn         | 1.22+           | `npm i -g yarn`                                     |
-| Supabase CLI | Latest          | `npm i -g supabase`                                 |
-| Git          | Any             |                                                     |
+| Tool         | Minimum version | Notes                                                                 |
+| ------------ | --------------- | --------------------------------------------------------------------- |
+| Node.js      | 20+             | Pinned in `package.json` `engines`; LTS recommended                   |
+| Bun          | Latest          | Recommended runtime/package manager (`curl -fsSL https://bun.sh/install \| bash`) |
+| Supabase CLI | Latest          | `npm i -g supabase`                                                   |
+| Git          | Any             |                                                                       |
 
 ---
 
@@ -19,7 +19,7 @@ description: Local setup, env vars, migrations
 ```bash
 git clone https://github.com/lohitkolluri/oasis.git
 cd oasis
-yarn install
+bun install
 ```
 
 ---
@@ -142,7 +142,7 @@ npx supabase login
 npx supabase link --project-ref <project-ref>
 
 # 3. Apply all migrations
-yarn db:migrate
+bun run db:migrate
 # or: make db-migrate
 ```
 
@@ -178,7 +178,7 @@ The script is safe to re-run — it cleans up the previous demo data before inse
 
 ### Storage Bucket Setup
 
-Run `yarn setup-storage` to create all required buckets:
+Run `bun run setup-storage` to create all required buckets:
 
 | Bucket           | Purpose                                          |
 | ---------------- | ------------------------------------------------ |
@@ -187,7 +187,7 @@ Run `yarn setup-storage` to create all required buckets:
 | `face-photos`    | Face liveness verification photos for onboarding |
 
 ```bash
-yarn setup-storage
+bun run setup-storage
 ```
 
 Or create them manually via **Supabase Dashboard → Storage → New bucket** (all private, 5MB limit, images only).
@@ -197,7 +197,7 @@ Or create them manually via **Supabase Dashboard → Storage → New bucket** (a
 ## 4. Run the Development Server
 
 ```bash
-yarn dev
+bun dev
 ```
 
 The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
@@ -212,13 +212,13 @@ The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
 
 ## 5. Useful Scripts
 
-| Script           | Command              | Description                                                     |
-| ---------------- | -------------------- | --------------------------------------------------------------- |
-| Dev server       | `yarn dev`           | Next.js + Turbopack                                             |
-| Production build | `yarn build`         | Full Next.js build with type check                              |
-| Lint             | `yarn lint`          | ESLint with Next.js ruleset                                     |
-| DB migrate       | `yarn db:migrate`    | Supabase CLI push                                               |
-| Storage setup    | `yarn setup-storage` | Create `rider-reports`, `government-ids`, `face-photos` buckets |
+| Script           | Command                 | Description                                                     |
+| ---------------- | ----------------------- | --------------------------------------------------------------- |
+| Dev server       | `bun dev`               | Next.js + Turbopack                                             |
+| Production build | `bun run build`         | Full Next.js build with type check                              |
+| Lint             | `bun run lint`          | ESLint with Next.js ruleset                                     |
+| DB migrate       | `bun run db:migrate`    | Supabase CLI push                                               |
+| Storage setup    | `bun run setup-storage` | Create `rider-reports`, `government-ids`, `face-photos` buckets |
 
 ---
 
@@ -242,7 +242,7 @@ app/          → pages and API routes (Next.js App Router)
 components/   → React UI components
 lib/          → business logic (no React)
 supabase/     → SQL migrations + Deno edge function
-docs/         → this Starlight docs site
+Docs/         → this Starlight docs site
 ```
 
 See [Folder Structure](/folder-structure/) for a complete breakdown.
