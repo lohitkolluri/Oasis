@@ -4,6 +4,8 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -42,6 +44,19 @@ function formatINR(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
 
+function labelForSeries({
+  dataKey,
+  tiers,
+}: {
+  dataKey: string;
+  tiers: ForecastTier[];
+}): string {
+  const isForecast = dataKey.toLowerCase().includes('pred');
+  const tier = tiers.find((t) => dataKey.startsWith(`${t.key}`));
+  const tierLabel = tier?.label ?? 'Tier';
+  return `${tierLabel} · ${isForecast ? 'Forecast' : 'Actual'}`;
+}
+
 interface PlanPricingForecastChartProps {
   tiers: ForecastTier[];
   points: PricingPoint[];
@@ -64,13 +79,17 @@ export function PlanPricingForecastChart({
     );
   }
 
+  const forecastPoint = points.find((p) => Boolean(p.isForecast));
+  const forecastStart = forecastPoint?.weekStartDate ?? null;
+  const lastX = points[points.length - 1]?.weekStartDate ?? null;
+
   return (
-    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
+    <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5 min-w-0">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <p className="text-sm font-semibold text-white">Next week forecast</p>
           <p className="text-[11px] text-[#666] mt-1">
-            Solid = historical snapshots · Dashed = predicted next week
+            Solid = actual snapshots · Dashed = forecast
           </p>
         </div>
         {caption && (
@@ -80,9 +99,9 @@ export function PlanPricingForecastChart({
         )}
       </div>
 
-      <div className="h-56">
+      <div className="h-[clamp(260px,34vh,420px)] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+          <LineChart data={points} margin={{ top: 10, right: 18, left: 6, bottom: 14 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" vertical={false} />
             <XAxis
               dataKey="weekStartDate"
@@ -90,13 +109,16 @@ export function PlanPricingForecastChart({
               tick={{ fill: '#666666', fontSize: 10 }}
               axisLine={false}
               tickLine={false}
+              minTickGap={18}
+              tickMargin={10}
+              interval="preserveStartEnd"
             />
             <YAxis
               tick={{ fill: '#666666', fontSize: 10 }}
               axisLine={false}
               tickLine={false}
-              width={48}
-              tickFormatter={(v) => `₹${v}`}
+              width={64}
+              tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`}
             />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
@@ -105,12 +127,29 @@ export function PlanPricingForecastChart({
               formatter={(value, name) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return [String(value), String(name)];
-                const label = String(name).toLowerCase().includes('pred')
-                  ? 'Predicted'
-                  : 'Actual';
-                return [formatINR(n), label];
+                return [formatINR(n), labelForSeries({ dataKey: String(name), tiers })];
               }}
             />
+
+            {/* Forecast window mask (future period) */}
+            {forecastStart && lastX && (
+              <ReferenceArea
+                x1={forecastStart}
+                x2={lastX}
+                ifOverflow="extendDomain"
+                fill="rgba(255,255,255,0.04)"
+                stroke="rgba(255,255,255,0.06)"
+              />
+            )}
+
+            {forecastStart && (
+              <ReferenceLine
+                x={forecastStart}
+                stroke="rgba(255,255,255,0.18)"
+                strokeDasharray="4 4"
+                ifOverflow="extendDomain"
+              />
+            )}
 
             {tiers.map((t) => (
               <Line
@@ -133,7 +172,7 @@ export function PlanPricingForecastChart({
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 dot={false}
-                opacity={0.9}
+                opacity={0.55}
                 activeDot={{ r: 3 }}
               />
             ))}
@@ -148,9 +187,18 @@ export function PlanPricingForecastChart({
             <span className="text-[10px] text-[#666]">{t.label}</span>
           </div>
         ))}
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="inline-block h-px w-6 bg-white/40" style={{ borderTop: '1px dashed rgba(255,255,255,0.5)' }} />
-          <span className="text-[10px] text-[#666]">Forecast</span>
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-px w-6 bg-white/50" />
+            <span className="text-[10px] text-[#666]">Actual</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-px w-6"
+              style={{ borderTop: '1px dashed rgba(255,255,255,0.55)' }}
+            />
+            <span className="text-[10px] text-[#666]">Forecast</span>
+          </div>
         </div>
       </div>
     </div>

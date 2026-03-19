@@ -4,29 +4,19 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { PlanPricingTimelineRow, PlanTierKey } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingTimelineTable } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingForecastChartLazy } from '@/components/admin/PlanPricingForecastChartLazy';
+import { addDays, toDateString } from '@/lib/utils/date';
+
+export const dynamic = 'force-dynamic';
 
 type PlanPackage = Record<string, any>;
 
-function toDateString(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function startOfWeekMonday(d: Date): Date {
-  const dt = new Date(d);
-  const day = dt.getDay(); // 0 Sun .. 6 Sat
-  const diff = day === 0 ? -6 : 1 - day;
-  dt.setDate(dt.getDate() + diff);
-  dt.setHours(0, 0, 0, 0);
-  return dt;
-}
-
-function nextMondayFrom(d: Date): Date {
-  const dt = new Date(d);
-  const day = dt.getDay();
-  const daysUntilMonday = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
-  dt.setDate(dt.getDate() + daysUntilMonday);
-  dt.setHours(0, 0, 0, 0);
-  return dt;
+function isoWeekMonday(date: Date): string {
+  // Use a UTC-safe string workflow to avoid timezone shifts (e.g. IST midnight → previous UTC day).
+  const today = toDateString(date); // YYYY-MM-DD in UTC
+  const d = new Date(`${today}T12:00:00Z`);
+  const dow = d.getUTCDay(); // 0 Sun .. 6 Sat
+  const offset = (dow + 6) % 7; // days since Monday
+  return addDays(today, -offset);
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -112,10 +102,8 @@ export default async function PlansPage() {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   const now = new Date();
-  const currentWeekStart = startOfWeekMonday(now);
-  const since24w = new Date(currentWeekStart);
-  since24w.setDate(currentWeekStart.getDate() - 7 * 23);
-  const sinceIso = toDateString(since24w);
+  const currentWeekStart = isoWeekMonday(now);
+  const sinceIso = addDays(currentWeekStart, -7 * 23);
 
   const [snapshotsRes, policiesPaidRes, recsRes] = await Promise.all([
     supabase
@@ -129,13 +117,35 @@ export default async function PlansPage() {
       .gte('week_start_date', sinceIso)
       .in('payment_status', ['paid', 'demo']),
     (async () => {
-      const nextWeekStart = toDateString(nextMondayFrom(now));
+      // Prefer DB-derived week_start_date for alignment; fallback to +7 days from current ISO week.
+      const baseWeekStart = isoWeekMonday(now);
+      const nextWeekStart = addDays(baseWeekStart, 7);
       return supabase
         .from('premium_recommendations')
         .select('recommended_premium_inr')
         .eq('week_start_date', nextWeekStart);
     })(),
   ]);
+
+  const dataErrors: Array<{ label: string; message: string }> = [];
+  if (snapshotsRes.error) {
+    dataErrors.push({
+      label: 'plan_pricing_snapshots',
+      message: snapshotsRes.error.message,
+    });
+  }
+  if (policiesPaidRes.error) {
+    dataErrors.push({
+      label: 'weekly_policies',
+      message: policiesPaidRes.error.message,
+    });
+  }
+  if (recsRes.error) {
+    dataErrors.push({
+      label: 'premium_recommendations',
+      message: recsRes.error.message,
+    });
+  }
 
   const snapshots = (snapshotsRes.data ?? []) as Array<{
     week_start_date: string;
@@ -161,11 +171,21 @@ export default async function PlansPage() {
     priceByWeekPlan.set(key, Number(s.weekly_premium_inr));
   }
 
-  const weekStarts: string[] = [];
-  for (let i = 0; i < 24; i++) {
-    const d = new Date(currentWeekStart);
-    d.setDate(currentWeekStart.getDate() - i * 7);
-    weekStarts.push(toDateString(d));
+  // Build week list from DB-returned week_start_date values to avoid timezone/ISO-week mismatches.
+  const weekStartSet = new Set<string>();
+  snapshots.forEach((s) => weekStartSet.add(s.week_start_date));
+  paidPolicies.forEach((p) => weekStartSet.add(p.week_start_date));
+
+  const weekStarts = Array.from(weekStartSet).sort((a, b) => (a > b ? -1 : a < b ? 1 : 0));
+  // Ensure we have a consistent 24-week window for the chart/table.
+  if (weekStarts.length > 0) {
+    while (weekStarts.length < 24) {
+      const last = weekStarts[weekStarts.length - 1]!;
+      weekStarts.push(addDays(last, -7));
+    }
+  } else {
+    const base = isoWeekMonday(now);
+    for (let i = 0; i < 24; i++) weekStarts.push(addDays(base, -7 * i));
   }
 
   const tierOrder: Array<{ key: PlanTierKey; label: string; planId: string }> =
@@ -191,7 +211,9 @@ export default async function PlansPage() {
     return { weekStartDate: w, tiers };
   });
 
-  const nextWeekStart = toDateString(nextMondayFrom(now));
+  // Forecast is driven by `premium_recommendations` generated for next week relative to current ISO week (Mon).
+  const baseWeekStart = isoWeekMonday(now);
+  const nextWeekStart = addDays(baseWeekStart, 7);
   const recs = (recsRes.data ?? []) as Array<{ recommended_premium_inr: number }>;
   const recValues = recs
     .map((r) => Number(r.recommended_premium_inr))
@@ -236,24 +258,41 @@ export default async function PlansPage() {
     });
 
   if (points.length > 0) {
-    const last = points[points.length - 1] as any;
-    const nextPoint: Record<string, any> = { weekStartDate: nextWeekStart, isForecast: true };
+    const lastActualPoint = points[points.length - 1] as any;
+
+    // Render a short forward forecast window (next N weeks) so it's clearly "future",
+    // not just a single point that can look like the current price.
+    const FORECAST_WEEKS = 4;
+    let carry = new Map<PlanTierKey, number>();
     for (const t of forecastTiers) {
-      const actualLast = last?.[`${t.key}Actual`] ?? null;
-      nextPoint[`${t.key}Actual`] = null;
-      nextPoint[`${t.key}Pred`] = predictedByTier.has(t.key)
-        ? predictedByTier.get(t.key)
-        : null;
-      // Connect dashed forecast from last actual point
-      if (actualLast != null) {
-        last[`${t.key}Pred`] = actualLast;
+      const v = predictedByTier.get(t.key);
+      if (v != null) carry.set(t.key, v);
+    }
+
+    // Only draw forecast when we have any recommendation-driven prediction.
+    if (carry.size > 0) {
+      // Connect dashed forecast from the last actual point.
+      for (const t of forecastTiers) {
+        const actualLast = lastActualPoint?.[`${t.key}Actual`] ?? null;
+        if (actualLast != null) lastActualPoint[`${t.key}Pred`] = actualLast;
+      }
+
+      for (let i = 0; i < FORECAST_WEEKS; i++) {
+        const wk = addDays(nextWeekStart, 7 * i);
+        const fp: Record<string, any> = { weekStartDate: wk, isForecast: true };
+        for (const t of forecastTiers) {
+          fp[`${t.key}Actual`] = null;
+          fp[`${t.key}Pred`] = carry.get(t.key) ?? null;
+        }
+        points.push(fp as any);
       }
     }
-    points.push(nextPoint as any);
   }
 
   const forecastCaption =
-    recValues.length > 0 ? `Based on premium recommendations (profiles: ${recValues.length})` : null;
+    recValues.length > 0
+      ? `Based on premium recommendations (profiles: ${recValues.length})`
+      : `No forecast data for week starting ${nextWeekStart}`;
 
   return (
     <div className="space-y-6">
@@ -290,6 +329,36 @@ export default async function PlansPage() {
           accent="purple"
         />
       </div>
+
+      {dataErrors.length > 0 && (
+        <Card
+          variant="default"
+          padding="lg"
+          className="bg-[#111111] border-[#262626]"
+        >
+          <p className="text-sm font-semibold text-white">
+            Pricing widgets are not fully configured
+          </p>
+          <p className="mt-1 text-xs text-[#9ca3af]">
+            One or more required tables/columns are missing in your database. Apply migrations and re-run the seed.
+          </p>
+          <div className="mt-3 space-y-2">
+            {dataErrors.map((e) => (
+              <div
+                key={e.label}
+                className="rounded-lg border border-[#2d2d2d] bg-[#0b0b0b] px-3 py-2"
+              >
+                <p className="text-[11px] font-semibold text-[#e5e7eb]">
+                  {e.label}
+                </p>
+                <p className="text-[11px] text-[#6b7280] mt-0.5">
+                  {e.message}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <PlanPricingForecastChartLazy
         tiers={forecastTiers}

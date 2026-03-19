@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
+import { PlatformLogo } from '@/components/ui/PlatformLogo';
 import { createClient } from '@/lib/supabase/client';
 import type { PlatformType } from '@/lib/types/database';
 import { isMobileForGps } from '@/lib/utils/device';
@@ -60,6 +61,7 @@ export default function OnboardingPage() {
   const mapInstance = useRef<unknown>(null);
   const markerRef = useRef<unknown>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const zoneSearchAbortRef = useRef<AbortController | null>(null);
   const govIdInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -236,22 +238,72 @@ export default function OnboardingPage() {
       if (cancelled || !mapRef.current) return;
       const map = new maplibre.Map({
         container: mapRef.current,
-        style: `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json`,
+        // Locked hybrid basemap (satellite + labels) for a richer preview.
+        // Uses public Esri raster tiles (no key) to avoid vendor setup in demo mode.
+        style: {
+          version: 8,
+          sources: {
+            esri: {
+              type: 'raster',
+              tiles: [
+                'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+              ],
+              tileSize: 256,
+              attribution:
+                'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+            },
+            esriLabels: {
+              type: 'raster',
+              tiles: [
+                'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+              ],
+              tileSize: 256,
+            },
+          },
+          layers: [
+            {
+              id: 'imagery',
+              type: 'raster',
+              source: 'esri',
+              paint: {
+                // Tone down the satellite so it doesn't feel visually "too alive"
+                'raster-saturation': -0.55,
+                'raster-brightness-min': 0.22,
+                'raster-brightness-max': 0.85,
+                'raster-contrast': -0.1,
+                'raster-opacity': 0.9,
+              },
+            },
+            {
+              id: 'labels',
+              type: 'raster',
+              source: 'esriLabels',
+              paint: { 'raster-opacity': 0.55 },
+            },
+          ],
+        } as any,
         center: [zoneLng, zoneLat],
         zoom: 13,
         attributionControl: false,
+        interactive: false,
       });
 
       const marker = new maplibre.Marker({ color: '#10b981' })
         .setLngLat([zoneLng, zoneLat])
         .addTo(map);
 
-      // Allow clicking on map to adjust position
-      map.on('click', (e: { lngLat: { lat: number; lng: number } }) => {
-        marker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-        setZoneLat(e.lngLat.lat);
-        setZoneLng(e.lngLat.lng);
-      });
+      // Lock the map completely (no pan/zoom/rotate) so it behaves like a static preview.
+      try {
+        map.scrollZoom.disable();
+        map.boxZoom.disable();
+        map.dragRotate.disable();
+        map.dragPan.disable();
+        map.keyboard.disable();
+        map.doubleClickZoom.disable();
+        map.touchZoomRotate.disable();
+      } catch {
+        // ignore
+      }
 
       mapInstance.current = map;
       markerRef.current = marker;
@@ -552,14 +604,27 @@ export default function OnboardingPage() {
   /** Analyze frame for sharpness (blur) and brightness; returns true if clear enough to auto-capture */
   function isFrameClearEnough(video: HTMLVideoElement): boolean {
     if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return false;
-    const w = Math.min(160, video.videoWidth);
-    const h = Math.min(120, video.videoHeight);
+    // Evaluate only the center ROI that matches the on-screen Aadhaar frame.
+    // This makes auto-capture respond to what the user is aligning, not the whole scene.
+    const ROI_W_RATIO = 0.86;
+    const ROI_ASPECT = 1.58; // Aadhaar-like card ratio (width / height)
+    const srcW = video.videoWidth;
+    const srcH = video.videoHeight;
+
+    const roiW = Math.max(1, Math.floor(srcW * ROI_W_RATIO));
+    const roiH = Math.max(1, Math.floor(roiW / ROI_ASPECT));
+    const sx = Math.max(0, Math.floor((srcW - roiW) / 2));
+    const sy = Math.max(0, Math.floor((srcH - roiH) / 2));
+
+    // Downscale for fast per-frame checks
+    const w = 200;
+    const h = 126;
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return false;
-    ctx.drawImage(video, 0, 0, w, h);
+    ctx.drawImage(video, sx, sy, roiW, roiH, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h).data;
     const len = data.length;
     const gray: number[] = [];
@@ -602,8 +667,9 @@ export default function OnboardingPage() {
     autoCaptureTriggeredRef.current = false;
     setCaptureReady(false);
     let consecutiveGood = 0;
-    const NEED_GOOD = 3;
-    const CHECK_MS = 400;
+    // Faster loop so it feels realtime while aligning the card.
+    const NEED_GOOD = 2;
+    const CHECK_MS = 180;
     const id = window.setInterval(() => {
       if (autoCaptureTriggeredRef.current) return;
       const video = videoRef.current;
@@ -728,10 +794,14 @@ export default function OnboardingPage() {
     }
   }
 
-  // Debounced search
+  // Fast search (debounced + request cancellation)
   const handleZoneChange = useCallback((value: string) => {
     setZone(value);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (zoneSearchAbortRef.current) {
+      zoneSearchAbortRef.current.abort();
+      zoneSearchAbortRef.current = null;
+    }
 
     if (value.trim().length < 2) {
       setSearchResults([]);
@@ -740,11 +810,16 @@ export default function OnboardingPage() {
       return;
     }
 
+    setShowResults(true);
+    setSearchLoading(true);
+
     searchTimeout.current = setTimeout(async () => {
       try {
-        setSearchLoading(true);
+        const controller = new AbortController();
+        zoneSearchAbortRef.current = controller;
         const res = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(value.trim())}&count=5&language=en&countryCode=IN`,
+          `/api/geo/search?q=${encodeURIComponent(value.trim())}&limit=5`,
+          { signal: controller.signal },
         );
         if (res.ok) {
           const geo = (await res.json()) as { results?: GeoResult[] };
@@ -752,13 +827,16 @@ export default function OnboardingPage() {
         } else {
           setSearchResults([]);
         }
-        setShowResults(true);
-      } catch {
-        setSearchResults([]);
-        setShowResults(true);
+      } catch (e) {
+        // Ignore aborts; they happen on fast typing
+        if (!(e instanceof DOMException && e.name === 'AbortError')) {
+          setSearchResults([]);
+        }
+      } finally {
+        zoneSearchAbortRef.current = null;
+        setSearchLoading(false);
       }
-      setSearchLoading(false);
-    }, 400);
+    }, 150);
   }, []);
 
   function selectLocation(result: GeoResult) {
@@ -851,14 +929,25 @@ export default function OnboardingPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await supabase.auth.signOut();
+            } catch {
+              // ignore
+            } finally {
+              // Replace history entry so browser back won't bounce into onboarding again
+              router.replace('/login');
+            }
+          }}
           className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-400 mb-6 transition-colors"
+          aria-label="Back to login"
         >
           <ArrowLeft className="h-4 w-4" />
           <Logo size={24} />
           Oasis
-        </Link>
+        </button>
         <div className="flex justify-center mb-6">
           <Logo size={80} />
         </div>
@@ -979,10 +1068,6 @@ export default function OnboardingPage() {
                   Zone and location work best on a mobile device. You can continue and set your zone manually (e.g. search).
                 </p>
               )}
-              <p className="text-xs text-zinc-500 text-center">
-                You can change these later in your browser or device settings. Continuing without
-                granting may limit some features (e.g. “Use current location”, camera capture).
-              </p>
               <Button type="submit" fullWidth size="lg">
                 Continue
               </Button>
@@ -1001,21 +1086,60 @@ export default function OnboardingPage() {
                 <label className="block text-sm text-zinc-400 mb-3">
                   Which platform do you deliver for? <span className="text-red-400">*</span>
                 </label>
-                <div className="flex gap-3">
-                  {(['zepto', 'blinkit'] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPlatform(p)}
-                      className={`flex-1 py-3 px-4 rounded-lg border transition-colors ${
-                        platform === p
-                          ? 'border-uber-green-500 bg-uber-green-500/10 text-uber-green-400'
-                          : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
-                      }`}
-                    >
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
-                  ))}
+                <div
+                  role="radiogroup"
+                  aria-label="Delivery platform"
+                  className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]"
+                >
+                  {(['zepto', 'blinkit'] as const).map((p) => {
+                    const selected = platform === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPlatform(p)}
+                        role="radio"
+                        aria-checked={selected}
+                        className={[
+                          'group flex-1 min-w-0 rounded-xl px-4 py-3 transition-all',
+                          'border text-left',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-black',
+                          selected
+                            ? 'border-white/20 bg-[#0b0b0b] shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
+                            : 'border-transparent bg-transparent hover:bg-white/[0.04] active:bg-white/[0.06]',
+                        ].join(' ')}
+                      >
+                        <span className="flex items-center gap-3">
+                          <PlatformLogo platform={p} size={22} className="rounded-lg bg-white/[0.04]" showName={false} />
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={[
+                                'block text-sm font-semibold tracking-tight',
+                                selected ? 'text-white' : 'text-zinc-200',
+                              ].join(' ')}
+                            >
+                              {p.charAt(0).toUpperCase() + p.slice(1)}
+                            </span>
+                          </span>
+                          <span
+                            className={[
+                              'shrink-0 inline-flex items-center justify-center rounded-full border transition-all',
+                              selected ? 'border-uber-green-500/60 bg-uber-green-500/15' : 'border-white/10 bg-white/[0.03] opacity-60 group-hover:opacity-90',
+                            ].join(' ')}
+                            style={{ width: 26, height: 26 }}
+                            aria-hidden
+                          >
+                            <CheckCircle2
+                              className={[
+                                'h-4 w-4',
+                                selected ? 'text-uber-green-400' : 'text-white/50',
+                              ].join(' ')}
+                            />
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1140,12 +1264,20 @@ export default function OnboardingPage() {
                 {/* Map preview */}
                 {zoneLat && zoneLng && (
                   <div className="mt-3 rounded-[16px] overflow-hidden border border-white/10">
-                    <div ref={mapRef} className="w-full h-[200px]" />
+                    <div className="relative w-full h-[200px]">
+                      <div ref={mapRef} className="absolute inset-0" />
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                          background:
+                            'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.28) 100%)',
+                        }}
+                      />
+                    </div>
                     <div className="bg-surface-1 px-3 py-2 flex items-center gap-2">
                       <MapPin className="text-uber-green-400" style={{ width: 12, height: 12 }} />
-                      <span className="text-[11px] text-zinc-400">
-                        Tap on the map to set the center point of your delivery zone
-                      </span>
+                      <span className="text-[11px] text-zinc-400">Delivery zone preview</span>
                     </div>
                   </div>
                 )}
@@ -1254,7 +1386,11 @@ export default function OnboardingPage() {
                       <div className="mt-3 flex items-center justify-between gap-3">
                         <button
                           type="button"
-                          onClick={() => setShowCamera((v) => !v)}
+                          onClick={() => {
+                            // Ensure only one camera panel is active at a time
+                            if (!showCamera) stopFaceCamera();
+                            setShowCamera((v) => !v);
+                          }}
                           className={`inline-flex items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-900/80 hover:text-uber-green-400 transition-colors ${showCamera ? 'border-uber-green-500 text-uber-green-400' : ''}`}
                           aria-label={showCamera ? 'Close camera' : 'Open camera'}
                         >
@@ -1269,13 +1405,37 @@ export default function OnboardingPage() {
                         <div
                           className={`mt-3 rounded-2xl overflow-hidden transition-colors ${captureReady ? 'ring-2 ring-uber-green-500 ring-offset-2 ring-offset-zinc-950' : 'border border-zinc-700'}`}
                         >
-                          <video
-                            ref={videoRef}
-                            className="w-full bg-black aspect-[16/9] object-cover"
-                            autoPlay
-                            playsInline
-                            muted
-                          />
+                          <div className="relative w-full bg-black aspect-[16/9]">
+                            <video
+                              ref={videoRef}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              autoPlay
+                              playsInline
+                              muted
+                            />
+
+                            {/* Aadhaar alignment frame */}
+                            <div
+                              aria-hidden
+                              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                            >
+                              <div className="relative w-[86%] max-w-[520px] aspect-[1.58/1] rounded-xl border-2 border-white/40">
+                                {/* corner guides */}
+                                <div className="absolute -top-0.5 -left-0.5 h-6 w-6 border-t-2 border-l-2 border-uber-green-400/90 rounded-tl-xl" />
+                                <div className="absolute -top-0.5 -right-0.5 h-6 w-6 border-t-2 border-r-2 border-uber-green-400/90 rounded-tr-xl" />
+                                <div className="absolute -bottom-0.5 -left-0.5 h-6 w-6 border-b-2 border-l-2 border-uber-green-400/90 rounded-bl-xl" />
+                                <div className="absolute -bottom-0.5 -right-0.5 h-6 w-6 border-b-2 border-r-2 border-uber-green-400/90 rounded-br-xl" />
+                                {/* subtle dark scrim outside frame */}
+                                <div
+                                  className="absolute inset-0 -z-10"
+                                  style={{
+                                    boxShadow:
+                                      '0 0 0 9999px rgba(0,0,0,0.32), inset 0 0 0 1px rgba(255,255,255,0.06)',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
                           <div className="px-3 py-3 bg-zinc-900/95 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <span className="text-xs text-zinc-400">
                               {captureReady
@@ -1332,7 +1492,11 @@ export default function OnboardingPage() {
                       {!showFaceCamera ? (
                         <button
                           type="button"
-                          onClick={() => setShowFaceCamera(true)}
+                          onClick={() => {
+                            // Ensure only one camera panel is active at a time
+                            stopCamera();
+                            setShowFaceCamera(true);
+                          }}
                           disabled={!gesture}
                           className="w-full py-3 px-4 rounded-lg border border-zinc-600 bg-zinc-900 text-zinc-300 hover:border-uber-green-500 hover:text-uber-green-400 transition-colors flex items-center justify-center gap-2"
                         >
