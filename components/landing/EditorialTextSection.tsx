@@ -16,16 +16,16 @@ export function EditorialTextSection({
       <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
         <div>
           {eyebrow ? (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">
               {eyebrow}
             </p>
           ) : null}
           {title ? (
-            <h2 className="mt-3 text-[clamp(24px,2.2vw,32px)] font-semibold tracking-[-0.04em] text-white">
+            <h2 className="mt-3 text-[clamp(28px,2.2vw,36px)] font-bold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 leading-tight">
               {title}
             </h2>
           ) : null}
-          <div className="mt-3 text-[15px] sm:text-[16px] leading-[1.65] text-white/55 max-w-[70ch]">
+          <div className="mt-4 text-[16px] sm:text-[18px] leading-[1.65] text-white/50 max-w-[70ch] tracking-tight">
             {body}
           </div>
         </div>

@@ -42,6 +42,14 @@ export default {
         neon: {
           cyan: 'var(--neon-cyan)',
           violet: 'var(--neon-violet)',
+          amber: 'rgba(202, 138, 4, 0.4)',
+        },
+        obsidian: '#0C0A09',
+        gold: '#CA8A04',
+        liquid: {
+          base: 'rgba(28, 25, 23, 0.65)',
+          border: 'rgba(255, 255, 255, 0.08)',
+          glow: 'rgba(202, 138, 4, 0.15)',
         },
         uber: {
           black: '#000000',
@@ -77,7 +85,14 @@ export default {
         'scale-in': 'scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both',
         'neon-pulse': 'neon-pulse 2s ease-in-out infinite',
         'violet-pulse': 'violet-pulse 2s ease-in-out infinite',
+        shimmer: 'shimmer 2.5s linear infinite',
       },
+      keyframes: {
+        shimmer: {
+          '0%': { transform: 'translateX(-150%)' },
+          '100%': { transform: 'translateX(150%)' }
+        }
+      }
     },
   },
   plugins: [],

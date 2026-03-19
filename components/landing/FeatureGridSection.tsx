@@ -1,118 +1,117 @@
-import { CloudRain, ShieldCheck, Sparkles } from 'lucide-react';
+'use client';
 
-function Figure({
-  label,
-  title,
-  desc,
-  children,
-}: {
-  label: string;
-  title: string;
-  desc: string;
-  children: React.ReactNode;
-}) {
+import { CloudRain, ShieldCheck, Sparkles, Activity } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+
+function SpotlightCard({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!divRef.current) return;
+    const rect = divRef.current.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.02] overflow-hidden">
-      <div className="px-6 pt-5 pb-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/25">
-          {label}
-        </p>
-        <div className="mt-4 h-[150px] rounded-2xl border border-white/10 bg-black/20 grid place-items-center">
-          {children}
-        </div>
-        <p className="mt-5 text-[14px] font-semibold tracking-[-0.02em] text-white/85">
-          {title}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-white/45">
-          {desc}
-        </p>
-      </div>
+    <div
+      ref={divRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setOpacity(1)}
+      onMouseLeave={() => setOpacity(0)}
+      style={style}
+      className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-[#070707] transition-all hover:border-white/20 shadow-[0_0_40px_rgba(0,0,0,0.5)] ${className}`}
+    >
+      <div
+        className="pointer-events-none absolute -inset-px transition-opacity duration-300 z-0"
+        style={{
+          opacity,
+          background: `radial-gradient(500px circle at ${position.x}px ${position.y}px, rgba(255,255,255,0.08), transparent 40%)`,
+        }}
+      />
+      <div className="relative z-10 h-full">{children}</div>
     </div>
   );
 }
 
 export function FeatureGridSection() {
   return (
-    <section className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
-      <div className="max-w-[62rem]">
-        <p
-          className="text-[clamp(28px,3.1vw,40px)] font-semibold tracking-[-0.045em] text-white/90 leading-[1.08] reveal-in-up"
-          style={{ ['--d' as any]: '40ms' }}
-        >
-          <span className="sm:hidden">
-            Weekly income protection—automated by external signals.
-          </span>
-          <span className="hidden sm:inline">
-            A new species of insurance tool. Built for weekly income protection with parametric automation at its core.
-          </span>
+    <section className="mx-auto max-w-6xl px-5 py-24 sm:py-32 relative z-10">
+      <div className="max-w-[800px] mx-auto text-center mb-16 sm:mb-24 reveal-in-up" style={{ ['--d' as any]: '40ms' }}>
+        <h2 className="text-[32px] sm:text-[48px] font-bold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 leading-[1.1]">
+          A new species of insurance tool.
+        </h2>
+        <p className="mt-6 text-[18px] text-white/50 tracking-tight font-medium max-w-[600px] mx-auto">
+          Built for modern income protection with parametric automation at its core. Say goodbye to manual claims.
         </p>
       </div>
 
-      <div className="mt-8 grid gap-3 md:grid-cols-3 reveal-in-up" style={{ ['--d' as any]: '140ms' }}>
-        <Figure
-          label="FIG 0.2"
-          title="Built for automation"
-          desc="Trigger signals decide eligibility. Payouts are created automatically."
-        >
-          <div className="relative h-[110px] w-[160px]">
-            <div className="absolute inset-0 rounded-2xl border border-white/10" />
-            <div className="absolute left-4 top-4 h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.02] grid place-items-center">
-              <Sparkles className="h-6 w-6 text-white/50" />
-            </div>
-            <div className="absolute right-4 top-6 h-3 w-20 rounded-full bg-white/[0.06]" />
-            <div className="absolute right-4 top-12 h-3 w-14 rounded-full bg-white/[0.04]" />
-            <div className="absolute left-4 bottom-5 h-2 w-24 rounded-full bg-white/[0.04]" />
-            <div className="absolute left-4 bottom-9 h-2 w-16 rounded-full bg-white/[0.06]" />
-          </div>
-        </Figure>
-
-        <Figure
-          label="FIG 0.3"
-          title="Powered by signals"
-          desc="External weather and disruption indicators drive trigger events."
-        >
-          <svg width="180" height="120" viewBox="0 0 180 120" className="text-white/20">
-            <path
-              d="M20 82 C40 60, 60 60, 76 74 C82 52, 100 44, 116 56 C126 40, 148 44, 154 62 C166 62, 170 72, 166 80 C160 92, 142 94, 120 92 H52 C34 92, 24 90, 20 82 Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M56 98 L50 110 M84 98 L78 110 M112 98 L106 110"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <circle cx="132" cy="42" r="8" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <path
-              d="M132 30 V18 M132 66 V54 M120 42 H108 M156 42 H144"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </Figure>
-
-        <Figure
-          label="FIG 0.4"
-          title="Designed for clarity"
-          desc="Simple weekly windows. Clear limits. Predictable outcomes."
-        >
-          <div className="relative h-[110px] w-[170px]">
-            <div className="absolute inset-0 rounded-2xl border border-white/10" />
-            <div className="absolute left-5 top-5 h-16 w-[120px] rounded-2xl border border-white/10 bg-white/[0.02]" />
-            <div className="absolute left-8 top-10 h-2 w-24 rounded-full bg-white/[0.06]" />
-            <div className="absolute left-8 top-15 h-2 w-16 rounded-full bg-white/[0.04]" />
-            <div className="absolute right-5 bottom-5 h-10 w-10 rounded-2xl border border-white/10 bg-black/20 grid place-items-center">
-              <ShieldCheck className="h-5 w-5 text-white/45" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[280px] sm:auto-rows-[320px]">
+        {/* Main Bento Feature (Spans 2 columns on desktop) */}
+        <SpotlightCard className="md:col-span-2 flex flex-col justify-between p-8 sm:p-10 reveal-in-up" style={{ ['--d' as any]: '100ms' }}>
+          <div className="flex justify-end mb-8 sm:mb-12">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
           </div>
-        </Figure>
+          <div className="max-w-xl">
+            <h3 className="text-[28px] sm:text-[36px] font-bold text-white tracking-[-0.03em] mb-4 leading-tight">
+              Built for automation
+            </h3>
+            <p className="text-[15px] sm:text-[16px] leading-relaxed text-white/50">
+              Trigger signals decide eligibility globally. Payout computations are created automatically the exact second limits are breached. No adjusters.
+            </p>
+          </div>
+        </SpotlightCard>
+
+        {/* Small Feature */}
+        <SpotlightCard className="flex flex-col p-8 reveal-in-up" style={{ ['--d' as any]: '200ms' }}>
+          <div className="mb-auto">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
+              <CloudRain className="h-4 w-4 text-white" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-[20px] font-bold text-white tracking-tight mb-2">Powered by signals</h3>
+            <p className="text-[14px] leading-relaxed text-white/50">
+              External weather, temperature, and AQI disruption indicators drive all trigger events cleanly.
+            </p>
+          </div>
+        </SpotlightCard>
+
+        {/* Small Feature */}
+        <SpotlightCard className="flex flex-col p-8 reveal-in-up" style={{ ['--d' as any]: '300ms' }}>
+          <div className="mb-auto">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
+              <ShieldCheck className="h-4 w-4 text-white" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-[20px] font-bold text-white tracking-tight mb-2">Designed for clarity</h3>
+            <p className="text-[14px] leading-relaxed text-white/50">
+              Simple weekly evaluation windows. Crystal clear limits. Predictable wallet outcomes instantly.
+            </p>
+          </div>
+        </SpotlightCard>
+
+        {/* Wide Feature */}
+        <SpotlightCard className="md:col-span-2 flex flex-col p-8 sm:p-10 reveal-in-up overflow-hidden" style={{ ['--d' as any]: '400ms' }}>
+          <div className="absolute inset-0 right-0 top-0 w-full opacity-30 select-none pointer-events-none" style={{ backgroundImage: 'radial-gradient(1px 1px at 20px 20px, rgba(255,255,255,0.2) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black">
+                <Activity className="h-4 w-4" />
+              </div>
+              <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-white/50">Live Matrix</p>
+            </div>
+            <h3 className="text-[28px] sm:text-[32px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40 tracking-tight leading-tight max-w-[500px]">
+              Continuous monitoring infrastructure validating safety 24/7.
+            </h3>
+          </div>
+        </SpotlightCard>
       </div>
     </section>
   );
 }
-

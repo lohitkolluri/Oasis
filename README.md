@@ -36,7 +36,6 @@ Oasis safeguards gig workers (Zepto, Blinkit, etc.) against **loss of income** c
   - [Installation](#installation)
   - [Environment Variables](#environment-variables)
 - [Usage](#usage)
-- [Screenshots / Demo](#screenshots--demo)
 - [Roadmap](#roadmap)
 - [License](#license)
 - [Sources](#sources)
@@ -183,7 +182,7 @@ Oasis stays intentionally narrow:
 
 Oasis is a **Next.js 15 App Router** application backed by **Supabase** for data, auth, storage, and realtime updates, with background jobs and webhooks driving the parametric trigger engine.
 
-- **Client layer**: Rider and admin dashboards implemented as a mobile-first PWA with a separate admin layout.
+- **Client layer**: Rider and admin dashboards implemented as a mobile-first PWA (Web). **Platform choice justification:** We intentionally chose a Web-based PWA over a native Mobile app to eliminate app-store friction, avoid forced manual updates, and preserve storage on the low-end smartphones typically used by delivery partners.
 - **Application layer**: Next.js API routes handle onboarding, policies, claims, payments, and admin features.
 - **Data and services layer**: Supabase PostgreSQL for core tables and row-level security, plus external providers for weather, AQI, traffic, news, payments, and LLM tasks.
 - **Automation layer**: Cron endpoints and webhooks run the adjudicator and weekly premium jobs, creating parametric claims and updating wallets automatically.
@@ -437,4 +436,3 @@ See the [LICENSE](./LICENSE) file for details.
 - [IRDAI (Regulatory Sandbox) Regulations, 2019 PDF](https://financialservices.gov.in/beta/sites/default/files/2024-11/IRDAI%20%28Regulatory%20Sandbox%29%20Regulations%2C%202019.pdf) (hosted copy)
 - [Exposure Draft – Sandbox Regulation Amendment 2022 (IRDAI)](https://irdai.gov.in/documents/37343/365848/Exposure+Draft-+Sandbox+Regulation+Amendment+2022.pdf/75613946-65f3-9e2a-cfc0-35d825d12507?version=1.2&t=1665290561061) (Aug 2022)
 - [IRDAI Micro Insurance Regulations, 2015](https://irdai.gov.in/document-detail?documentId=37343) (IRDAI portal)
-
