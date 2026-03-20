@@ -1,14 +1,5 @@
 {
   "plugins": {
-    "stripe": {
-      "enabled": true
-    },
-    "vercel": {
-      "enabled": true
-    },
-    "huggingface-skills": {
-      "enabled": true
-    },
     "supabase": {
       "enabled": true
     },
