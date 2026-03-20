@@ -7,8 +7,8 @@
 ---
 
 **Project:** Oasis
-**Generated:** 2026-03-20 04:13:53
-**Category:** E-commerce Luxury
+**Generated:** 2026-03-04 04:13:53
+**Category:** Insuretech
 
 ---
 
