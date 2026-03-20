@@ -97,10 +97,14 @@ All REST endpoints. Each subdirectory maps to an API concern:
 | `auth/` | `/api/auth/` | Supabase sign-out |
 | `claims/` | `/api/claims/` | GPS location verification |
 | `cron/` | `/api/cron/` | Vercel cron handlers (adjudicator, weekly premium renewal) |
-| `payments/` | `/api/payments/` | Stripe Checkout and webhook |
+| `geo/` | `/api/geo/` | Geocoding and turf.js polygon calculations |
+| `health/` | `/api/health/` | Basic uptime and system heartbeat checks |
+| `onboarding/` | `/api/onboarding/` | ID verification and liveness checks for new riders |
+| `payments/` | `/api/payments/` | Stripe Checkout |
 | `platform/` | `/api/platform/` | Live platform operational status |
 | `rider/` | `/api/rider/` | Rider AI insight, delivery impact reports |
 | `routing/` | `/api/routing/` | OSRM route calculation proxy |
+| `webhooks/` | `/api/webhooks/` | Inbound webhooks for Stripe events |
 
 ---
 
@@ -110,11 +114,15 @@ Pure business logic. Nothing in `lib/` imports React or Next.js framework code -
 
 | Module | Responsibility |
 |---|---|
-| `adjudicator/run.ts` | Discover zones → check triggers → run fraud checks → insert claims |
+| `adjudicator/` | Parametric engine core (split across `core.ts`, `claims.ts`, `events.ts`, etc.) |
 | `fraud/detector.ts` | Eleven independent fraud check functions + `runAllFraudChecks()` orchestrator |
 | `ml/premium-calc.ts` | Stateless premium formula + DB helpers for historical event count |
 | `ml/next-week-risk.ts` | Forecast-based or historical claims prediction for admin dashboard |
 | `supabase/*.ts` | Context-appropriate Supabase client factories |
+| `clients/` | Third-party SDK wrappers (Stripe, external weather) |
+| `config/` | Environment abstractions and dynamic configs |
+| `data/` | Reusable data fetching singletons and caching layers |
+| `validations/` | Zod schema enforcement across the `lib/` boundary |
 | `utils/auth.ts` | `isAdmin()` - checks email list or profile role |
 | `utils/geo.ts` | `isWithinCircle()`, `distanceKm()`, `buildCirclePolygon()`, `reverseGeocode()` |
 | `types/database.ts` | TypeScript interfaces for all DB tables |
@@ -126,9 +134,10 @@ Pure business logic. Nothing in `lib/` imports React or Next.js framework code -
 | Directory | Contents |
 |---|---|
 | `ui/` | Design system atoms: `Button`, `Card`, `GlassCard`, `MetricCard`, `StatusBadge`, `DataTable`, `ZoneMap`, `ZoneMapLazy`, `GoeyToaster` |
-| `rider/` | Domain components: `DashboardContent`, `PolicyCard`, `WalletBalanceCard`, `RealtimeWallet`, `RiskRadar`, `PredictiveAlert`, `ClaimVerificationPrompt` |
-| `admin/` | Admin-specific: `AnalyticsCharts`, `FraudList`, `TriggersList`, `DemoTriggerPanel`, `SystemHealth`, `RunAdjudicatorButton` |
+| `rider/` | Domain components: `DashboardContent`, `PolicyCard`, `WalletBalanceCard`, `RealtimeWallet`, `RiskRadar` |
+| `admin/` | Admin-specific: `AnalyticsCharts`, `FraudList`, `TriggersList`, `DemoTriggerPanel`, `SystemHealth` |
 | `auth/` | `AuthBackground` - animated gradient for auth pages |
+| `landing/` | Landing page structural elements, hero blocks, feature showcases |
 | `pwa/` | `InstallPrompt`, `AddToHomeScreen` - PWA install UI |
 
 ---

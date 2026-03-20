@@ -335,6 +335,112 @@ CREATE TABLE payment_transactions (
 
 ---
 
+### `payout_ledger`
+
+Simulated instant payout tracking for demo and location verification.
+
+<details>
+<summary>Show SQL</summary>
+
+```sql
+CREATE TABLE payout_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  claim_id UUID NOT NULL REFERENCES parametric_claims(id) ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  amount_inr NUMERIC(10,2) NOT NULL,
+  payout_method TEXT NOT NULL DEFAULT 'upi_instant',
+  status TEXT NOT NULL DEFAULT 'processing',
+  mock_upi_ref TEXT,
+  initiated_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  metadata JSONB DEFAULT '{}'::jsonb
+);
+```
+</details>
+
+---
+
+### `rider_notifications`
+
+Autonomous notifications for riders (payout, disruption). Realtime pushes to app.
+
+<details>
+<summary>Show SQL</summary>
+
+```sql
+CREATE TABLE rider_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT,
+  type TEXT NOT NULL DEFAULT 'payout',
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  metadata JSONB DEFAULT '{}'::jsonb
+);
+```
+</details>
+
+---
+
+### `stripe_webhook_events`
+
+Processed Stripe webhook event IDs for idempotency, ensuring the same payment hook is not processed twice.
+
+<details>
+<summary>Show SQL</summary>
+
+```sql
+CREATE TABLE stripe_webhook_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id TEXT NOT NULL UNIQUE,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+</details>
+
+---
+
+### `rate_limit_entries`
+
+Rate limit counters; shared across app instances when using the Supabase store.
+
+<details>
+<summary>Show SQL</summary>
+
+```sql
+CREATE TABLE rate_limit_entries (
+  key TEXT PRIMARY KEY,
+  count INT NOT NULL DEFAULT 0,
+  reset_at TIMESTAMPTZ NOT NULL
+);
+```
+</details>
+
+---
+
+### `plan_pricing_snapshots`
+
+Weekly snapshots of plan tier prices. Useful for reporting, forecasting, and historical audibility of dynamic pricing.
+
+<details>
+<summary>Show SQL</summary>
+
+```sql
+CREATE TABLE plan_pricing_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  week_start_date DATE NOT NULL,
+  plan_id UUID NOT NULL REFERENCES plan_packages(id) ON DELETE CASCADE,
+  weekly_premium_inr NUMERIC(10, 2) NOT NULL,
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'model')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(week_start_date, plan_id)
+);
+```
+</details>
+
+---
+
 ## Row Level Security Summary
 
 | Table | Rider read | Rider write | Admin | Service role |
@@ -346,6 +452,18 @@ CREATE TABLE payment_transactions (
 | `plan_packages` | Active only | - | Via service role | Full |
 | `claim_verifications` | Own only | Own only | Via service role | Full |
 | `system_logs` | - | - | Via service role | Full |
+| `payment_transactions` | Own only | - | Via service role | Full |
+| `payout_ledger` | Own only | - | Via service role | Full |
+| `rider_notifications` | Own only | - | Via service role | Full |
+| `stripe_webhook_events` | - | - | Via service role | Full |
+| `rate_limit_entries` | - | - | Via service role | Full |
+| `plan_pricing_snapshots` | All | - | Via service role | Full |
+| `payment_transactions` | Own only | - | Via service role | Full |
+| `payout_ledger` | Own only | - | Via service role | Full |
+| `rider_notifications` | Own only | - | Via service role | Full |
+| `stripe_webhook_events` | - | - | Via service role | Full |
+| `rate_limit_entries` | - | - | Via service role | Full |
+| `plan_pricing_snapshots` | All | - | Via service role | Full |
 
 ---
 

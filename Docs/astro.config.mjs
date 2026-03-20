@@ -16,7 +16,7 @@ const enableD2 = process.env.VERCEL !== '1';
 export default defineConfig({
   site: 'https://oasis-docs.vercel.app',
   integrations: [
-    enableD2 && d2(),
+    enableD2 && d2({}),
     mermaid({
       theme: 'default',
       autoTheme: true,

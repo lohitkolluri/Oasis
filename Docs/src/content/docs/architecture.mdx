@@ -23,14 +23,14 @@ flowchart TB
     end
 
     subgraph App["App Server (Next.js)"]
-        Pages["Pages & layouts\n(auth · dashboard · admin)"]
-        API["API routes\n(payments · cron · admin)"]
-        Logic["Core logic\n(trigger engine · fraud checks · pricing)"]
+        Pages["Pages & layouts<br/>(auth · dashboard · admin)"]
+        API["API routes<br/>(payments · cron · admin)"]
+        Logic["Core logic<br/>(trigger engine · fraud checks · pricing)"]
     end
 
     subgraph Data["Data & Services"]
         Supabase[Supabase]
-        ExtAPI[External APIs\n(weather · AQI · traffic · news · payments · LLM)]
+        ExtAPI["External APIs<br/>(weather · AQI · traffic · news · payments · LLM)"]
     end
 
     Client --> App
@@ -54,13 +54,13 @@ Every 15 minutes, background jobs wake up the brain to:
 
 ```mermaid
 flowchart TB
-    RQ["1. Request"] --> MW["Middleware\n(session refresh)"]
+    RQ["1. Request"] --> MW["Middleware<br/>(session refresh)"]
     MW --> RL["2. Render layout"]
     RL --> FP["Fetch profile"]
     RL --> FPol["Fetch current week’s policy"]
     RL --> FC["Fetch recent claims & payouts"]
     RL --> SUB["3. Initialize subscription"]
-    SUB --> RT["Supabase Realtime\n(wallet updates)"]
+    SUB --> RT["Supabase Realtime<br/>(wallet updates)"]
 ```
 
 **What this means for a rider:**
@@ -73,9 +73,9 @@ flowchart TB
     UI["1. Rider picks a weekly plan"] --> CC["Create Stripe Checkout session"]
     CC --> SC["2. Stripe-hosted payment page"]
     SC --> WH["3. Secure webhook from Stripe"]
-    WH --> WP["Store weekly coverage\n(weekly_policies)"]
-    WH --> PT["Store payment record\n(payment_transactions)"]
-    WH --> RD["Send rider back to dashboard\nwith coverage active"]
+    WH --> WP["Store weekly coverage<br/>(weekly_policies)"]
+    WH --> PT["Store payment record<br/>(payment_transactions)"]
+    WH --> RD["Send rider back to dashboard<br/>with coverage active"]
 ```
 
 ### Adjudicator (Every 15 min)
@@ -83,17 +83,17 @@ flowchart TB
 ```mermaid
 flowchart TB
     Start["Every 15 minutes"] --> Z["1. Find zones with active weekly coverage"]
-    Z --> T["2. Ask APIs:\nIs weather / AQI / traffic / restriction bad enough?"]
-    T --> DD["3. Group nearby events\n(avoid double-counting same disruption)"]
+    Z --> T["2. Ask APIs:<br/>Is weather / AQI / traffic / restriction bad enough?"]
+    T --> DD["3. Group nearby events<br/>(avoid double-counting same disruption)"]
 
     DD --> Loop["4. For each real disruption"]
-    Loop --> Evt["Record disruption\n(live_disruption_events)"]
-    Loop --> Pol["Find covered riders\nin the affected area"]
-    Loop --> Cap["Respect weekly caps\n(max claims per rider)"]
+    Loop --> Evt["Record disruption<br/>(live_disruption_events)"]
+    Loop --> Pol["Find covered riders<br/>in the affected area"]
+    Loop --> Cap["Respect weekly caps<br/>(max claims per rider)"]
     Loop --> Fraud["Run fraud & sanity checks"]
-    Loop --> Claims["Create auto-claims\n(parametric_claims)"]
+    Loop --> Claims["Create auto-claims<br/>(parametric_claims)"]
 
-    Claims --> Log["5. Log what happened\n(for audit & debugging)"]
+    Claims --> Log["5. Log what happened<br/>(for audit & debugging)"]
 ```
 
 You can think of this as a **robotic claims adjuster** that wakes up regularly, scans India’s metros for disruptions, and **instantly credits riders** who were covered and affected.

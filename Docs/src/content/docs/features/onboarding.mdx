@@ -16,12 +16,17 @@ Two-step flow: profile + zone first, then KYC (gov ID + face). Both verification
 ```
 
 <Steps>
+
 1. **Register** (`/register`) - Email + password signup via Supabase Auth.
+
 2. **Login** (`/login`) - Email + password sign-in.
+
 3. **Onboarding** (`/onboarding`) - Two-step form:
    - **Step 1:** Platform, full name, phone, delivery zone.
    - **Step 2:** Government ID upload + face liveness verification. Both must pass before profile save.
+
 4. **Dashboard** (`/dashboard`) - Rider's home screen.
+
 </Steps>
 
 The root `/` page checks for an active session and active policy:

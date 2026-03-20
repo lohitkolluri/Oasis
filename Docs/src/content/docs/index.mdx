@@ -115,17 +115,37 @@ flowchart LR
   </Card>
 </CardGrid>
 
-## Premium Plans
+import { Badge } from '@astrojs/starlight/components';
 
-- **Period:** Monday – Sunday
-- **Range:** ₹49 – ₹199/week
-- **Renewal:** Sunday 17:30 UTC via cron
+## Dynamic Premium Plans
+Coverage pricing is calculated algorithmically every week based on **Zone Risk Scores** (historical weather risks, traffic congestion, and civic vulnerability). 
 
-| Plan | Premium | Payout/Claim | Max Claims |
-|------|---------|--------------|------------|
-| Basic | ₹49 | ₹300 | 1 |
-| Standard | ₹99 | ₹700 | 2 |
-| Premium | ₹199 | ₹1,500 | 3 |
+:::tip[Weekly Recalculation]
+All active policies evaluate the upcoming risk and price dynamically every **Sunday at 17:30 UTC** for the upcoming Monday–Sunday period. Prices automatically float within the **₹49 – ₹199/week** cap.
+:::
+
+<CardGrid>
+  <Card title="Basic Coverage" icon="star">
+    <Badge text="~ ₹49 — ₹79 / week" variant="success" size="small" />
+    
+    * **Payout:** ₹300 per validated disruption
+    * **Limit:** 1 Claim / week
+  </Card>
+  
+  <Card title="Standard Coverage" icon="rocket">
+    <Badge text="~ ₹80 — ₹149 / week" variant="note" size="small" />
+    
+    * **Payout:** ₹700 per validated disruption
+    * **Limit:** 2 Claims / week
+  </Card>
+  
+  <Card title="Premium Coverage" icon="approve-check-circle">
+    <Badge text="~ ₹150 — ₹199 / week" variant="danger" size="small" />
+    
+    * **Payout:** ₹1,500 per validated disruption
+    * **Limit:** 3 Claims / week
+  </Card>
+</CardGrid>
 
 ## Stack
 

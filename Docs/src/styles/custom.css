@@ -1,51 +1,85 @@
-/* Oasis docs — premium visual hierarchy and aesthetic */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+/* Oasis docs — Typographic Brutalism + Acid Accents */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 :root[data-theme='light'] {
-  /* Brand colors - Light Mode */
-  --sl-color-accent-low: #dcfce7;
-  --sl-color-accent: #22c55e;
-  --sl-color-accent-high: #14532d;
-  --sl-color-text-accent: #15803d;
-  --sl-color-bg-nav: rgba(255, 255, 255, 0.75);
+  /* Brand colors - Light Mode (High Contrast) */
+  --sl-color-accent-low: #f8ffe5;
+  --sl-color-accent: #ccff00;
+  --sl-color-accent-high: #99cc00;
+  --sl-color-text-accent: #4d6600;
+  --sl-color-bg-nav: #ffffff;
 }
 
 :root[data-theme='dark'] {
-  /* Brand colors - Dark Mode (Premium Emerald/Teal) */
-  --sl-color-accent-low: #064e3b;
-  --sl-color-accent: #10b981;
-  --sl-color-accent-high: #a7f3d0;
-  --sl-color-text-accent: #34d399;
-  --sl-color-bg-nav: rgba(9, 9, 11, 0.65);
+  /* Brand colors - Dark Mode (Pitch Black + Acid Green) */
+  --sl-color-accent-low: #1a2000;
+  --sl-color-accent: #ccff00;
+  --sl-color-accent-high: #e6ff66;
+  --sl-color-text-accent: #ccff00;
+  --sl-color-bg-nav: #000000;
 }
 
 :root {
-  /* Tighter, modern typography */
-  --sl-font: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-  --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* Typographic Brutalism */
+  --sl-font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: 'Space Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  
+  /* Fix Starlight Theme Next centering gaps */
+  --sidebar-margin-left: 0 !important;
+  --sl-sidebar-width: 18rem !important;
+  --__toc-width: 18rem !important;
+
+  /* Strict Purple Ban & Brutalist Asides */
+  --sl-color-asides-text-tip: var(--sl-color-text-accent);
+  --sl-color-asides-bg-tip: var(--sl-color-accent-low);
+  --sl-color-asides-text-note: var(--sl-color-white);
+  --sl-color-asides-bg-note: var(--sl-color-gray-6);
+  --sl-color-asides-text-caution: var(--sl-color-orange-high);
+  --sl-color-asides-bg-caution: var(--sl-color-gray-6);
+  --sl-color-asides-text-danger: var(--sl-color-red-high);
+  --sl-color-asides-bg-danger: var(--sl-color-gray-6);
 }
 
-/* Glassmorphism Header */
+/* Force Geometric Headers */
+h1, h2, h3, h4, h5, h6,
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.sl-markdown-content h5,
+.sl-markdown-content h6,
+.site-title {
+  font-family: 'Space Grotesk', var(--sl-font) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: -0.05em;
+}
+
+/* Solid Headers - NO BLUR */
 header.header {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   background-color: var(--sl-color-bg-nav) !important;
-  border-bottom: 1px solid var(--sl-color-hairline);
+  border-bottom: 2px solid var(--sl-color-gray-5) !important;
+}
+header.header > .header {
+  display: grid !important;
+  grid-template-columns: var(--sl-sidebar-width) 1fr auto !important;
 }
 
-/* Glassmorphism Sidebar */
+/* Solid Sidebar - NO BLUR */
 .sidebar-pane {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   background-color: var(--sl-color-bg-nav) !important;
+  border-right: 2px solid var(--sl-color-gray-5) !important;
 }
 
-/* Section spacing */
+/* Section spacing & Brutalist borders */
 .sl-markdown-content h2 {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--sl-color-hairline);
-  letter-spacing: -0.02em;
+  border-top: 2px solid var(--sl-color-gray-5);
 }
 
 .sl-markdown-content h2:first-of-type {
@@ -56,60 +90,148 @@ header.header {
 
 .sl-markdown-content h3 {
   margin-top: 2rem;
-  letter-spacing: -0.01em;
 }
 
-/* Tables — subtle borders & hover effects */
+/* Tables — Sharp borders */
 .sl-markdown-content table {
   font-size: 0.95em;
-  border-radius: 0.5rem;
+  border-radius: 0 !important;
+  border: 2px solid var(--sl-color-gray-5) !important;
+  border-collapse: collapse;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 4px 4px 0px var(--sl-color-gray-3);
+  transition: box-shadow 0.1s linear;
+}
+
+.sl-markdown-content table:hover {
+  box-shadow: 4px 4px 0px var(--sl-color-accent);
 }
 
 .sl-markdown-content th {
   background-color: var(--sl-color-gray-6);
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-family: 'Space Grotesk', var(--sl-font);
+  letter-spacing: -0.02em;
+  border: 2px solid var(--sl-color-gray-4) !important;
 }
 
-.sl-markdown-content th,
 .sl-markdown-content td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--sl-color-hairline);
+  border: 2px solid var(--sl-color-gray-4) !important;
+}
+
+.sl-markdown-content table {
+  border: 2px solid var(--sl-color-gray-4) !important;
+  width: 100% !important;
+  display: block !important;
+  overflow-x: auto !important;
 }
 
 .sl-markdown-content tbody tr:hover {
   background-color: var(--sl-color-gray-6);
-  transition: background-color 0.2s ease;
+  transition: background-color 0s;
 }
 
-/* Code blocks - Premium feel */
+/* Code blocks - Technical feel */
 .sl-markdown-content pre {
-  border-radius: 0.75rem;
-  border: 1px solid var(--sl-color-gray-5);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: 0 !important;
+  border: 2px solid var(--sl-color-gray-4) !important;
+  box-shadow: 4px 4px 0px var(--sl-color-gray-3)!important;
+  transition: box-shadow 0.1s linear;
 }
 
-/* Text flow blocks */
+.sl-markdown-content pre:hover {
+  box-shadow: 4px 4px 0px var(--sl-color-accent) !important;
+}
+
 .sl-markdown-content pre code {
   font-size: 0.875em;
   line-height: 1.6;
 }
 
-/* Interactive Cards Hover Animation */
+/* Interactive Cards - Brutalist Hover Animation */
 .card {
-  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  border: 2px solid var(--sl-color-gray-4) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0px var(--sl-color-gray-4) !important;
+  transition: transform 0.1s linear, box-shadow 0.1s linear, border-color 0.1s linear !important;
+  background-color: var(--sl-color-bg-nav) !important;
 }
 
 .card:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
-  border-color: var(--sl-color-accent) !important;
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0px var(--sl-color-text-accent) !important;
+  border-color: var(--sl-color-text-accent) !important;
 }
 
-/* Starlight Asides — compact & rounded */
-.sl-markdown-content .sl-styled aside {
-  margin: 1.5rem 0;
-  border-radius: 0.75rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+/* Starlight Asides — Brutalist */
+.starlight-aside {
+  margin: 1.5rem 0 !important;
+  border-radius: 0 !important;
+  border: 2px solid var(--sl-color-gray-4) !important;
+  border-inline-start: 6px solid var(--sl-color-accent) !important;
+  box-shadow: 4px 4px 0px var(--sl-color-accent) !important;
+  background-color: var(--sl-color-bg-nav) !important;
+  color: var(--sl-color-white) !important;
+}
+.starlight-aside__title,
+.starlight-aside__content a,
+.starlight-aside .toggle > svg {
+  color: var(--sl-color-text-accent) !important;
+}
+.starlight-aside--tip, .starlight-aside--note, .starlight-aside--caution, .starlight-aside--danger {
+  background-color: var(--sl-color-bg-nav) !important;
+}
+
+/* Hero Section Adjustments */
+.hero {
+  border-bottom: 2px solid var(--sl-color-gray-5) !important;
+  padding-bottom: 4rem !important;
+  margin-bottom: 4rem !important;
+}
+.hero img {
+  border-radius: 0 !important;
+  box-shadow: 12px 12px 0px var(--sl-color-accent) !important;
+  border: 2px solid var(--sl-color-gray-4) !important;
+}
+
+/* Hero Buttons Brutalist Style */
+.hero .action.primary {
+  border-radius: 0 !important;
+  font-family: 'Space Grotesk', var(--sl-font) !important;
+  font-weight: 700 !important;
+  background-color: var(--sl-color-accent) !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 4px 4px 0px #000000 !important;
+  text-transform: uppercase;
+  transition: transform 0.1s linear, box-shadow 0.1s linear !important;
+}
+:root[data-theme='dark'] .hero .action.primary {
+  border: 2px solid var(--sl-color-white) !important;
+  box-shadow: 4px 4px 0px var(--sl-color-white) !important;
+}
+.hero .action.primary:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0px #000000 !important;
+}
+:root[data-theme='dark'] .hero .action.primary:hover {
+  box-shadow: 6px 6px 0px var(--sl-color-white) !important;
+}
+
+.hero .action.minimal {
+  border-radius: 0 !important;
+  font-family: 'Space Grotesk', var(--sl-font) !important;
+  font-weight: 700 !important;
+  border: 2px solid var(--sl-color-gray-3) !important;
+  background-color: transparent !important;
+  text-transform: uppercase;
+  transition: transform 0.1s linear, box-shadow 0.1s linear, border-color 0.1s linear !important;
+  color: var(--sl-color-white) !important;
+}
+.hero .action.minimal:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 4px 4px 0px var(--sl-color-accent) !important;
+  border-color: var(--sl-color-text-accent) !important;
 }
