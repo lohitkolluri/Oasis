@@ -22,9 +22,9 @@ AI‑powered parametric wage protection for India's Q‑commerce delivery partne
 
 </div>
 
-Oasis safeguards gig workers (Zepto, Blinkit) against **loss of income** caused by external disruptions (extreme weather, zone lockdowns, traffic gridlock) using **weekly premiums**, **parametric triggers**, and **automatic payouts** without manual claims forms.
+Oasis safeguards gig workers (Zepto, Blinkit) against **loss of income** caused by external disruptions (extreme weather, zone lockdowns, traffic gridlock) using **weekly premiums**, **parametric triggers**, and **automatic payouts** without manual claims forms ([NITI Aayog gig/platform economy baseline](https://www.niti.gov.in/sites/default/files/2022-06/25th_June_Final_Report_27062022.pdf); [GFDRR parametric insurance brief](https://www.gfdrr.org/sites/default/files/publication/Parametric-insurance-brief-eng.pdf)).
 
-> Coverage is strictly for **loss of income only**; there is no health, life, accident, or vehicle repair coverage.
+> Coverage is strictly for **loss of income only**; there is no health, life, accident, or vehicle repair coverage (product scope decision aligned with hackathon constraints and parametric wage-protection design guidance in [GFDRR](https://www.gfdrr.org/sites/default/files/publication/Parametric-insurance-brief-eng.pdf) and [Swiss Re](https://corporatesolutions.swissre.com/dam/jcr:0cd24f12-ebfb-425a-ab42-0187c241bf4a/2023-01-corso-guide-of-parametric-insurance.pdf)).
 
 <br />
 <hr />
@@ -40,6 +40,7 @@ Oasis safeguards gig workers (Zepto, Blinkit) against **loss of income** caused 
   - [Project Structure](#project-structure)
 - [Core Domain Logic & Defenses](#core-domain-logic--defenses)
   - [Parametric insurance (what we mean by it)](#parametric-insurance-what-we-mean-by-it)
+  - [The Economic Reality: Value for Riders & Platforms](#the-economic-reality-value-for-riders--platforms)
   - [Adversarial Defense & Anti-Spoofing Strategy](#adversarial-defense--anti-spoofing-strategy)
   - [Industry patterns we borrow](#industry-patterns-we-borrow-provider-examples)
   - [India regulatory context](#india-regulatory-context-high-level-product-agnostic)
@@ -217,6 +218,24 @@ Two practical design constraints we follow:
 - **Basis risk is real**: if the index doesn’t track a rider’s actual income loss well, the experience breaks down (and disputes increase) ([PwC basis risk paper](https://www.pwc.ch/en/publications/2024/Basis_risk_in_parametric_insurance_challenges_and_mitigation_strategies.pdf); [Swiss Re parametric guide](https://corporatesolutions.swissre.com/dam/jcr:0cd24f12-ebfb-425a-ab42-0187c241bf4a/2023-01-corso-guide-of-parametric-insurance.pdf)).
 - **Data integrity matters**: if trigger inputs are easy to spoof, the pool can be drained by coordinated abuse ([CISA PNT report on interference/spoofing](https://www.cisa.gov/sites/default/files/publications/report-on-pnt-backup-complementary-capabilities-to-gps_508.pdf)).
 
+### The Economic Reality: Value for Riders & Platforms
+
+A weekly premium of ₹49 to ₹199 might initially seem like an added expense for gig workers. However, based on ground realities and recent economic data for India's Q-commerce delivery sector, it is highly proportional and provides asymmetrical value to both the rider and the platform.
+
+#### 1) The Cost Perspective (The "Cup of Chai" Metric)
+According to NCAER's 2023 assessment of food delivery workers, real incomes have seen pressure in recent years (including reported real-income decline between 2019 and 2022), and daily take-home economics are highly sensitive to fuel and operating costs ([NCAER report page](https://www.ncaer.org/publication/socio-economic-impact-assessment-of-food-delivery-platform-workers); [NCAER full PDF](https://www.ncaer.org/wp-content/uploads/2023/08/NCAER_Report_Platform_Workers_August_28_2023.pdf)). For planning purposes, Oasis models working-day income impact using conservative rider cashflow assumptions.
+A premium strictly clamped between **₹49 and ₹199 per week** translates to roughly **₹7 to ₹28 per day**. This means the daily cost of complete income protection is practically the equivalent of a standard cup of *cutting chai* (₹10–15) or less than half a liter of petrol.
+
+#### 2) Value to the Partner (Downside Protection)
+Gig workers commonly rely on incentive-linked payout structures and high work continuity to stabilize earnings, making disruption days disproportionately painful ([NCAER full PDF](https://www.ncaer.org/wp-content/uploads/2023/08/NCAER_Report_Platform_Workers_August_28_2023.pdf); [NITI Aayog gig/platform economy report](https://www.niti.gov.in/sites/default/files/2022-06/25th_June_Final_Report_27062022.pdf)).
+- **The Threat:** A single severe weather event, monsoon flood, or localized lockdown results in a complete loss of that day's earnings (₹400–₹800). Worse, missing just one crucial shift frequently breaks their weekly streak, entirely wiping out their milestone bonuses. 
+- **The Oasis Value:** For just ₹15/day on average, parametric wage protection acts as a vital financial shock absorber. It ensures they don't miss EMI payments on their two-wheelers, prevents catastrophic "zero-income" periods out of their control, and significantly reduces financial anxiety.
+
+#### 3) Value to the Platform (Retention & Fleet Stability)
+From the perspective of aggregation platforms, high rider turnover is an expensive crisis. 
+- **Acquisition Cost:** Recruiting, conducting background checks, training, and equipping a single new delivery partner costs the platform between **₹2,000 to ₹5,000**. 
+- **The Oasis Value:** External financial shock is a meaningful churn driver in platform work, and income-smoothing mechanisms can reduce attrition risk in operationally volatile periods ([NITI Aayog gig/platform economy report](https://www.niti.gov.in/sites/default/files/2022-06/25th_June_Final_Report_27062022.pdf); [NCAER full PDF](https://www.ncaer.org/wp-content/uploads/2023/08/NCAER_Report_Platform_Workers_August_28_2023.pdf)). By facilitating a ₹49–₹199/week parametric net (which can be partially platform-subsidized), platforms can improve fleet continuity for a lower cost than repeated re-hiring.
+
 ### Adversarial Defense & Anti-Spoofing Strategy
 
 A realistic threat for any parametric payout system is **GPS spoofing** and coordinated abuse attempts. Our goal is to **separate genuinely impacted riders** from **spoofed actors** without punishing honest workers experiencing real network/device issues.
@@ -269,7 +288,7 @@ These external examples show how mature parametric products reduce disputes and 
 - **Independent public datasets for transparent triggers** (example: Jumpstart) — earthquake payouts tied to USGS ShakeMap data rather than self-reported loss ([Jumpstart Insurance homepage](https://www.jumpstartinsurance.com/)).
 - **Multi-source remote sensing + modeling** (example: Descartes Underwriting) — indices monitored from satellite/radar/IoT feeds with upfront trigger + payout design ([Descartes Underwriting parametric guide](https://descartesunderwriting.com/insights/parametric-insurance-comprehensive-guidebook-brokers-and-risk-managers)).
 
-On the “anti-spoofing” side, GNSS ecosystems are moving toward **signal authentication** like Galileo’s Open Service Navigation Message Authentication (OSNMA), which is intended to cryptographically authenticate navigation messages and make spoofing harder ([Galileo OSNMA service page](https://www.gsc-europa.eu/galileo/services/galileo-open-service-navigation-message-authentication-osnma); [EUSPA OSNMA launch press release](https://www.euspa.europa.eu/pressroom/press-releases/galileo-be-first-gnss-offer-authentication-service-worldwide-launch-osnma)).
+On the “anti-spoofing” side, GNSS ecosystems are moving toward **signal authentication** like Galileo’s Open Service Navigation Message Authentication (OSNMA), which is intended to cryptographically authenticate navigation messages and make spoofing harder ([Galileo OSNMA service page](https://www.gsc-europa.eu/galileo/services/galileo-open-service-navigation-message-authentication-osnma); [EUSPA OSNMA launch press release](https://www.euspa.europa.eu/pressroom/press-releases/galileo-be-first-gnss-offer-authentication-service-worldwide-launch-osnma); [CISA PNT spoofing/interference report](https://www.cisa.gov/sites/default/files/publications/report-on-pnt-backup-complementary-capabilities-to-gps_508.pdf)).
 
 #### How Oasis could evolve toward similar patterns (future work)
 - **Dark-store / hub sensors**: install environmental sensors (temperature, humidity, rain ingress) inside partner dark stores or at hub entrances, feeding a local “operations disruption index” that complements city-level weather/AQI feeds.
@@ -279,8 +298,9 @@ On the “anti-spoofing” side, GNSS ecosystems are moving toward **signal auth
 ### India regulatory context (high-level, product-agnostic)
 
 Oasis is a hackathon prototype, not a live insurance product. But the design is informed by India’s innovation and distribution frameworks:
-- **IRDAI Regulatory Sandbox**: the IRDAI (Regulatory Sandbox) Regulations, 2019 provide a controlled environment to test innovative products/business models in insurance ([IRDAI Regulatory Sandbox Regulations, 2019 PDF](https://financialservices.gov.in/beta/sites/default/files/2024-11/IRDAI%20%28Regulatory%20Sandbox%29%20Regulations%2C%202019.pdf); [IRDAI exposure draft referencing sandbox validity/extension context](https://irdai.gov.in/documents/37343/365848/Exposure+Draft-+Sandbox+Regulation+Amendment+2022.pdf/75613946-65f3-9e2a-cfc0-35d825d12507?version=1.2&t=1665290561061)).
-- **Micro-insurance**: IRDAI’s Micro Insurance Regulations (2015) are a frequently-cited framework for simplified, low-premium products and distribution to underserved segments (including explicit caps like ₹2,00,000 for certain categories) ([IRDAI Micro Insurance Regulations, 2015 PDF](https://irdai.gov.in/document-detail?documentId=37343)).
+- **IRDAI Regulatory Sandbox**: IRDAI sandbox regulations provide a controlled path to test innovative product structures, data triggers, and operating models before scale ([IRDAI Regulatory Sandbox Regulations, 2019](https://financialservices.gov.in/beta/sites/default/files/2024-11/IRDAI%20%28Regulatory%20Sandbox%29%20Regulations%2C%202019.pdf); [IRDAI Regulatory Sandbox Regulations, 2025](https://irdai.gov.in/document-detail?documentId=6541188)).
+- **Micro-insurance**: IRDAI’s Micro Insurance Regulations (2015) are a frequently cited framework for simplified, low-premium products and distribution to underserved segments ([IRDAI Micro Insurance Regulations, 2015 Official PDF](https://irdai.gov.in/documents/37343/602265/Insurance+Regulatory+And+Development+Authority+Of+India+%28Micro+Insurance%29+Regulations%2C+2015.pdf/f5ba8a29-5b82-8b8a-aab4-6f6798f408d6?download=true&t=1665254170085&version=3.6)).
+- **Gig worker legal context**: India's Code on Social Security recognizes gig/platform workers and enables notified social-protection schemes; implementation is policy-driven and can vary by jurisdiction ([PIB explainer on Code on Social Security, 2020](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2192795); [Rajasthan Platform Based Gig Workers Act, 2023](https://prsindia.org/files/bills_acts/acts_states/rajasthan/2023/Act29of2023Rajasthan.pdf)).
 
 Oasis stays intentionally narrow:
 - **Coverage scope**: only loss-of-income due to external disruptions; explicitly excludes health, life, accident, and vehicle repair.
@@ -472,6 +492,9 @@ See the [LICENSE](./LICENSE) file for details.
 
 ## Sources
 
+- [India’s Booming Gig and Platform Economy (NITI Aayog)](https://www.niti.gov.in/sites/default/files/2022-06/25th_June_Final_Report_27062022.pdf) (Jun 2022)
+- [Parametric Insurance: A Tool for Faster and More Financially Inclusive Disaster Response (GFDRR)](https://www.gfdrr.org/sites/default/files/publication/Parametric-insurance-brief-eng.pdf) (2022)
+- [Developing Parametric Insurance for Weather Related Risks for India (World Bank Technical Note)](https://documents1.worldbank.org/curated/en/704171524632990898/pdf/Technical-Note.pdf) (2018)
 - [FSI-IAIS-Insights-on-parametric-insurance.pdf](https://www.iais.org/uploads/2024/12/FSI-IAIS-Insights-on-parametric-insurance.pdf) (Dec 2024)
 - [A Comprehensive Guidebook for Brokers and Risk Managers](https://descartesunderwriting.com/insights/parametric-insurance-comprehensive-guidebook-brokers-and-risk-managers) (undated)
 - [Basis risk in parametric insurance: challenges and mitigation strategies (PwC)](https://www.pwc.ch/en/publications/2024/Basis_risk_in_parametric_insurance_challenges_and_mitigation_strategies.pdf) (2024)
@@ -482,5 +505,10 @@ See the [LICENSE](./LICENSE) file for details.
 - [Service Navigation Message Authentication (OSNMA)](https://www.gsc-europa.eu/galileo/services/galileo-open-service-navigation-message-authentication-osnma) (Jul 2025)
 - [Galileo to be the first GNSS to offer authentication service worldwide — launch of OSNMA](https://www.euspa.europa.eu/pressroom/press-releases/galileo-be-first-gnss-offer-authentication-service-worldwide-launch-osnma) (Jul 2025)
 - [IRDAI (Regulatory Sandbox) Regulations, 2019 PDF](https://financialservices.gov.in/beta/sites/default/files/2024-11/IRDAI%20%28Regulatory%20Sandbox%29%20Regulations%2C%202019.pdf) (hosted copy)
+- [IRDAI (Regulatory Sandbox) Regulations, 2025](https://irdai.gov.in/document-detail?documentId=6541188) (IRDAI)
 - [Exposure Draft – Sandbox Regulation Amendment 2022 (IRDAI)](https://irdai.gov.in/documents/37343/365848/Exposure+Draft-+Sandbox+Regulation+Amendment+2022.pdf/75613946-65f3-9e2a-cfc0-35d825d12507?version=1.2&t=1665290561061) (Aug 2022)
-- [IRDAI Micro Insurance Regulations, 2015](https://irdai.gov.in/document-detail?documentId=37343) (IRDAI portal)
+- [IRDAI (Micro Insurance) Regulations, 2015 (Official PDF)](https://irdai.gov.in/documents/37343/602265/Insurance+Regulatory+And+Development+Authority+Of+India+%28Micro+Insurance%29+Regulations%2C+2015.pdf/f5ba8a29-5b82-8b8a-aab4-6f6798f408d6?download=true&t=1665254170085&version=3.6) (IRDAI)
+- [Code on Social Security, 2020 (PIB explainer)](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2192795) (Govt. of India)
+- [Rajasthan Platform Based Gig Workers (Registration and Welfare) Act, 2023 (PRS copy)](https://prsindia.org/files/bills_acts/acts_states/rajasthan/2023/Act29of2023Rajasthan.pdf) (2023)
+- [Socio-economic Impact Assessment of Food Delivery Platform Workers (NCAER)](https://www.ncaer.org/publication/socio-economic-impact-assessment-of-food-delivery-platform-workers) (Aug 2023 / 2024 Updates)
+- [NCAER: Socio-economic Impact Assessment of Food Delivery Platform Workers (Full Report PDF)](https://www.ncaer.org/wp-content/uploads/2023/08/NCAER_Report_Platform_Workers_August_28_2023.pdf) (Aug 2023)
