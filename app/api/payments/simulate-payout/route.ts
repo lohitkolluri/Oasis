@@ -1,9 +1,7 @@
 /**
- * POST /api/payments/simulate-payout
- *
- * Simulated instant payout endpoint for demo purposes.
- * Models UPI instant transfer to rider's wallet.
- * Creates a payout_ledger entry with processing → completed status.
+ * Mocks an instant UPI payout transaction to simulate real-world ledger closures.
+ * Bypasses active Stripe or banking integrations to deterministically record a "completed"
+ * transaction within the database, simulating network latency for frontend realism.
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -16,8 +14,12 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Simulate an instant payout. Called internally by the adjudicator after
- * a claim is marked as 'paid'. Can also be called by admin for manual payouts.
+ * Handles cross-boundary validation and mock execution of a financial transfer.
+ * Enforces strict profile ownership validation before generating synthetic UPI references.
+ *
+ * @param _ctx - Unused next request context
+ * @param request - Inbound HTTP POST payload matching the simulatePayoutSchema format
+ * @returns JSON payload asserting the success state and generated UPI transaction receipt
  */
 export const POST = withAdminAuth(async (_ctx, request) => {
   const limitKey = rateLimitKey(request, 'payout');

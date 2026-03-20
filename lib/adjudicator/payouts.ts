@@ -5,7 +5,16 @@
 import { logger } from '@/lib/logger';
 import type { SupabaseAdmin, AdjudicatorResult } from '@/lib/adjudicator/types';
 
-/** Returns true if payout was recorded, false if write failed (logged). */
+/**
+ * Simulates a rider claim payout and records the transaction into the ledger.
+ *
+ * @param supabase - Admin client instance
+ * @param claimId - Unique identifier of the approved claim
+ * @param profileId - Recipient rider profile
+ * @param amountInr - Transaction volume in INR
+ * @param runId - Optional correlation identifier for the adjudication lifecycle
+ * @returns Boolean indicating whether the ledger insertion succeeded
+ */
 export async function simulatePayout(
   supabase: SupabaseAdmin,
   claimId: string,
@@ -54,7 +63,13 @@ export interface LogRunInput extends AdjudicatorResult {
   is_demo?: boolean;
 }
 
-/** Returns true if run was logged, false if write failed (logged). */
+/**
+ * Persists the final metrics and telemetry of an adjudication run to the system logs.
+ *
+ * @param supabase - Admin client instance
+ * @param result - Aggregated metrics including candidate counts and payout failures
+ * @returns Boolean indicating whether the telemetry was successfully persisted
+ */
 export async function logRun(
   supabase: SupabaseAdmin,
   result: LogRunInput,

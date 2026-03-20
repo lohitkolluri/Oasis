@@ -25,6 +25,14 @@ export type { AdjudicatorResult, DemoTriggerOptions, TriggerCandidate, ProcessTr
 
 const BATCH_SIZE = 5;
 
+/**
+ * Processes a single disruption trigger, checks for idempotency, and initiates the claims pipeline.
+ *
+ * @param supabase - Admin client instance for bypassing RLS during processing
+ * @param candidate - The newly identified trigger event
+ * @param options - Configure idempotency overrides or constrain targeting to a specific profile
+ * @returns Resulting claims created and payouts initiated
+ */
 export async function processSingleTrigger(
   supabase: ReturnType<typeof createAdminClient>,
   candidate: TriggerCandidate,
@@ -44,6 +52,14 @@ export async function processSingleTrigger(
   });
 }
 
+/**
+ * Orchestrates the full adjudication lifecycle across all active geographical zones.
+ * Gathers triggers from external sources, deduplicates events, and parallelizes claim generation.
+ *
+ * @param supabase - Admin client instance
+ * @param options - Configuration arguments, including manual demo mode overrides
+ * @returns Comprehensive summary of the adjudication run metrics
+ */
 export async function runAdjudicatorCore(
   supabase = createAdminClient(),
   options: AdjudicatorRunOptions = {},

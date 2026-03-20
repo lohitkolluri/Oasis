@@ -1,7 +1,10 @@
 /**
- * POST /api/payments/create-checkout
- * Creates a Stripe Checkout Session for weekly premium payment.
- * Creates a Stripe Checkout Session for weekly policy payment.
+ * Initializes an external Stripe Checkout Session for weekly premium coverage.
+ * Resolves localized pricing tiers, initializes a pending policy state within the database,
+ * and securely hands off the transaction lifecycle to Stripe's hosted payment environment.
+ *
+ * @param request - Inbound HTTP POST payload detailing requested policy terms and targeted plans
+ * @returns Re-directable checkout session URL and generated policy identifier
  */
 import { RATE_LIMITS } from '@/lib/config/constants';
 import { getAppUrl, getStripeSecretKey } from '@/lib/config/env';

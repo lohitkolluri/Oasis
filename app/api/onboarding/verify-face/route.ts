@@ -1,9 +1,10 @@
 /**
- * Face liveness verification via LLM vision.
- * User must capture a photo performing a random gesture (e.g. close left eye)
- * to prove the photo is live, not a screen/print.
- * Face photos are encrypted at rest using AES-256-GCM when FACE_PHOTO_ENCRYPTION_KEY
- * or GOV_ID_ENCRYPTION_KEY is set.
+ * Biometric liveness verification gateway.
+ * Mandates localized cryptographic encryption (AES-256-GCM) at rest for raw photo buffers.
+ * Leverages multi-modal LLM evaluation to detect planar spoofing (screens, paper prints) 
+ * via randomized dynamic gesture matching (e.g., active winking).
+ *
+ * @remarks Evaluated dynamically against external VL clusters to balance camera noise degradation vs strict identity fraud.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';

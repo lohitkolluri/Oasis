@@ -25,6 +25,14 @@ export interface CreateClaimFromTriggerResult {
   payoutFailed: boolean;
 }
 
+/**
+ * Aggregates the total claims historically generated within the current week for specific policies.
+ * Utilized to strictly enforce tier-level payout frequency limits algorithmically.
+ *
+ * @param supabase - Admin client instance
+ * @param policyIds - Array of relevant policy identifiers
+ * @returns A map binding each policy ID to its rolling weekly claim execution count
+ */
 export async function getWeeklyClaimCounts(
   supabase: SupabaseAdmin,
   policyIds: string[],
@@ -44,6 +52,14 @@ export async function getWeeklyClaimCounts(
   return claimCountMap;
 }
 
+/**
+ * Orchestrates the full creation pipeline for a parametric claim against an active trigger.
+ * Evaluates weekly actuarial maximums strictly prior to executing database ledger queries.
+ * For configured demo environments, instantly overrides and trips the simulated payout gateway natively.
+ *
+ * @param input - Configuration payload containing the source policy, disruption bounds, and bypass flags
+ * @returns Complete payload wrapping the newly generated claim and its linked transaction pipeline context
+ */
 export async function createClaimFromTrigger(
   input: CreateClaimFromTriggerInput,
 ): Promise<CreateClaimFromTriggerResult | null> {
@@ -135,6 +151,12 @@ export interface MarkClaimPaidInput {
   source: ClaimSource;
 }
 
+/**
+ * Safely executes ledger closure for an established claim upon transaction receipt.
+ *
+ * @param input - Payload binding the source profile, authorized payout configuration, and claim tracker
+ * @returns Boolean representing if the closure pipeline resolved completely natively
+ */
 export async function markClaimPaid(input: MarkClaimPaidInput): Promise<boolean> {
   const { supabase, claimId, profileId, payoutAmountInr } = input;
   const payoutOk = await simulatePayout(supabase, claimId, profileId, payoutAmountInr);

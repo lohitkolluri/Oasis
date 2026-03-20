@@ -16,10 +16,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 /**
- * GET /api/cron/weekly-premium
+ * Actuarial orchestration cron responsible for computing dynamic weekly premium rates.
+ * Synthesizes multidimensional risk factors (Geo-climate history, AI forecasting, Social volatility, 
+ * Rider claim frequency) mapped tightly to an 11km geohash cluster model.
  *
- * Compute premium recommendations for all profiles.
- * In production CRON_SECRET is required; if missing, returns 503.
+ * @param request - Secured cron invocation payload
+ * @returns A breakdown denoting successfully processed rider profiles and deduplicated geofenced zones
  */
 export async function GET(request: Request) {
   const cronSecret = getCronSecret();

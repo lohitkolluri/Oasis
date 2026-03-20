@@ -5,8 +5,11 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * POST /api/admin/run-adjudicator — Run adjudicator on demand (same as cron).
- * Uses real weather, AQI, news APIs. Admin-only.
+ * Executes a manual, on-demand invocation of the core Adjudicator engine.
+ * Bypasses automated cron scheduling to forcefully ingest real-time environmental telemetry 
+ * (Weather, AQI, localized Traffic) for immediate, admin-authorized claim generation.
+ *
+ * @returns Serialized JSON payload containing the aggregate metrics of the adjudication run
  */
 export const POST = withAdminAuth(async () => {
   // Dynamic import to avoid circular deps

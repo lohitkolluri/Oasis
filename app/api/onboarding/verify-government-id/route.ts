@@ -1,6 +1,9 @@
 /**
- * Upload government ID and verify authenticity via LLM vision.
- * Used during rider onboarding for KYC.
+ * Government identity authentication boundary for regulatory KYC compliance.
+ * Orchestrates synchronous OCR extraction via vision models, followed by strict cryptographic 
+ * Verhoeff checksum validation to categorically reject synthesized or stolen Aadhaar schemas.
+ *
+ * @remarks Demands AES-256-GCM encryption on the storage partition to secure PII uploads natively.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';

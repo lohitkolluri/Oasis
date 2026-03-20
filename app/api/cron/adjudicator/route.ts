@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 /**
- * GET /api/cron/adjudicator
+ * Automated hourly orchestration hook for the Parametric Adjudicator.
+ * Ingests temporal platform limits and triggers system-wide policy evaluation automatically.
  *
- * Vercel Cron job that runs the parametric adjudicator hourly.
- * Authenticates via CRON_SECRET (Bearer). In production CRON_SECRET is required; if missing, returns 503.
+ * @param request - Inbound cron invocation containing the secured bearer token
+ * @returns Serialized run ID mapping to exhaustive execution metrics
  */
 export async function GET(request: Request) {
   const cronSecret = getCronSecret();

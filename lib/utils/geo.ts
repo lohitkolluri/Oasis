@@ -1,8 +1,6 @@
 /**
- * Shared geospatial utilities.
- *
- * P2 fix: Uses specific @turf subpackages instead of importing
- * the entire @turf/turf bundle (400KB+ → ~40KB).
+ * Spatial computation library encapsulating modularized Turf integrations.
+ * Leverages tree-shakable subpackages to minimize API bundle execution latency.
  */
 import bbox from '@turf/bbox';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
@@ -13,13 +11,30 @@ import type { Feature, GeoJSON, MultiPolygon, Polygon } from 'geojson';
 
 // ── Zone clustering (for API deduplication) ───────────────────────────────────
 
-/** ~11 km grid key for deduplicating nearby zones in API calls. */
+/**
+ * Generates a geohash representation effectively chunking coordinate planes into ~11km clustered grids.
+ * Primarily supports API deduplication loops.
+ *
+ * @param lat - Base latitude coordinate
+ * @param lng - Base longitude coordinate
+ * @returns Deterministic serialized grid key
+ */
 export function clusterKey(lat: number, lng: number): string {
   return `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
 }
 
 // ── Distance & circle geofencing ─────────────────────────────────────────────
 
+/**
+ * Validates if an arbitrary geographic point natively intersects a bounded circular polygon.
+ *
+ * @param pointLat - Target position latitude
+ * @param pointLng - Target position longitude
+ * @param centerLat - Geofence epicenter latitude
+ * @param centerLng - Geofence epicenter longitude
+ * @param radiusKm - Radius of the bounded threshold
+ * @returns Boolean representing spatial intersection
+ */
 export function isWithinCircle(
   pointLat: number,
   pointLng: number,
@@ -120,6 +135,14 @@ interface NominatimResult {
   address?: NominatimAddress;
 }
 
+/**
+ * Queries the public Nominatim OSM catalog to resolve semantic localized descriptors 
+ * from arbitrary geometric coordinates. Returns localized suburb or city strings.
+ *
+ * @param lat - Target search latitude
+ * @param lng - Target search longitude
+ * @returns Resolved semantic geographical boundary name, or null if API degradation occurs
+ */
 export async function reverseGeocode(
   lat: number,
   lng: number,

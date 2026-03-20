@@ -1,6 +1,6 @@
 /**
- * OSRM routing integration - foundation for traffic/closure checks.
- * Uses public demo: https://router.project-osrm.org
+ * External Open Source Routing Machine (OSRM) integration client.
+ * Orchestrates live mathematical routing validations against public mapping endpoints.
  */
 
 export interface RouteCheckResult {
@@ -12,6 +12,14 @@ export interface RouteCheckError {
   error: string;
 }
 
+/**
+ * Calculates real-time distance and estimated traversal duration between two points.
+ * Explicitly used to enforce anti-fraud geographic plausibility logic.
+ *
+ * @param from - Origin spatial coordinates
+ * @param to - Destination spatial coordinates
+ * @returns Serialized distance (in meters) and traversal duration (in seconds), or an error boundary
+ */
 export async function checkRoute(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
