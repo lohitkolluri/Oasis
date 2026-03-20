@@ -121,6 +121,11 @@ body {
   padding-right: env(safe-area-inset-right, 0);
   box-sizing: border-box;
 }
+
+/* Hide timestamps globally on all toasts */
+.gooey-timestamp {
+  display: none !important;
+}
 @media (max-width: 640px) {
   [data-sonner-toaster],
   [data-goey-toaster] {
@@ -147,9 +152,6 @@ body {
   [data-goey-toast] [data-description] {
     font-size: 13px !important;
     margin-top: 4px !important;
-  }
-  .gooey-timestamp {
-    display: none !important;
   }
   .gooey-wrapper {
     max-width: 100% !important;

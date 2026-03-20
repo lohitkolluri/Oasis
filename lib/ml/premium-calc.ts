@@ -9,7 +9,7 @@
  *  - Forecast risk includes AQI data
  */
 
-import { DEFAULT_ZONE, EXTERNAL_APIS, PREMIUM } from '@/lib/config/constants';
+import { DEFAULT_ZONE, EXTERNAL_APIS, PREMIUM, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
 import { isWithinCircle } from '@/lib/utils/geo';
 import { fetchWithRetry } from '@/lib/utils/retry';
 import { getOpenRouterApiKey, getTomorrowApiKey } from '@/lib/config/env';
@@ -336,4 +336,219 @@ export async function getForecastRiskFactor(
 
   // Combine weather + AQI risk
   return Math.min(1, weatherRisk * 0.7 + aqiRisk * 0.3);
+}
+
+/**
+ * Estimates weekly income based on Indian Q-commerce platform data (as of 2024).
+ * If avgDailyDeliveries is provided, estimates based on ₹40/order * 7 days.
+ * Otherwise, falls back to platform averages.
+ */
+export function estimateWeeklyIncome(platform?: string, avgDailyDeliveries?: number): number {
+  if (avgDailyDeliveries && avgDailyDeliveries > 0) {
+    return avgDailyDeliveries * 40 * 7;
+  }
+  
+  const p = (platform || '').toLowerCase();
+  if (p.includes('zepto') || p.includes('blinkit') || p.includes('instamart')) {
+    return 7500; // High frequency Q-commerce
+  }
+  if (p.includes('zomato') || p.includes('swiggy')) {
+    return 6500; // Standard food delivery
+  }
+  if (p.includes('dunzo') || p.includes('porter')) {
+    return 5500; // Point-to-point / logistics
+  }
+  return 6000; // National average fallback
+}
+
+export interface PremiumEngineInput {
+  zoneRiskFactors: {
+    heatEvents: number; // last 4 weeks
+    rainEvents: number;
+    trafficEvents: number;
+    socialEvents: number;
+  };
+  forecastRisk: number; // 0-1
+  platform?: string; // e.g., 'zepto', 'blinkit', 'swiggy'
+  avgDailyDeliveries?: number; // fallback estimate
+  socialStrikeFrequency: number; // 0-1
+  riderClaimFrequency: number; // 0-1 (0 = no claims, 1 = many claims)
+  previousPremium?: number; // for smoothing
+  zoneChanged?: boolean; // if true, apply blended smoothing
+}
+
+export interface PremiumTier {
+  name: string;
+  premium: number;     // The weekly cost
+  payoutBase: number;  // The maximum payout per claim
+  maxClaims: number;   // Max claims allowed per week
+}
+
+export interface PremiumEngineOutput {
+  final_premium: number;
+  tier_prices: {
+    basic: PremiumTier;
+    standard: PremiumTier;
+    premium: PremiumTier;
+  };
+  risk_breakdown: {
+    zone_risk: number;
+    forecast_risk: number;
+    income_exposure: number;
+    social_risk: number;
+    behavior_risk: number;
+    seasonal_multiplier: number;
+  };
+  explanation: string;
+}
+
+/**
+ * Production-grade dynamic premium engine (Deterministically checks maths + strict unit-economic capping).
+ * Incorporates Zone Risk, Forecast Risk, Exposure, Social Risk, and Behavior. 
+ */
+export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngineOutput {
+  // 1. Zone Risk (35%)
+  const heatScore = input.zoneRiskFactors.heatEvents * 1.0;
+  const rainScore = input.zoneRiskFactors.rainEvents * 0.8;
+  const trafficScore = input.zoneRiskFactors.trafficEvents * 0.6;
+  const socialEventsScore = input.zoneRiskFactors.socialEvents * 0.9;
+  
+  // Normalize zone events (assume 10 total severity sum = 1.0 factor)
+  const rawZoneScore = (heatScore + rainScore + trafficScore + socialEventsScore) / 10;
+  const zoneRisk = Math.min(1.0, rawZoneScore);
+  
+  // 2. Forecast Risk (25%)
+  const forecastRisk = Math.min(1.0, Math.max(0, input.forecastRisk));
+  
+  // 3. Income Exposure (15%) -> Industry Data Model
+  const effectiveIncome = estimateWeeklyIncome(input.platform, input.avgDailyDeliveries);
+  const incomeRisk = Math.min(1.0, effectiveIncome / 10000); 
+  
+  // 4. Social Risk (10%)
+  const socialRisk = Math.min(1.0, Math.max(0, input.socialStrikeFrequency));
+  
+  // 5. Rider Behavior (15%)
+  const behaviorRisk = Math.min(1.0, Math.max(0, input.riderClaimFrequency));
+  
+  // Weighted Sum 
+  const risk_score = 
+    (zoneRisk * 0.35) + 
+    (forecastRisk * 0.25) + 
+    (incomeRisk * 0.15) + 
+    (socialRisk * 0.10) + 
+    (behaviorRisk * 0.15);
+    
+  // Seasonal Multipliers
+  const month = new Date().getMonth();
+  const seasonal_multiplier = SEASONAL_RISK_MULTIPLIER[month] ?? 1.0;
+  const final_risk_score = Math.min(1.0, risk_score * seasonal_multiplier);
+  
+  // Expected Loss Math
+  const MAX_CLAIMS_PER_WEEK = 2.0; 
+  const expected_claims_per_week = final_risk_score * MAX_CLAIMS_PER_WEEK;
+  
+  let base_payout = PAYOUT_FALLBACK_INR; 
+  let expected_loss = expected_claims_per_week * base_payout;
+  
+  const margin = 0.25;
+  const safety_buffer = 0.15;
+  let raw_premium = expected_loss * (1 + margin + safety_buffer);
+  
+  // Clamping
+  let clamped_premium = Math.max(PREMIUM.BASE, Math.min(PREMIUM.MAX, Math.round(raw_premium)));
+  
+  // Black Swan Payout Squeeze
+  const isBlackSwan = expected_loss >= clamped_premium;
+  if (isBlackSwan) {
+    const target_expected_loss = clamped_premium * 0.8;
+    if (expected_claims_per_week > 0) {
+      base_payout = Math.round(target_expected_loss / expected_claims_per_week);
+    }
+    expected_loss = expected_claims_per_week * base_payout;
+    raw_premium = expected_loss * (1 + margin + safety_buffer);
+    clamped_premium = Math.max(PREMIUM.BASE, Math.min(PREMIUM.MAX, Math.round(raw_premium)));
+  }
+
+  // Smoothing
+  let final_premium = clamped_premium;
+  if (input.previousPremium && input.previousPremium > 0) {
+    if (input.zoneChanged) {
+      const maxJump = input.previousPremium * 0.50; // 50% max jump for zone change
+      if (final_premium > input.previousPremium + maxJump) final_premium = input.previousPremium + maxJump;
+      if (final_premium < input.previousPremium - maxJump) final_premium = input.previousPremium - maxJump;
+    } else {
+      const maxJump = input.previousPremium * 0.20; // 20% strict smoothing
+      if (final_premium > input.previousPremium + maxJump) final_premium = input.previousPremium + maxJump;
+      if (final_premium < input.previousPremium - maxJump) final_premium = input.previousPremium - maxJump;
+    }
+    final_premium = Math.max(PREMIUM.BASE, Math.min(PREMIUM.MAX, Math.round(final_premium)));
+  }
+  
+  // Explainability String
+  let explanation = "Standard premium based on low zone risk.";
+  if (forecastRisk > 0.6) explanation = "Elevated premium due to high severe weather forecast this week.";
+  else if (zoneRisk > 0.6) explanation = "Premium adjusted for recent high disruptions in your zone.";
+  else if (behaviorRisk < 0.2 && input.riderClaimFrequency > 0) explanation = "You received a Safe Rider Discount for low historical claims!";
+  else if (input.zoneChanged) explanation = "Premium blended smoothly into your new operating zone.";
+
+  const basicPremium = Math.max(PREMIUM.BASE, Math.round(final_premium * 0.7));
+  const maxTierCap = PREMIUM.MAX * 1.5; 
+  const premiumPremium = Math.min(maxTierCap, Math.round(final_premium * 1.3));
+
+  // Dynamic Tier Payout Solver
+  // Option B: Rider Satisfaction Floor. We ensure payoutBase never drops deeply below the premium 
+  // so the policy remains valuable to the rider during Black Swan events, letting the accumulated 
+  // margin from 48 non-storm weeks absorb the mathematical loss of this storm week.
+  const calculateSafePayout = (tierPremium: number, tierExpectedClaims: number, originalMultiplier: number) => {
+    const rawSafePayout = (tierPremium * 0.9) / Math.max(0.01, tierExpectedClaims);
+    
+    // In severe Black Swan scenarios, we mathematically cannot be strictly profitable without 
+    // offending the rider (e.g. payout < premium). So we explicitly absorb the loss and floor the 
+    // payout at 1.5x the premium, knowing annualized LTV absorbs the impact.
+    if (isBlackSwan) {
+       const riderSatisfactionFloor = tierPremium * 1.5; 
+       return Math.round(Math.max(riderSatisfactionFloor, Math.min(base_payout * originalMultiplier, rawSafePayout)));
+    }
+    
+    return Math.round(Math.min(base_payout * originalMultiplier, rawSafePayout));
+  };
+  
+  // During a Black Swan, we limit exposure to 1 max claim across tiers, 
+  // which allows us to offer the massively subsidized 1.5x PayoutFloor safely.
+  const basicClaims = isBlackSwan ? 1 : 1;
+  const standardClaims = isBlackSwan ? 1 : 2;
+  const premiumClaims = isBlackSwan ? 1 : 3;
+
+  return {
+    final_premium: Math.round(final_premium),
+    tier_prices: {
+      basic: {
+        name: "Basic",
+        premium: basicPremium,
+        payoutBase: calculateSafePayout(basicPremium, final_risk_score * basicClaims, 0.8),
+        maxClaims: basicClaims
+      },
+      standard: {
+        name: "Standard",
+        premium: Math.round(final_premium),
+        payoutBase: calculateSafePayout(final_premium, final_risk_score * standardClaims, 1.0),
+        maxClaims: standardClaims
+      },
+      premium: {
+        name: "Premium",
+        premium: premiumPremium,
+        payoutBase: calculateSafePayout(premiumPremium, final_risk_score * premiumClaims, 1.5),
+        maxClaims: premiumClaims
+      }
+    },
+    risk_breakdown: {
+      zone_risk: Number(zoneRisk.toFixed(3)),
+      forecast_risk: Number(forecastRisk.toFixed(3)),
+      income_exposure: Number(incomeRisk.toFixed(3)),
+      social_risk: Number(socialRisk.toFixed(3)),
+      behavior_risk: Number(behaviorRisk.toFixed(3)),
+      seasonal_multiplier: Number(seasonal_multiplier.toFixed(3))
+    },
+    explanation
+  };
 }

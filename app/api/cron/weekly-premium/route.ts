@@ -1,7 +1,7 @@
 import { getCronSecret, isCronSecretRequired } from '@/lib/config/env';
-import { DEFAULT_ZONE, RATE_LIMITS } from '@/lib/config/constants';
+import { DEFAULT_ZONE, RATE_LIMITS, PREMIUM } from '@/lib/config/constants';
 import {
-    calculatePremiumWithLlm,
+    calculateDynamicPremium,
     getForecastRiskFactor,
     getHistoricalEventCount,
     getSocialRiskFactor,
@@ -95,15 +95,21 @@ export async function GET(request: Request) {
             .eq('policy_id', profile.id)
             .gte('created_at', fourWeeksAgoStr);
 
-          const { premium, reasoning, source } = await calculatePremiumWithLlm({
-            zoneLatitude: lat,
-            zoneLongitude: lng,
-            historicalEventCount: cached.historicalEvents,
-            forecastRiskFactor: cached.forecastRisk,
-            socialRiskFactor: cached.socialRisk,
-            platform: profile.platform,
-            claimCountLast4Weeks: claimCount4w ?? 0,
+          const engineOutput = calculateDynamicPremium({
+            zoneRiskFactors: {
+               heatEvents: 0,
+               rainEvents: cached.historicalEvents,
+               trafficEvents: 0,
+               socialEvents: 0,
+            },
+            forecastRisk: cached.forecastRisk,
+            platform: profile.platform ?? undefined,
+            socialStrikeFrequency: cached.socialRisk,
+            riderClaimFrequency: Math.min(1.0, (claimCount4w ?? 0) / 4), // 4 claims = 1.0 (max behavior risk)
           });
+          const premium = engineOutput.final_premium;
+          const reasoning = engineOutput.explanation;
+          const source = 'model';
 
           const now = new Date();
           const dayOfWeek = now.getDay();
@@ -171,10 +177,13 @@ export async function GET(request: Request) {
         }
 
         if (plans.length >= 3 && values.length > 0) {
+          // Base the forecast strictly on the median standard premium multiplier logic 
+          // to perfectly mirror the UI tiers (Basic 0.7x, Standard 1.0x, Premium 1.3x)
+          const medianStandard = pct(0.5);
           const predicted = [
-            Math.round(pct(0.3)),
-            Math.round(pct(0.6)),
-            Math.round(pct(0.85)),
+            Math.max(PREMIUM.BASE, Math.round(medianStandard * 0.7)),
+            Math.round(medianStandard),
+            Math.min(PREMIUM.MAX * 1.5, Math.round(medianStandard * 1.3)),
           ];
 
           await Promise.all(

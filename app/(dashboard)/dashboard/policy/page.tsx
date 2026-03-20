@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
 import { ArrowLeft, FileText } from "lucide-react";
-import { calculateWeeklyPremium, getForecastRiskFactor, getHistoricalEventCount } from "@/lib/ml/premium-calc";
+import { calculateDynamicPremium, getForecastRiskFactor, getHistoricalEventCount, getSocialRiskFactor } from "@/lib/ml/premium-calc";
 
 export default async function PolicyPage({
   searchParams,
@@ -36,7 +36,7 @@ export default async function PolicyPage({
         .limit(5),
       supabase
         .from("profiles")
-        .select("primary_zone_geofence, zone_latitude, zone_longitude")
+        .select("primary_zone_geofence, zone_latitude, zone_longitude, platform")
         .eq("id", user.id)
         .single(),
       supabase
@@ -61,17 +61,24 @@ export default async function PolicyPage({
   if (rec?.recommended_premium_inr != null) {
     premium = Number(rec.recommended_premium_inr);
   } else {
-    const [eventCount, forecastRisk] = await Promise.all([
+    const [eventCount, forecastRisk, socialRisk] = await Promise.all([
       getHistoricalEventCount(supabase, zoneLat, zoneLng),
       getForecastRiskFactor(supabase, zoneLat ?? 12.97, zoneLng ?? 77.59),
+      getSocialRiskFactor(supabase, zoneLat, zoneLng),
     ]);
-    premium = calculateWeeklyPremium({
-      zoneName,
-      zoneLatitude: zoneLat,
-      zoneLongitude: zoneLng,
-      historicalEventCount: eventCount,
-      forecastRiskFactor: forecastRisk,
+    const engineOutput = calculateDynamicPremium({
+      zoneRiskFactors: {
+        heatEvents: 0,
+        rainEvents: eventCount, // fallback for historic events
+        trafficEvents: 0,
+        socialEvents: 0
+      },
+      forecastRisk,
+      platform: typeof profile?.platform === 'string' ? profile.platform : undefined,
+      socialStrikeFrequency: socialRisk,
+      riderClaimFrequency: 0, // Fallback for UI preview
     });
+    premium = engineOutput.final_premium;
   }
 
   const activePolicy = policies?.find((p) => p.is_active) ?? null;
