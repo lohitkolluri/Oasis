@@ -46,7 +46,8 @@ Oasis safeguards gig workers (Zepto, Blinkit, etc.) against **loss of income** c
 
 - **Parametric wage protection** for Q‑commerce delivery partners driven by external disruption triggers.
 - **Multi-source trigger engine** using weather, AQI, traffic, and news feeds (Tomorrow.io, Open‑Meteo, WAQI, NewsData.io).
-- **Weekly premium model** with configurable plans (Basic, Standard, Premium) and automatic weekly coverage windows.
+- **Dynamic Actuarial Premium Engine** computing risk (0-1) via Zone History, Weather Forecasts, Income Exposure, Social Factors & Claim Behavior. This strict constraint solver strictly generates 3 mathematical tiers (Basic `0.7x`, Standard `1.0x`, Premium `1.3x`) mathematically clamped between `₹49` and `₹199` per week.
+- **"Growth Mode" Black Swan Protection (Option B)** automatically absorbing financial hits during catastrophic cyclical events. Instead of squishing policies to match math limits, exposure is dynamically capped to 1 claim/week, and absolute payouts are floored at `1.5x` the rider's premium, prioritizing rider satisfaction gracefully subsidized by the platform's annualized 40% margin.
 - **Adjudicator engine** that runs on cron and webhooks to auto-create and verify claims without manual adjustment.
 - **Fraud and sanity checks** pipeline (caps, duplication checks, geo validation, device heuristics).
 - **Rider PWA dashboard** for onboarding, KYC (government ID and face verification), policies, wallet, and claim history.

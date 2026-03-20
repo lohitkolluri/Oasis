@@ -107,7 +107,7 @@ You can think of this as a **robotic claims adjuster** that wakes up regularly, 
 |---------------------|--------------|
 | **Adjudicator brain** | Wakes up on a schedule, looks at the map of India, decides **where something bad is happening**, and creates automatic claims for covered riders in those zones. |
 | **Fraud shield** | Stops obvious abuse (too many claims, wrong location, suspicious devices) while still keeping the rider experience **instant and hassle-free**. |
-| **Pricing engine** | Suggests a fair weekly price (₹49–₹199) based on **how risky a rider’s zone and history look**, while keeping plans simple to understand. |
+| **Pricing engine** | A deterministic actuarial model calculating unified risk (0-1) via Zone History, Weather Forecasts, Income Exposure, Social Events & Rider Behavior. Generates 3 dynamic mathematical tiers (Basic `0.7x`, Standard `1.0x`, Premium `1.3x`) strictly clamped between `₹49–₹199/week`. Ensures extreme platform solvency via a `40%` required profit margin, while executing **"Option B" Growth Mode** automatic claim-capping and payout subsidization during severe localized Black Swan cyclical events. |
 | **Database helpers** | Small utilities that let the app read and write data safely without repeating the same low-level code everywhere. |
 
 ---
