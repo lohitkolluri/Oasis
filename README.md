@@ -424,6 +424,15 @@ bun run test:e2e
 
 Common workflows after setup:
 
+#### Demo Login Credentials
+
+- **Rider**
+  - Email: `rider@oasis.com`
+  - Password: `Rider@123`
+- **Admin**
+  - Email: `admin@oasis.com`
+  - Password: `Admin@123`
+
 - **Rider flow**
   - Visit the app, register via `(auth)` routes, and complete **KYC onboarding** (government ID + face verification).
   - Choose a **weekly plan** and complete payment via Stripe (Razorpay UPI checkout planned once account is reinstated).
