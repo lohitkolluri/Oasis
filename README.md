@@ -68,7 +68,7 @@ Oasis safeguards gig workers (Zepto, Blinkit) against **loss of income** caused 
 - **Rider PWA dashboard** for onboarding, KYC (government ID and face verification), policies, wallet, and claim history.
 - **Admin console** for system health, riders, triggers, payouts, fraud monitoring, and financial analytics.
 - **Supabase Auth with row-level security** for secure multi-role access (rider and admin).
-- **Stripe integration** for weekly premium payments and payout tracking (temporary; Razorpay UPI planned once our Razorpay account is reinstated).
+- **Stripe integration** for weekly premium payments and payout tracking, including **UPI** via Stripe (India).
 - **Realtime user experience** via Supabase Realtime for live wallet and claim updates.
 - **Documentation site** built with Astro Starlight covering architecture, APIs, database schema, and deployment.
 
@@ -112,7 +112,7 @@ This framework represents the physical engineering layers running Oasis logic.
 | Styling/UI    | Tailwind CSS, shadcn/ui (Radix primitives), Framer Motion, Lucide icons         |
 | Backend API   | Next.js API routes (`/api/`*)                                                   |
 | Data & Auth   | Supabase (PostgreSQL, Auth, Realtime, Storage)                                  |
-| Payments      | Stripe (Razorpay UPI planned post account reinstatement)                        |
+| Payments      | Stripe (cards, wallets, UPI via Stripe India)                                   |
 | External APIs | Tomorrow.io, Open‑Meteo, WAQI, NewsData.io, OpenRouter (LLM)                    |
 | Realtime      | Supabase Realtime                                                               |
 | PWA           | `@ducanh2912/next-pwa`                                                          |
@@ -163,7 +163,7 @@ flowchart LR
 
 **How it works:**
 1. **Rider onboards** → platform (Zepto/Blinkit), identity, zone + KYC (government ID + face liveness).
-2. **Subscribes weekly** → pays ₹49–₹199/week via Stripe (weekly tiers, dynamic pricing).
+2. **Subscribes weekly** → pays ₹49–₹199/week via Stripe, including UPI where enabled (weekly tiers, dynamic pricing).
 3. **Disruption triggers** → realtime push (webhooks) when available; otherwise cron polls weather/AQI/news on a 15‑minute cadence.
 4. **Disruption detected** → fraud pipeline runs → `parametric_claims` inserted with `status='pending_verification'`.
 5. **Payout release** → lightweight GPS verification (automatic when possible) → claim marked `paid` and wallet updates via realtime. No manual claims form required.
@@ -322,7 +322,7 @@ Oasis stays intentionally narrow:
   - PostgreSQL instance
   - Auth and Realtime enabled
 - **Supabase CLI** (optional but recommended) for `db:migrate`
-- **Stripe account & CLI** (for local webhook testing; Razorpay migration planned once account suspension is resolved)
+- **Stripe account & CLI** (for local webhook testing; enable India payment methods including UPI in the Stripe Dashboard)
 - Access tokens / API keys for:
   - Tomorrow.io / Open‑Meteo / WAQI
   - NewsData.io
@@ -375,14 +375,14 @@ Core variables (see docs for the full list):
 | `ADMIN_EMAILS`                       | Yes        | Comma-separated admin emails allowed into the admin console                                        |
 | `TOMORROW_IO_API_KEY`                | Yes        | Weather API key for disruption detection                                                           |
 | `NEWSDATA_IO_API_KEY`                | Yes        | News API key for traffic/lockdown triggers                                                         |
-| `STRIPE_SECRET_KEY`                  | Yes        | Stripe secret key (test or live; temporary until Razorpay is re-enabled)                          |
+| `STRIPE_SECRET_KEY`                  | Yes        | Stripe secret key (test or live)                                                                  |
 | `STRIPE_WEBHOOK_SECRET`              | Yes        | Stripe webhook signing secret for payments callbacks                                               |
 | `CRON_SECRET`                        | Yes (prod) | Shared secret for cron endpoints under `/api/cron/*`                                               |
 | `WEBHOOK_SECRET`                     | If used    | Secret for `POST /api/webhooks/disruption` when using realtime push from providers                 |
 | `NEXT_PUBLIC_APP_URL`                | Yes (prod) | Canonical app URL used for redirects and links (e.g. `https://your-app.vercel.app`)                |
 | `OPENROUTER_API_KEY`                 | Yes        | LLM API key used for gov ID / face verification and news severity classification                   |
 | `WAQI_API_KEY`                       | No         | Optional AQI data source                                                                           |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No         | Stripe publishable key for checkout (temporary while Razorpay is unavailable)                     |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No         | Stripe publishable key for Checkout / embedded payment flows                                      |
 | `GOV_ID_ENCRYPTION_KEY`              | Prod       | 32-byte base64 key for encrypting stored government ID images                                      |
 | `FACE_PHOTO_ENCRYPTION_KEY`          | Prod       | 32-byte base64 key for encrypting face verification photos (falls back to `GOV_ID_ENCRYPTION_KEY`) |
 
@@ -435,7 +435,7 @@ Common workflows after setup:
 
 - **Rider flow**
   - Visit the app, register via `(auth)` routes, and complete **KYC onboarding** (government ID + face verification).
-  - Choose a **weekly plan** and complete payment via Stripe (Razorpay UPI checkout planned once account is reinstated).
+  - Choose a **weekly plan** and complete payment via Stripe (UPI and other India methods where configured).
   - Use the **dashboard** to view active coverage, disruption-based claims, and wallet payouts.
 - **Admin flow**
   - Log in with an email included in `ADMIN_EMAILS` (or `role = 'admin'` in Supabase).
@@ -475,7 +475,7 @@ Refer to the docs (`Development Setup`, `Parametric Triggers`, `Claims Processin
 This is an indicative roadmap; see issues and docs for up-to-date status.
 
 - Rider onboarding with KYC (gov ID + face verification)
-- Weekly premium plans with Stripe checkout (to be complemented with Razorpay UPI once available)
+- Weekly premium plans with Stripe Checkout (UPI and local methods via Stripe India)
 - Parametric trigger engine (weather, AQI, traffic, lockdowns)
 - Automated claims creation and realtime wallet updates
 - Admin console for riders, triggers, fraud, and financials
