@@ -4,6 +4,7 @@
  * Idempotency and policy/payment update happen in one DB transaction via process_stripe_checkout_event.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getStripeClient } from '@/lib/clients/stripe';
 import { getStripeWebhookSecret } from '@/lib/config/env';
 import { logger } from '@/lib/logger';
 import Stripe from 'stripe';
@@ -45,6 +46,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, message: 'No policy_id in metadata' });
   }
 
+  let paymentMethodType: string | null = null;
+  if (paymentIntentId) {
+    try {
+      const stripe = getStripeClient();
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['payment_method'],
+      });
+      const pm = pi.payment_method;
+      if (pm && typeof pm !== 'string' && !pm.deleted) {
+        paymentMethodType = pm.type ?? null;
+      }
+    } catch (err) {
+      logger.warn('Stripe webhook: could not resolve payment method type', {
+        payment_intent: paymentIntentId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
@@ -75,6 +95,7 @@ export async function POST(request: Request) {
     p_payment_intent_id: paymentIntentId,
     p_profile_id: policy.profile_id,
     p_amount_inr: Number(policy.weekly_premium_inr),
+    p_payment_method_type: paymentMethodType,
   });
 
   if (rpcError) {

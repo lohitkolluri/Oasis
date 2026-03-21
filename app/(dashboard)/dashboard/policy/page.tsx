@@ -4,6 +4,8 @@ import Link from "next/link";
 import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
 import { ArrowLeft, FileText } from "lucide-react";
 import { calculateDynamicPremium, getForecastRiskFactor, getHistoricalEventCount, getSocialRiskFactor } from "@/lib/ml/premium-calc";
+import { getPaymentMethodTypeFromIntent } from "@/lib/payments/stripe-payment-method";
+import type { WeeklyPolicy } from "@/lib/types/database";
 
 export default async function PolicyPage({
   searchParams,
@@ -81,11 +83,39 @@ export default async function PolicyPage({
     premium = engineOutput.final_premium;
   }
 
-  const activePolicy = policies?.find((p) => p.is_active) ?? null;
+  let activePolicy: (WeeklyPolicy & { plan_packages?: unknown }) | null =
+    policies?.find((p) => p.is_active) ?? null;
+
   const planName =
     activePolicy?.plan_packages && typeof activePolicy.plan_packages === "object" && activePolicy.plan_packages !== null
       ? (activePolicy.plan_packages as { name?: string }).name ?? "Weekly plan"
       : "Weekly plan";
+
+  // Backfill Card vs UPI from Stripe when the column was empty (e.g. before migration or webhook edge case).
+  if (activePolicy) {
+    const intentId = activePolicy.stripe_payment_intent_id as string | null | undefined;
+    const existingType = activePolicy.stripe_payment_method_type as string | null | undefined;
+    if (intentId && !existingType?.trim()) {
+      try {
+        const pmType = await getPaymentMethodTypeFromIntent(intentId);
+        if (pmType) {
+          const { error: updErr } = await supabase
+            .from("weekly_policies")
+            .update({
+              stripe_payment_method_type: pmType,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", activePolicy.id)
+            .eq("profile_id", user.id);
+          if (!updErr) {
+            activePolicy = { ...activePolicy, stripe_payment_method_type: pmType };
+          }
+        }
+      } catch {
+        /* Stripe not configured or API error — keep showing — */
+      }
+    }
+  }
 
   return (
     <div className="space-y-5">

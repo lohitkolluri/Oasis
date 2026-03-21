@@ -120,7 +120,9 @@ export async function POST(request: Request) {
 
     const session = await createCheckoutSession({
       mode: 'payment',
-      payment_method_types: ['card'],
+      // Dashboard toggles alone do not apply: each method must be listed here.
+      // UPI requires `upi` for India INR Checkout. Google Pay appears on the card flow when eligible (browser + account).
+      payment_method_types: ['card', 'upi'],
       currency: 'inr',
       line_items: [
         {

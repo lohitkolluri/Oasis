@@ -40,6 +40,9 @@ export interface WeeklyPolicy {
   week_end_date: string;
   weekly_premium_inr: number;
   is_active: boolean;
+  /** Stripe PaymentMethod.type after successful checkout (e.g. card, upi). */
+  stripe_payment_method_type?: string | null;
+  stripe_payment_intent_id?: string | null;
   created_at: string;
   updated_at: string;
 }

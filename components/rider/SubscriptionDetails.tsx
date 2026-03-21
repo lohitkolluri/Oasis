@@ -1,7 +1,7 @@
 'use client';
 
 import type { WeeklyPolicy } from '@/lib/types/database';
-import { Copy, CreditCard, Hash, Wallet } from 'lucide-react';
+import { Copy, CreditCard, Hash, Smartphone, Wallet } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 interface SubscriptionDetailsProps {
@@ -9,31 +9,46 @@ interface SubscriptionDetailsProps {
   planName: string;
 }
 
+/** Parse YYYY-MM-DD as local calendar date (avoids UTC midnight skew on DATE fields). */
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function coverageEndOfDay(weekEnd: string): Date {
+  const d = parseLocalDate(weekEnd);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 function formatShortDate(d: string) {
-  return new Date(d).toLocaleDateString('en-IN', {
+  return parseLocalDate(d).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
   });
 }
 
-/** Days remaining in the coverage week (0 = last day). */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Days remaining in the coverage week (inclusive of today until end date). */
 function getDaysRemaining(weekStart: string, weekEnd: string): number {
-  const end = new Date(weekEnd);
-  end.setHours(23, 59, 59, 999);
+  const start = parseLocalDate(weekStart);
+  const end = coverageEndOfDay(weekEnd);
   const now = new Date();
   if (now > end) return 0;
-  const start = new Date(weekStart);
-  start.setHours(0, 0, 0, 0);
-  const totalDays = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-  const elapsed = Math.round((now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  const totalDays =
+    Math.round((parseLocalDate(weekEnd).getTime() - parseLocalDate(weekStart).getTime()) / MS_PER_DAY) + 1;
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const elapsed = Math.floor((todayStart.getTime() - start.getTime()) / MS_PER_DAY);
   const remaining = totalDays - elapsed;
   return Math.max(0, Math.min(remaining, totalDays));
 }
 
 /** Progress 0–100: how much of the week has passed. */
 function getProgressPercent(weekStart: string, weekEnd: string): number {
-  const start = new Date(weekStart);
-  const end = new Date(weekEnd);
+  const start = parseLocalDate(weekStart);
+  const end = coverageEndOfDay(weekEnd);
   const now = new Date();
   const total = end.getTime() - start.getTime();
   const elapsed = now.getTime() - start.getTime();
@@ -47,11 +62,31 @@ function copyToClipboard(text: string, onCopied: () => void) {
   }
 }
 
+/** Stripe `payment_method.type` → rider-facing label (Card, UPI, …). Unknown → em dash. */
+function paymentMethodLabel(type: string | null | undefined): string {
+  if (!type || !type.trim()) return '—';
+  switch (type.toLowerCase()) {
+    case 'upi':
+      return 'UPI';
+    case 'card':
+      return 'Card';
+    case 'link':
+      return 'Link';
+    case 'netbanking':
+      return 'Net banking';
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+}
+
 export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsProps) {
   const [copied, setCopied] = useState(false);
   const daysLeft = getDaysRemaining(policy.week_start_date, policy.week_end_date);
   const progress = getProgressPercent(policy.week_start_date, policy.week_end_date);
   const displayId = policy.id.slice(0, 8).toUpperCase();
+  const methodType = policy.stripe_payment_method_type;
+  const methodLabel = paymentMethodLabel(methodType);
+  const hasKnownMethod = Boolean(methodType?.trim());
 
   const handleCopy = useCallback(() => {
     copyToClipboard(policy.id, () => {
@@ -152,11 +187,21 @@ export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsPro
           </div>
           <div className="flex items-center gap-3 py-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 text-zinc-400 shrink-0">
-              <CreditCard className="h-4 w-4" />
+              {methodType?.toLowerCase() === 'upi' ? (
+                <Smartphone className="h-4 w-4" aria-hidden />
+              ) : methodType?.toLowerCase() === 'card' ? (
+                <CreditCard className="h-4 w-4" aria-hidden />
+              ) : (
+                <Wallet className="h-4 w-4" aria-hidden />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-zinc-500">Payment method</p>
-              <p className="text-[13px] font-medium text-uber-green">Card</p>
+              <p
+                className={`text-[13px] font-medium tabular-nums ${hasKnownMethod ? 'text-uber-green' : 'text-zinc-500'}`}
+              >
+                {methodLabel}
+              </p>
             </div>
           </div>
         </div>
