@@ -23,6 +23,9 @@ lohit.md
 # Production
 /build
 
+# Cursor (local editor state, hooks, machine-specific settings)
+.cursor/
+
 # Misc
 .DS_Store
 *.pem
