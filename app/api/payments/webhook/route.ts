@@ -54,8 +54,13 @@ export async function POST(request: Request) {
         expand: ['payment_method'],
       });
       const pm = pi.payment_method;
-      if (pm && typeof pm !== 'string' && !pm.deleted) {
-        paymentMethodType = pm.type ?? null;
+      if (pm && typeof pm !== 'string') {
+        const deleted =
+          'deleted' in pm &&
+          Boolean((pm as { deleted?: boolean }).deleted);
+        if (!deleted) {
+          paymentMethodType = pm.type ?? null;
+        }
       }
     } catch (err) {
       logger.warn('Stripe webhook: could not resolve payment method type', {

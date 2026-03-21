@@ -14,6 +14,7 @@ import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
+import type Stripe from 'stripe';
 import { createCheckoutSession } from '@/lib/clients/stripe';
 
 export async function POST(request: Request) {
@@ -122,7 +123,8 @@ export async function POST(request: Request) {
       mode: 'payment',
       // Dashboard toggles alone do not apply: each method must be listed here.
       // UPI requires `upi` for India INR Checkout. Google Pay appears on the card flow when eligible (browser + account).
-      payment_method_types: ['card', 'upi'],
+      // SDK `PaymentMethodType` union lags the API — `upi` is valid for Checkout.
+      payment_method_types: ['card', 'upi'] as Stripe.Checkout.SessionCreateParams['payment_method_types'],
       currency: 'inr',
       line_items: [
         {
