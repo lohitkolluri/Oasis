@@ -159,7 +159,7 @@ A `Dockerfile` is included for Dokploy, Fly.io, or any container runtime.
 - [ ] **Cron:** `CRON_SECRET` set and matches the value used by GitHub Actions / Vercel Cron / Supabase Cron
 - [ ] **Stripe webhook:** Endpoint `https://your-app.com/api/payments/webhook` added, subscribed to `checkout.session.completed`, signing secret in env
 - [ ] **Cron schedule:** Adjudicator (hourly) and weekly-premium (Sunday) configured via one of: GitHub Actions, Vercel Cron (Pro), or Supabase Cron
-- [ ] **Smoke tests:** Adjudicator run (Admin → Run Adjudicator), payment flow (subscribe in test mode), PWA install on Android Chrome
+- [ ] **Smoke tests:** Adjudicator run (Admin → Run Adjudicator), payment flow (subscribe in test mode; card or UPI), PWA install on Android Chrome
 - [ ] **Health:** `GET /api/health` returns 200 when DB is reachable (use for load balancer health checks)
 
 ---

@@ -89,7 +89,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...   # From Stripe Dashboard → Developers → Web
 ```
 
 :::tip[Demo Mode]{icon="approve-check-circle"}
-Use Stripe test keys (`sk_test_...`) to run the full Checkout flow with test cards (e.g. 4242 4242 4242 4242) without real charges.
+Use Stripe test keys (`sk_test_...`) to run the full Checkout flow without real charges: test cards (e.g. `4242 4242 4242 4242`) and **UPI** in test mode (see [Stripe UPI payments](https://stripe.com/docs/payments/upi)).
 :::
 
 ```mermaid

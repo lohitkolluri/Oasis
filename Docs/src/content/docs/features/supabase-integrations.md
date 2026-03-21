@@ -19,7 +19,7 @@ Cron jobs run inside Postgres via `pg_cron` and call the Next.js API using `pg_n
 
 **Status:** Implemented
 
-Oasis uses **Stripe** for weekly premium payments. Stripe Checkout handles the payment flow; the webhook at `/api/payments/webhook` activates policies on success.
+Oasis uses **Stripe** for weekly premium payments. Stripe Checkout handles the payment flow (INR) with **card** and **UPI**; eligible customers may also see **Google Pay** on the card path. The webhook at `/api/payments/webhook` activates policies on success.
 
 ### Supabase Stripe Wrapper (optional)
 

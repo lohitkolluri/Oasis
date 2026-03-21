@@ -71,7 +71,7 @@ Open the dashboard → Oasis quietly checks who you are, your policy, and recent
 ```mermaid
 flowchart TB
     UI["1. Rider picks a weekly plan"] --> CC["Create Stripe Checkout session"]
-    CC --> SC["2. Stripe-hosted payment page"]
+    CC --> SC["2. Stripe-hosted payment page<br/>(card, UPI)"]
     SC --> WH["3. Secure webhook from Stripe"]
     WH --> WP["Store weekly coverage<br/>(weekly_policies)"]
     WH --> PT["Store payment record<br/>(payment_transactions)"]

@@ -225,7 +225,7 @@ paths:
       tags:
         - Payments & Subscriptions
       summary: Create Stripe Checkout
-      description: Initiates a synchronous Stripe Checkout session for activating a weekly delivery risk premium.
+      description: Initiates a synchronous Stripe Checkout session for activating a weekly delivery risk premium. Checkout is configured for INR with card and UPI payment methods.
       operationId: postCreateCheckout
       requestBody:
         content:
