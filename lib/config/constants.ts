@@ -83,8 +83,6 @@ export const LOG_ROTATION = {
   SYSTEM_LOGS_DAYS: 30,
   READ_NOTIFICATIONS_DAYS: 7,
   UNREAD_NOTIFICATIONS_DAYS: 30,
-  /** Retention for legacy `stripe_webhook_events` (rotate_logs). */
-  STRIPE_WEBHOOKS_DAYS: 90,
   /** Retention for `razorpay_payment_events` idempotency rows. */
   RAZORPAY_PAYMENT_EVENTS_DAYS: 90,
 } as const;

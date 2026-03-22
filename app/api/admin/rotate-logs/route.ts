@@ -20,7 +20,6 @@ export const POST = withAdminAuth(async () => {
     p_system_logs_days: LOG_ROTATION.SYSTEM_LOGS_DAYS,
     p_read_notifications_days: LOG_ROTATION.READ_NOTIFICATIONS_DAYS,
     p_unread_notifications_days: LOG_ROTATION.UNREAD_NOTIFICATIONS_DAYS,
-    p_stripe_webhooks_days: LOG_ROTATION.STRIPE_WEBHOOKS_DAYS,
     p_razorpay_payment_events_days: LOG_ROTATION.RAZORPAY_PAYMENT_EVENTS_DAYS,
   });
 
@@ -37,9 +36,8 @@ export const POST = withAdminAuth(async () => {
       system_logs: `${LOG_ROTATION.SYSTEM_LOGS_DAYS} days`,
       read_notifications: `${LOG_ROTATION.READ_NOTIFICATIONS_DAYS} days`,
       unread_notifications: `${LOG_ROTATION.UNREAD_NOTIFICATIONS_DAYS} days`,
-      legacy_stripe_webhook_events: `${LOG_ROTATION.STRIPE_WEBHOOKS_DAYS} days`,
       razorpay_payment_events: `${LOG_ROTATION.RAZORPAY_PAYMENT_EVENTS_DAYS} days`,
     },
-    deleted: data,
+    deleted_counts: data,
   });
 });

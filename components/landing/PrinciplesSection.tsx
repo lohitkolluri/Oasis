@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 
 import { useRef, useState } from 'react';
 
@@ -43,7 +44,7 @@ const principles = [
 export function PrinciplesSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-20 sm:py-32 relative z-10">
-      <div className="flex flex-col items-center text-center reveal-in-up mb-16" style={{ ['--d' as any]: '60ms' }}>
+      <div className="flex flex-col items-center text-center reveal-in-up mb-16" style={{ '--d': '60ms' } as React.CSSProperties}>
         <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-white/40 mb-4">
           Principles
         </p>
@@ -57,7 +58,7 @@ export function PrinciplesSection() {
 
       <div className="grid gap-6 sm:grid-cols-3">
         {principles.map((p, idx) => (
-          <HoverCard key={p.t} className="p-8 reveal-in-up" style={{ ['--d' as any]: `${(idx + 1) * 100}ms` } as any}>
+          <HoverCard key={p.t} className="p-8 reveal-in-up" style={{ '--d': `${(idx + 1) * 100}ms` } as React.CSSProperties}>
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 mb-6 text-white/40 font-mono text-[12px] transition-transform duration-500 group-hover:scale-110 group-hover:text-white">
               0{idx + 1}
             </div>

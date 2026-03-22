@@ -1,9 +1,10 @@
+import React from 'react';
 import { ButtonLink } from '@/components/ui/Button';
 
 export function FinalCTASection() {
   return (
     <section className="mx-auto max-w-5xl px-5 py-20 sm:py-32 relative z-10">
-      <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#070707] p-8 sm:p-24 shadow-[0_0_80px_rgba(255,255,255,0.02)] reveal-in-up" style={{ ['--d' as any]: '60ms' }}>
+      <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#070707] p-8 sm:p-24 shadow-[0_0_80px_rgba(255,255,255,0.02)] reveal-in-up" style={{ '--d': '60ms' } as React.CSSProperties}>
         
         {/* Glow Effects */}
         <div

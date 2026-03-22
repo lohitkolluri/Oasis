@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import {
   Calculator,
@@ -219,7 +220,7 @@ function CoverageBoundary({ className = '' }: { className?: string }) {
 export function MiddleSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-10 sm:py-20 relative z-10">
-      <div className="grid gap-8 lg:grid-cols-2 reveal-in-up" style={{ ['--d' as any]: '60ms' }}>
+      <div className="grid gap-8 lg:grid-cols-2 reveal-in-up" style={{ '--d': '60ms' } as React.CSSProperties}>
         <TriggersPanel />
         <div className="space-y-8 flex flex-col">
           <PricingPanel />
