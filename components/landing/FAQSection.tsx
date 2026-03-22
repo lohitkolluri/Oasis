@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 
 import * as Accordion from '@radix-ui/react-accordion';
 import { Plus } from 'lucide-react';
@@ -29,7 +30,7 @@ const faqs = [
 export function FAQSection() {
   return (
     <section id="faq" className="mx-auto max-w-4xl px-5 py-20 sm:py-32 relative z-10">
-      <div className="flex flex-col items-center text-center reveal-in-up mb-16" style={{ ['--d' as any]: '80ms' }}>
+      <div className="flex flex-col items-center text-center reveal-in-up mb-16" style={{ '--d': '80ms' } as React.CSSProperties}>
         <h2 className="text-[32px] sm:text-[42px] font-bold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 leading-tight">
           Frequently asked questions
         </h2>
@@ -44,7 +45,7 @@ export function FAQSection() {
             key={f.q}
             value={f.q}
             className="border-b border-white/10 reveal-in-up overflow-hidden"
-            style={{ ['--d' as any]: `${(idx + 1) * 100}ms` } as any}
+            style={{ '--d': `${(idx + 1) * 100}ms` } as React.CSSProperties}
           >
             <Accordion.Header>
               <Accordion.Trigger className="group flex w-full items-center justify-between py-6 outline-none transition-colors">

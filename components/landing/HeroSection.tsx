@@ -1,3 +1,4 @@
+import React from 'react';
 import { ButtonLink } from '@/components/ui/Button';
 import { HeroDashboardPreviewLazy } from '@/components/landing/HeroDashboardPreviewLazy';
 
@@ -9,7 +10,7 @@ export function HeroSection() {
         
         <h1
           className="mt-0 whitespace-normal text-[44px] font-bold leading-[0.95] tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 sm:text-[90px] md:text-[110px] reveal-in-up drop-shadow-sm filter"
-          style={{ ['--d' as any]: '40ms' }}
+          style={{ '--d': '40ms' } as React.CSSProperties}
         >
           Parametric <br className="hidden sm:block" />
           Wage Protection
@@ -17,13 +18,13 @@ export function HeroSection() {
         
         <p
           className="mt-8 max-w-[60ch] text-[15px] leading-relaxed text-white/50 sm:text-[18px] sm:leading-[1.6] reveal-in-up font-medium tracking-tight"
-          style={{ ['--d' as any]: '120ms' }}
+          style={{ '--d': '120ms' } as React.CSSProperties}
         >
           Oasis covers loss of income from external disruptions like extreme weather and locked zones. 
           Weekly pricing. <span className="text-white/80">Zero manual claims.</span>
         </p>
 
-        <div className="mt-10 reveal-in-up flex flex-col sm:flex-row gap-4" style={{ ['--d' as any]: '180ms' }}>
+        <div className="mt-10 reveal-in-up flex flex-col sm:flex-row gap-4" style={{ '--d': '180ms' } as React.CSSProperties}>
           <ButtonLink 
             href="/register" 
             className="group relative overflow-hidden rounded-full bg-white text-black font-semibold px-8 h-12 hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] transition-all duration-300"
@@ -42,7 +43,7 @@ export function HeroSection() {
       </div>
 
       {/* Embedded Dashboard Preview */}
-      <div className="mt-20 mx-auto w-full max-w-[1200px] reveal-in-up px-0 sm:px-5 relative z-10 perspective-[2000px]" style={{ ['--d' as any]: '500ms' }}>
+      <div className="mt-20 mx-auto w-full max-w-[1200px] reveal-in-up px-0 sm:px-5 relative z-10 perspective-[2000px]" style={{ '--d': '500ms' } as React.CSSProperties}>
         <div 
           className="relative rounded-t-2xl sm:rounded-2xl overflow-hidden border border-white/10 bg-[#0f0f0f] shadow-[0_0_100px_rgba(255,255,255,0.05)] transform-gpu rotate-x-[2deg] scale-[0.95] transition-all duration-1000 ease-out hover:rotate-x-0 hover:scale-100"
           style={{

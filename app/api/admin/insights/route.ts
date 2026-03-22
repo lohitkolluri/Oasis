@@ -1,6 +1,7 @@
 /**
  * Deterministic admin operations brief.
- * Admin-only.
+ * Admin-only. Premiums/loss ratio use the same 30d window as /api/admin/analytics.
+ * Fraud "urgent" count = flagged claims still awaiting a decision (admin_review_status IS NULL).
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
@@ -12,14 +13,30 @@ export const GET = withAdminAuth(async (_ctx) => {
   const adminSupabase = createAdminClient();
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const since30dDay = since30d.slice(0, 10);
 
-  const [policiesRes, claimsRes, fraudRes, recentClaimsRes, eventsRes, reportsRes] = await Promise.all([
-    adminSupabase.from('weekly_policies').select('weekly_premium_inr').eq('is_active', true),
-    adminSupabase.from('parametric_claims').select('payout_amount_inr'),
+  const [
+    policies30dRes,
+    claims30dRes,
+    fraudPendingRes,
+    recentClaimsRes,
+    eventsRes,
+    reportsRes,
+  ] = await Promise.all([
+    adminSupabase
+      .from('weekly_policies')
+      .select('weekly_premium_inr')
+      .gte('week_start_date', since30dDay),
+    adminSupabase
+      .from('parametric_claims')
+      .select('payout_amount_inr')
+      .gte('created_at', since30d),
     adminSupabase
       .from('parametric_claims')
       .select('id', { count: 'exact', head: true })
-      .eq('is_flagged', true),
+      .eq('is_flagged', true)
+      .is('admin_review_status', null),
     adminSupabase
       .from('parametric_claims')
       .select('id', { count: 'exact', head: true })
@@ -42,23 +59,28 @@ export const GET = withAdminAuth(async (_ctx) => {
     })(),
   ]);
 
-  const policies = policiesRes.data ?? [];
-  const claims = claimsRes.data ?? [];
-  const fraudCount = fraudRes.count ?? 0;
+  const policies30d = policies30dRes.data ?? [];
+  const claims30d = claims30dRes.data ?? [];
+  const fraudPending = fraudPendingRes.count ?? 0;
   const events = eventsRes.data ?? [];
-  const severeEvents = events.filter((e: { severity_score: number }) => Number(e.severity_score) >= 8);
+  const severeEvents = events.filter(
+    (e: { severity_score: number }) => Number(e.severity_score) >= 8,
+  );
   const reportsLast24h = reportsRes.count ?? 0;
   const claimsLast24h = recentClaimsRes.count ?? 0;
 
-  const totalPremiums = policies.reduce(
+  const totalPremiums30d = policies30d.reduce(
     (s: number, p: { weekly_premium_inr: unknown }) => s + Number(p.weekly_premium_inr),
     0,
   );
-  const totalPayouts = claims.reduce(
+  const totalPayouts30d = claims30d.reduce(
     (s: number, c: { payout_amount_inr: unknown }) => s + Number(c.payout_amount_inr),
     0,
   );
-  const lossRatio = totalPremiums > 0 ? ((totalPayouts / totalPremiums) * 100).toFixed(1) : '0';
+  const lossRatio =
+    totalPremiums30d > 0
+      ? ((totalPayouts30d / totalPremiums30d) * 100).toFixed(1)
+      : '0';
 
   const topTriggerEntry = Object.entries(
     events.reduce<Record<string, number>>((acc, event: { event_type: string }) => {
@@ -69,25 +91,47 @@ export const GET = withAdminAuth(async (_ctx) => {
   ).sort((a, b) => b[1] - a[1])[0];
 
   const headline =
-    fraudCount > 0 || reportsLast24h > 0 || severeEvents.length > 0 ? 'Action needed' : 'Platform stable';
+    fraudPending > 0 || reportsLast24h > 0 || severeEvents.length > 0
+      ? 'Action needed'
+      : 'Platform stable';
 
   const summaryParts: string[] = [];
-  if (fraudCount > 0) summaryParts.push(`${fraudCount} flagged claim${fraudCount === 1 ? '' : 's'} await review`);
-  if (reportsLast24h > 0)
-    summaryParts.push(`${reportsLast24h} rider self-report${reportsLast24h === 1 ? '' : 's'} came in over the last 24h`);
-  if (severeEvents.length > 0)
-    summaryParts.push(`${severeEvents.length} severe trigger${severeEvents.length === 1 ? '' : 's'} fired today`);
-  if (summaryParts.length === 0) summaryParts.push('No urgent fraud, self-report, or severe trigger activity detected');
+  if (fraudPending > 0) {
+    summaryParts.push(
+      `${fraudPending} flagged claim${fraudPending === 1 ? '' : 's'} await review`,
+    );
+  }
+  if (reportsLast24h > 0) {
+    summaryParts.push(
+      `${reportsLast24h} rider self-report${reportsLast24h === 1 ? '' : 's'} came in over the last 24h`,
+    );
+  }
+  if (severeEvents.length > 0) {
+    summaryParts.push(
+      `${severeEvents.length} severe trigger${severeEvents.length === 1 ? '' : 's'} fired today`,
+    );
+  }
+  if (summaryParts.length === 0) {
+    summaryParts.push(
+      'No urgent fraud queue items, self-report spikes, or severe trigger bursts detected',
+    );
+  }
 
   const watchlist: string[] = [];
   if (topTriggerEntry) {
-    watchlist.push(`Top trigger in the last 24h: ${topTriggerEntry[0]} (${topTriggerEntry[1]} event${topTriggerEntry[1] === 1 ? '' : 's'}).`);
+    watchlist.push(
+      `Top trigger in the last 24h: ${topTriggerEntry[0]} (${topTriggerEntry[1]} event${topTriggerEntry[1] === 1 ? '' : 's'}).`,
+    );
   }
   if (Number(lossRatio) > 80) {
-    watchlist.push(`Loss ratio is ${lossRatio}%. Review pricing and payout pressure before the next weekly cycle.`);
+    watchlist.push(
+      `Loss ratio is ${lossRatio}% (rolling 30d). Review pricing and payout pressure before the next weekly cycle.`,
+    );
   }
   if (claimsLast24h > 0) {
-    watchlist.push(`${claimsLast24h} claim${claimsLast24h === 1 ? '' : 's'} were created in the last 24h.`);
+    watchlist.push(
+      `${claimsLast24h} claim${claimsLast24h === 1 ? '' : 's'} were created in the last 24h.`,
+    );
   }
   if (watchlist.length === 0) {
     watchlist.push('Premiums, claims, and trigger activity are within a normal operating range.');
@@ -100,10 +144,13 @@ export const GET = withAdminAuth(async (_ctx) => {
       {
         id: 'fraud',
         label: 'Fraud Queue',
-        value: String(fraudCount),
-        note: fraudCount > 0 ? 'Claims waiting for manual decision' : 'No flagged claims right now',
+        value: String(fraudPending),
+        note:
+          fraudPending > 0
+            ? 'Flagged claims waiting for a decision'
+            : 'No flagged claims awaiting review',
         href: '/admin/fraud',
-        tone: fraudCount > 0 ? 'red' : 'emerald',
+        tone: fraudPending > 0 ? 'red' : 'emerald',
       },
       {
         id: 'reports',
@@ -131,7 +178,7 @@ export const GET = withAdminAuth(async (_ctx) => {
         id: 'claims',
         label: 'Claims 24h',
         value: String(claimsLast24h),
-        note: `Loss ratio ${lossRatio}% · ₹${totalPayouts.toLocaleString('en-IN')} total payouts`,
+        note: `Loss ratio ${lossRatio}% (30d) · ₹${totalPayouts30d.toLocaleString('en-IN')} payouts (30d)`,
         href: '/admin',
         tone: Number(lossRatio) > 80 ? 'amber' : 'emerald',
       },

@@ -1,6 +1,6 @@
 /**
  * Mocks an instant UPI payout transaction to simulate real-world ledger closures.
- * Bypasses active Stripe or banking integrations to deterministically record a "completed"
+ * Bypasses live Razorpay payouts or banking integrations to deterministically record a "completed"
  * transaction within the database, simulating network latency for frontend realism.
  */
 
@@ -78,7 +78,7 @@ export const POST = withAdminAuth(async (_ctx, request) => {
         completed_at: new Date().toISOString(),
         metadata: {
           processing_time_ms: Math.round(processingMs),
-          gateway: 'stripe_connect',
+          gateway: 'razorpay',
           demo: true,
           upi_vpa: `rider_${profile_id.slice(0, 4)}@oasis`,
         },

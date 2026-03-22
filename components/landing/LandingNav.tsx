@@ -1,10 +1,11 @@
+import React from 'react';
 import Link from 'next/link';
 import { ButtonLink } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 
 export function LandingNav() {
   return (
-    <div className="fixed top-6 inset-x-0 z-50 flex justify-center px-4 md:px-6 pointer-events-none reveal-in-up" style={{ ['--d' as any]: '20ms' }}>
+    <div className="fixed top-6 inset-x-0 z-50 flex justify-center px-4 md:px-6 pointer-events-none reveal-in-up" style={{ '--d': '20ms' } as React.CSSProperties}>
       <header className="pointer-events-auto flex w-full max-w-5xl items-center justify-between rounded-full border border-white/10 bg-black/40 px-4 py-3 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] ring-1 ring-white/5 transition-all hover:bg-black/60 hover:border-white/20">
         <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80 active:opacity-60">
           <Logo size={24} priority />

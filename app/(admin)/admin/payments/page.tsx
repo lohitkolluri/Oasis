@@ -10,17 +10,10 @@ type DbPayment = {
   weekly_policy_id: string | null;
   amount_inr: number;
   status: string;
-  stripe_payment_intent_id: string | null;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
   paid_at: string | null;
   created_at: string;
-};
-
-type StripeIntent = {
-  id: string;
-  amount: number;
-  currency: string | null;
-  status: string | null;
-  created: number;
 };
 
 export default async function AdminPaymentsPage() {
@@ -29,79 +22,34 @@ export default async function AdminPaymentsPage() {
   const { data: payments } = await supabase
     .from('payment_transactions')
     .select(
-      'id, profile_id, weekly_policy_id, amount_inr, status, stripe_payment_intent_id, paid_at, created_at',
+      'id, profile_id, weekly_policy_id, amount_inr, status, razorpay_order_id, razorpay_payment_id, paid_at, created_at',
     )
     .order('created_at', { ascending: false })
     .limit(50);
 
-  const intentsById = new Map<string, StripeIntent>();
-
-  const intentIds = Array.from(
-    new Set(
-      (payments ?? [])
-        .map((p) => p.stripe_payment_intent_id)
-        .filter((id): id is string => !!id),
-    ),
-  );
-
-  if (intentIds.length > 0) {
-    const { data: stripeIntents } = await supabase
-      .from('stripe.payment_intents' as never)
-      .select('id, amount, currency, status, created')
-      .in('id', intentIds);
-
-    for (const row of (stripeIntents ?? []) as StripeIntent[]) {
-      intentsById.set(row.id, row);
-    }
-  }
-
-  const stripeIntentsAvailable = intentsById.size > 0;
-
   const rows =
     (payments as DbPayment[] | null)?.map((p) => {
-      const intent = p.stripe_payment_intent_id
-        ? intentsById.get(p.stripe_payment_intent_id)
-        : undefined;
-      const dbAmountPaise = Math.round(Number(p.amount_inr) * 100);
-      const stripeAmount = intent?.amount ?? null;
-      const amountMatch =
-        stripeAmount != null ? stripeAmount === dbAmountPaise : null;
+      const hasRazorpayRef = Boolean(p.razorpay_payment_id?.trim());
+      const hasIssue =
+        p.status === 'paid' && !hasRazorpayRef;
       return {
-        db: p,
-        intent,
-        amountMatch,
+        id: p.id,
+        status: p.status,
+        amountInr: Number(p.amount_inr),
+        profileId: p.profile_id,
+        weeklyPolicyId: p.weekly_policy_id,
+        razorpayOrderId: p.razorpay_order_id,
+        razorpayPaymentId: p.razorpay_payment_id,
+        createdAt: p.created_at,
+        paidAt: p.paid_at,
+        hasIssue,
       };
     }) ?? [];
 
-  const totalCollected = rows.reduce((s, r) => s + Number(r.db.amount_inr), 0);
-  const withStripeIdCount = rows.filter(
-    (r) => !!r.db.stripe_payment_intent_id,
-  ).length;
-  const paidCount = rows.filter((r) => r.db.status === 'paid').length;
-
-  const mismatchCount = stripeIntentsAvailable
-    ? rows.filter(
-        (r) =>
-          (r.db.stripe_payment_intent_id && !r.intent) ||
-          r.amountMatch === false ||
-          (r.intent &&
-            r.db.status === 'paid' &&
-            r.intent.status !== 'succeeded'),
-      ).length
-    : 0;
-
-  const reconciliationRate =
-    stripeIntentsAvailable && rows.length > 0
-      ? (((rows.length - mismatchCount) / rows.length) * 100).toFixed(1)
-      : null;
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const totalCollected = rows.reduce((s, r) => s + r.amountInr, 0);
+  const withPaymentIdCount = rows.filter((r) => !!r.razorpayPaymentId).length;
+  const paidCount = rows.filter((r) => r.status === 'paid').length;
+  const issueCount = rows.filter((r) => r.hasIssue).length;
 
   return (
     <div className="space-y-6">
@@ -110,18 +58,7 @@ export default async function AdminPaymentsPage() {
           Payment Logs
         </h1>
         <p className="text-sm text-[#666] mt-1">
-          Recent premium payments recorded by Oasis
-          {stripeIntentsAvailable ? (
-            <span className="text-[#555]">
-              {' '}
-              · Stripe intents available for reconciliation
-            </span>
-          ) : (
-            <span className="text-[#555]">
-              {' '}
-              · Stripe intents not available (showing Oasis logs only)
-            </span>
-          )}
+          Premium collections — order and payment IDs match Razorpay for audit
         </p>
       </div>
 
@@ -139,14 +76,14 @@ export default async function AdminPaymentsPage() {
           accent="emerald"
         />
         <KPICard
-          title="Stripe coverage"
-          label="With payment_intent_id"
+          title="Linked payments"
+          label="With Razorpay payment id"
           value={
             rows.length > 0
-              ? `${Math.round((withStripeIdCount / rows.length) * 100)}%`
+              ? `${Math.round((withPaymentIdCount / rows.length) * 100)}%`
               : '—'
           }
-          accent={withStripeIdCount > 0 ? 'violet' : 'blue'}
+          accent={withPaymentIdCount > 0 ? 'violet' : 'blue'}
         />
       </div>
 
@@ -162,38 +99,7 @@ export default async function AdminPaymentsPage() {
             </p>
           </div>
         ) : (
-          <PaymentTransactionsTable
-            rows={rows.map(({ db, intent, amountMatch }) => {
-              const hasStripeId = !!db.stripe_payment_intent_id;
-              const statusMismatch =
-                stripeIntentsAvailable &&
-                intent &&
-                db.status === 'paid'
-                  ? intent.status !== 'succeeded'
-                  : false;
-              const hasIssue =
-                stripeIntentsAvailable &&
-                (amountMatch === false ||
-                  statusMismatch ||
-                  (hasStripeId && !intent));
-
-              return {
-                id: db.id,
-                status: db.status,
-                amountInr: Number(db.amount_inr),
-                profileId: db.profile_id,
-                weeklyPolicyId: db.weekly_policy_id,
-                stripePaymentIntentId: db.stripe_payment_intent_id,
-                createdAt: db.created_at,
-                paidAt: db.paid_at,
-                stripeStatus: intent?.status ?? null,
-                amountMatch,
-                statusMismatch,
-                hasIssue,
-              };
-            })}
-            stripeIntentsAvailable={stripeIntentsAvailable}
-          />
+          <PaymentTransactionsTable rows={rows} issueCount={issueCount} />
         )}
       </Card>
     </div>

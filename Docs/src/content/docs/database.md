@@ -383,17 +383,16 @@ CREATE TABLE rider_notifications (
 
 ---
 
-### `stripe_webhook_events`
+### `razorpay_payment_events`
 
-Processed Stripe webhook event IDs for idempotency, ensuring the same payment hook is not processed twice.
+Processed Razorpay webhook event IDs for idempotency, ensuring the same payment hook is not processed twice.
 
 <details>
 <summary>Show SQL</summary>
 
 ```sql
-CREATE TABLE stripe_webhook_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id TEXT NOT NULL UNIQUE,
+CREATE TABLE razorpay_payment_events (
+  razorpay_payment_id TEXT PRIMARY KEY,
   processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
@@ -455,13 +454,7 @@ CREATE TABLE plan_pricing_snapshots (
 | `payment_transactions` | Own only | - | Via service role | Full |
 | `payout_ledger` | Own only | - | Via service role | Full |
 | `rider_notifications` | Own only | - | Via service role | Full |
-| `stripe_webhook_events` | - | - | Via service role | Full |
-| `rate_limit_entries` | - | - | Via service role | Full |
-| `plan_pricing_snapshots` | All | - | Via service role | Full |
-| `payment_transactions` | Own only | - | Via service role | Full |
-| `payout_ledger` | Own only | - | Via service role | Full |
-| `rider_notifications` | Own only | - | Via service role | Full |
-| `stripe_webhook_events` | - | - | Via service role | Full |
+| `razorpay_payment_events` | - | - | Via service role | Full |
 | `rate_limit_entries` | - | - | Via service role | Full |
 | `plan_pricing_snapshots` | All | - | Via service role | Full |
 

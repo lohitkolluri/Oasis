@@ -1,6 +1,8 @@
 import { FraudList } from '@/components/admin/FraudList';
 import { KPICard } from '@/components/ui/KPICard';
+import { Card } from '@/components/ui/Card';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ShieldAlert } from 'lucide-react';
 
 export default async function FraudPage() {
   const supabase = createAdminClient();
@@ -10,16 +12,20 @@ export default async function FraudPage() {
     .select(
       `
       id,
+      policy_id,
       payout_amount_inr,
       is_flagged,
       flag_reason,
       created_at,
       admin_review_status,
       reviewed_by,
-      weekly_policies(profile_id)
+      weekly_policies(
+        profile_id,
+        plan_packages(payout_per_claim_inr)
+      )
     `,
     )
-    .eq('is_flagged', true)
+    .or('is_flagged.eq.true,admin_review_status.in.(approved,rejected)')
     .order('created_at', { ascending: false });
 
   const pendingCount = (claims ?? []).filter((c) => !c.admin_review_status).length;
@@ -51,7 +57,19 @@ export default async function FraudPage() {
         />
       </div>
 
-      <FraudList claims={claims ?? []} />
+      <Card variant="default" padding="none">
+        {(claims ?? []).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center px-5">
+            <ShieldAlert className="h-10 w-10 text-[#3a3a3a] mb-4 stroke-[1.5]" />
+            <p className="text-sm font-medium text-[#555]">No claims in queue</p>
+            <p className="text-xs text-[#444] mt-1">
+              Flagged claims will appear here for review
+            </p>
+          </div>
+        ) : (
+          <FraudList claims={claims ?? []} />
+        )}
+      </Card>
     </div>
   );
 }

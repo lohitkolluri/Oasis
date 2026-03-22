@@ -332,7 +332,7 @@ export function AdminMiniDashboard() {
               { name: 'Tomorrow.io', ok: true },
               { name: 'NewsData.io', ok: true },
               { name: 'OpenRouter LLM', ok: true },
-              { name: 'Stripe', ok: true },
+              { name: 'Razorpay', ok: true },
             ].map((api) => (
               <div
                 key={api.name}

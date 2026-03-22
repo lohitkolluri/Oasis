@@ -1,8 +1,9 @@
+import React from 'react';
 import Link from 'next/link';
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-black/40 backdrop-blur-md relative z-10 reveal-in-up" style={{ ['--d' as any]: '20ms' }}>
+    <footer className="border-t border-white/10 bg-black/40 backdrop-blur-md relative z-10 reveal-in-up" style={{ '--d': '20ms' } as React.CSSProperties}>
       <div className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
         <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-[400px]">

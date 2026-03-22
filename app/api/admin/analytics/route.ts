@@ -2,8 +2,8 @@
  * GET /api/admin/analytics
  *
  * Returns time-series and breakdown data for the admin analytics dashboard.
- * B6 fix: added date range params and reasonable limits.
- * P3 fix: uses DB-level aggregation where possible.
+ * B6 fix: date range params; premiums scoped by week_start_date (aligned with claims window).
+ * P3 fix: full-period rows for summaries (no row cap that skewed loss ratio / flagged counts).
  */
 
 import { getNextWeekPrediction } from '@/lib/ml/next-week-risk';
@@ -28,6 +28,8 @@ export const GET = withAdminAuth(async (ctx, request) => {
   const sinceDate = new Date(
     Date.now() - daysBack * 24 * 60 * 60 * 1000,
   ).toISOString();
+  /** Match premium rows to the same calendar window as claims (policy week start in range). */
+  const sinceWeekStartDay = sinceDate.slice(0, 10);
 
   const [claimsRes, policiesRes, eventsRes] = await Promise.all([
     admin
@@ -36,20 +38,17 @@ export const GET = withAdminAuth(async (ctx, request) => {
         'payout_amount_inr, created_at, is_flagged, disruption_event_id',
       )
       .gte('created_at', sinceDate)
-      .order('created_at', { ascending: true })
-      .limit(limit),
+      .order('created_at', { ascending: true }),
     admin
       .from('weekly_policies')
       .select('weekly_premium_inr, week_start_date, created_at')
-      .gte('created_at', sinceDate)
-      .order('week_start_date', { ascending: true })
-      .limit(limit),
+      .gte('week_start_date', sinceWeekStartDay)
+      .order('week_start_date', { ascending: true }),
     admin
       .from('live_disruption_events')
       .select('event_type, severity_score, created_at')
       .gte('created_at', sinceDate)
-      .order('created_at', { ascending: true })
-      .limit(limit),
+      .order('created_at', { ascending: true }),
   ]);
 
   const claims = claimsRes.data ?? [];
@@ -67,7 +66,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
     claimsByDay.set(day, {
       claims: prev.claims + 1,
       payout: prev.payout + Number(c.payout_amount_inr),
-      flagged: prev.flagged + (c.is_flagged ? 1 : 0),
+      flagged: prev.flagged + (c.is_flagged === true ? 1 : 0),
     });
   }
   const claimsTimeline = Array.from(claimsByDay.entries()).map(
@@ -169,7 +168,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
         totalPremium > 0
           ? Math.round((totalPayout / totalPremium) * 100)
           : 0,
-      flaggedClaims: claims.filter((c) => c.is_flagged).length,
+      flaggedClaims: claims.filter((c) => c.is_flagged === true).length,
       totalEvents: events.length,
     },
     claimsTimeline,

@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 
 import { CloudRain, ShieldCheck, Sparkles, Activity } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -39,7 +40,7 @@ function SpotlightCard({ children, className = '', style }: { children: React.Re
 export function FeatureGridSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-24 sm:py-32 relative z-10">
-      <div className="max-w-[800px] mx-auto text-center mb-16 sm:mb-24 reveal-in-up" style={{ ['--d' as any]: '40ms' }}>
+      <div className="max-w-[800px] mx-auto text-center mb-16 sm:mb-24 reveal-in-up" style={{ '--d': '40ms' } as React.CSSProperties}>
         <h2 className="text-[32px] sm:text-[48px] font-bold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 leading-[1.1]">
           A new species of insurance tool.
         </h2>
@@ -50,7 +51,7 @@ export function FeatureGridSection() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[280px] sm:auto-rows-[320px]">
         {/* Main Bento Feature (Spans 2 columns on desktop) */}
-        <SpotlightCard className="md:col-span-2 flex flex-col justify-between p-8 sm:p-10 reveal-in-up" style={{ ['--d' as any]: '100ms' }}>
+        <SpotlightCard className="md:col-span-2 flex flex-col justify-between p-8 sm:p-10 reveal-in-up" style={{ '--d': '100ms' } as React.CSSProperties}>
           <div className="flex justify-end mb-8 sm:mb-12">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
               <Sparkles className="h-5 w-5 text-white" />
@@ -67,7 +68,7 @@ export function FeatureGridSection() {
         </SpotlightCard>
 
         {/* Small Feature */}
-        <SpotlightCard className="flex flex-col p-8 reveal-in-up" style={{ ['--d' as any]: '200ms' }}>
+        <SpotlightCard className="flex flex-col p-8 reveal-in-up" style={{ '--d': '200ms' } as React.CSSProperties}>
           <div className="mb-auto">
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
               <CloudRain className="h-4 w-4 text-white" />
@@ -82,7 +83,7 @@ export function FeatureGridSection() {
         </SpotlightCard>
 
         {/* Small Feature */}
-        <SpotlightCard className="flex flex-col p-8 reveal-in-up" style={{ ['--d' as any]: '300ms' }}>
+        <SpotlightCard className="flex flex-col p-8 reveal-in-up" style={{ '--d': '300ms' } as React.CSSProperties}>
           <div className="mb-auto">
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
               <ShieldCheck className="h-4 w-4 text-white" />
@@ -97,7 +98,7 @@ export function FeatureGridSection() {
         </SpotlightCard>
 
         {/* Wide Feature */}
-        <SpotlightCard className="md:col-span-2 flex flex-col p-8 sm:p-10 reveal-in-up overflow-hidden" style={{ ['--d' as any]: '400ms' }}>
+        <SpotlightCard className="md:col-span-2 flex flex-col p-8 sm:p-10 reveal-in-up overflow-hidden" style={{ '--d': '400ms' } as React.CSSProperties}>
           <div className="absolute inset-0 right-0 top-0 w-full opacity-30 select-none pointer-events-none" style={{ backgroundImage: 'radial-gradient(1px 1px at 20px 20px, rgba(255,255,255,0.2) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">

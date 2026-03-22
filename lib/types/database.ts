@@ -40,7 +40,11 @@ export interface WeeklyPolicy {
   week_end_date: string;
   weekly_premium_inr: number;
   is_active: boolean;
-  /** Stripe PaymentMethod.type after successful checkout (e.g. card, upi). */
+  /** Razorpay payment method after successful checkout (e.g. card, upi). */
+  razorpay_payment_method?: string | null;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  /** Legacy import only (pre–Razorpay migration). */
   stripe_payment_method_type?: string | null;
   stripe_payment_intent_id?: string | null;
   created_at: string;
