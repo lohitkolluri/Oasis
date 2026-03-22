@@ -38,7 +38,7 @@ Most endpoints are documented in the interactive OpenAPI pages below (requests, 
   />
   <LinkCard
     title="Payments & Subscriptions"
-    description="Stripe Checkout (card + UPI for INR) and asynchronous webhooks."
+    description="Razorpay Standard Checkout, verify, and optional payment.captured webhooks."
     href="/api/openapi/operations/postcreatecheckout/"
     icon="rocket"
   />
@@ -53,7 +53,7 @@ flowchart LR
   UI[Rider/Admin UI] --> API[Oasis API]
   API --> DB[(Supabase)]
   API --> EXT[Weather / Traffic / News APIs]
-  API --> PAY[Stripe]
+  API --> PAY[Razorpay]
   DB --> RT[Realtime updates]
   RT --> UI
 ```
@@ -122,6 +122,15 @@ Processes Aadhaar/PAN uploads during onboarding. Validates the document format a
 
 ### `POST /api/webhooks/disruption`
 Webhook endpoint for external trigger providers to push disruption events directly. Validates the payload against a signing secret.
+
+### Razorpay (weekly premium)
+
+OpenAPI documents **`POST /api/payments/create-checkout`**. These are also part of the flow:
+
+- **`POST /api/payments/verify`** — Called after Razorpay Standard Checkout succeeds in the browser; verifies the signature and activates the policy (primary path for demos).
+- **`POST /api/payments/webhook`** — Optional Razorpay `payment.captured` handler when `RAZORPAY_WEBHOOK_SECRET` is set.
+
+See **[Demo payments](/demo-payments/)** for the full walkthrough.
 
 ---
 

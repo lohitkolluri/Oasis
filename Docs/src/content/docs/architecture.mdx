@@ -70,13 +70,16 @@ Open the dashboard → Oasis quietly checks who you are, your policy, and recent
 
 ```mermaid
 flowchart TB
-    UI["1. Rider picks a weekly plan"] --> CC["Create Stripe Checkout session"]
-    CC --> SC["2. Stripe-hosted payment page<br/>(card, UPI)"]
-    SC --> WH["3. Secure webhook from Stripe"]
-    WH --> WP["Store weekly coverage<br/>(weekly_policies)"]
-    WH --> PT["Store payment record<br/>(payment_transactions)"]
-    WH --> RD["Send rider back to dashboard<br/>with coverage active"]
+    UI["1. Rider picks a weekly plan"] --> CC["POST /api/payments/create-checkout<br/>(Razorpay order + pending policy)"]
+    CC --> SC["2. Razorpay Standard Checkout modal<br/>(UPI, card, …)"]
+    SC --> V["3. POST /api/payments/verify"]
+    V --> WP["Activate weekly coverage<br/>(weekly_policies)"]
+    V --> PT["Update payment record<br/>(payment_transactions)"]
+    V --> RD["Redirect to /dashboard/policy?success=1"]
+    WH["Optional: payment.captured webhook"] -.-> WP
 ```
+
+Server-side **`POST /api/payments/webhook`** can also finalize payment if configured in the Razorpay Dashboard; it uses the same idempotent processing as verify.
 
 ### Adjudicator (Every 15 min)
 

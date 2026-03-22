@@ -31,13 +31,14 @@ Oasis is deployed on **Vercel** in the Mumbai region (`bom1`) for low-latency se
 | `NEWSDATA_IO_API_KEY` | Recommended | News trigger automation |
 | `OPENROUTER_API_KEY` | Recommended | LLM verification |
 | `WAQI_API_KEY` | Optional | Ground-station AQI (fallback available) |
-| `STRIPE_SECRET_KEY` | Production | Stripe API key for Checkout |
-| `STRIPE_WEBHOOK_SECRET` | Production | Webhook signing secret |
-| `NEXT_PUBLIC_APP_URL` | Yes (production) | Canonical app URL (e.g. `https://your-app.vercel.app`). Required for Stripe redirects and links |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Yes (production) | Razorpay Key ID (`rzp_live_...` in live mode) |
+| `RAZORPAY_KEY_SECRET` | Yes (production) | Razorpay Key Secret (server-only) |
+| `RAZORPAY_WEBHOOK_SECRET` | Recommended | Signing secret for `POST /api/payments/webhook` (Razorpay Dashboard → Webhooks) |
+| `NEXT_PUBLIC_APP_URL` | Yes (production) | Canonical app URL (e.g. `https://your-app.vercel.app`) for redirects and absolute links |
 | `WEBHOOK_SECRET` | If using webhook | For `POST /api/webhooks/disruption`; no fallback to CRON_SECRET |
 
 :::danger Server-only keys
-`SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `OPENROUTER_API_KEY`, and `CRON_SECRET` must **never** be prefixed with `NEXT_PUBLIC_`. They are server-side only and Vercel will not expose them to the browser.
+`SUPABASE_SERVICE_ROLE_KEY`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `OPENROUTER_API_KEY`, and `CRON_SECRET` must **never** be prefixed with `NEXT_PUBLIC_`. They are server-side only and Vercel will not expose them to the browser.
 :::
 
 ### 3. Node version & region
@@ -149,7 +150,7 @@ A `Dockerfile` is included for Dokploy, Fly.io, or any container runtime.
 
 ## Post-Deployment Checklist (Production)
 
-- [ ] **Secrets:** `CRON_SECRET`, `WEBHOOK_SECRET`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` set and not exposed to client
+- [ ] **Secrets:** `CRON_SECRET`, `WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RAZORPAY_KEY_SECRET` set and not exposed to client
 - [ ] **KYC (production):** `GOV_ID_ENCRYPTION_KEY` and `FACE_PHOTO_ENCRYPTION_KEY` (32-byte base64) set if storing gov ID / face photos
 - [ ] **Database:** All migrations applied to the production Supabase database (run in timestamp order)
 - [ ] **RLS:** Row Level Security enabled and tested for `profiles`, `weekly_policies`, `parametric_claims`, storage buckets
@@ -157,9 +158,9 @@ A `Dockerfile` is included for Dokploy, Fly.io, or any container runtime.
 - [ ] **Supabase Auth:** Site URL and redirect URL set to production domain
 - [ ] **Admin:** `ADMIN_EMAILS` includes at least one admin email
 - [ ] **Cron:** `CRON_SECRET` set and matches the value used by GitHub Actions / Vercel Cron / Supabase Cron
-- [ ] **Stripe webhook:** Endpoint `https://your-app.com/api/payments/webhook` added, subscribed to `checkout.session.completed`, signing secret in env
+- [ ] **Razorpay webhook:** Endpoint `https://your-app.com/api/payments/webhook` added, subscribed to `payment.captured`, signing secret in `RAZORPAY_WEBHOOK_SECRET`
 - [ ] **Cron schedule:** Adjudicator (hourly) and weekly-premium (Sunday) configured via one of: GitHub Actions, Vercel Cron (Pro), or Supabase Cron
-- [ ] **Smoke tests:** Adjudicator run (Admin → Run Adjudicator), payment flow (subscribe in test mode; card or UPI), PWA install on Android Chrome
+- [ ] **Smoke tests:** Adjudicator run (Admin → Run Adjudicator), payment flow (Razorpay test mode — see [Demo payments](/demo-payments/)), PWA install on Android Chrome
 - [ ] **Health:** `GET /api/health` returns 200 when DB is reachable (use for load balancer health checks)
 
 ---

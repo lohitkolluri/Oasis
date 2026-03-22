@@ -16,7 +16,7 @@ oasis/
 │   │   ├── auth/               # Supabase signout
 │   │   ├── claims/             # Location verification
 │   │   ├── cron/               # Vercel cron jobs
-│   │   ├── payments/           # Stripe checkout + webhook
+│   │   ├── payments/           # Razorpay create-checkout, verify, webhook
 │   │   ├── platform/           # Platform status
 │   │   ├── rider/              # Rider insight + delivery reports
 │   │   └── routing/            # OSRM proxy
@@ -100,11 +100,11 @@ All REST endpoints. Each subdirectory maps to an API concern:
 | `geo/` | `/api/geo/` | Geocoding and turf.js polygon calculations |
 | `health/` | `/api/health/` | Basic uptime and system heartbeat checks |
 | `onboarding/` | `/api/onboarding/` | ID verification and liveness checks for new riders |
-| `payments/` | `/api/payments/` | Stripe Checkout |
+| `payments/` | `/api/payments/` | Razorpay order, verify, `payment.captured` webhook |
 | `platform/` | `/api/platform/` | Live platform operational status |
 | `rider/` | `/api/rider/` | Rider AI insight, delivery impact reports |
 | `routing/` | `/api/routing/` | OSRM route calculation proxy |
-| `webhooks/` | `/api/webhooks/` | Inbound webhooks for Stripe events |
+| `webhooks/` | `/api/webhooks/` | Inbound provider webhooks (e.g. disruption push) |
 
 ---
 
@@ -119,7 +119,7 @@ Pure business logic. Nothing in `lib/` imports React or Next.js framework code -
 | `ml/premium-calc.ts` | Stateless premium formula + DB helpers for historical event count |
 | `ml/next-week-risk.ts` | Forecast-based or historical claims prediction for admin dashboard |
 | `supabase/*.ts` | Context-appropriate Supabase client factories |
-| `clients/` | Third-party SDK wrappers (Stripe, external weather) |
+| `clients/` | Third-party SDK wrappers (Razorpay, OpenRouter, external weather) |
 | `config/` | Environment abstractions and dynamic configs |
 | `data/` | Reusable data fetching singletons and caching layers |
 | `validations/` | Zod schema enforcement across the `lib/` boundary |

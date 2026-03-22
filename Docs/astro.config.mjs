@@ -69,6 +69,7 @@ export default defineConfig({
           label: 'Getting Started',
           items: [
             { label: 'Development Setup', link: '/development-setup' },
+            { label: 'Demo payments', link: '/demo-payments' },
             { label: 'Folder Structure', link: '/folder-structure' },
           ],
         },

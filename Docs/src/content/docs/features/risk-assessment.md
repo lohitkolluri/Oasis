@@ -202,7 +202,7 @@ Every Sunday at 17:30 UTC, `/api/cron/weekly-premium` runs:
    }
    ```
 
-Riders must manually re-subscribe each week — automatic renewal would require Stripe Subscriptions.
+Riders must manually re-subscribe each week — automatic renewal would require a recurring billing integration (for example Razorpay Subscriptions) on top of the current weekly Checkout flow.
 
 ---
 

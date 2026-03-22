@@ -396,15 +396,14 @@ Core variables (see docs for the full list):
 | `ADMIN_EMAILS`                       | Yes        | Comma-separated admin emails allowed into the admin console                                        |
 | `TOMORROW_IO_API_KEY`                | Yes        | Weather API key for disruption detection                                                           |
 | `NEWSDATA_IO_API_KEY`                | Yes        | News API key for traffic/lockdown triggers                                                         |
-| `RAZORPAY_KEY_ID`                  | Yes        | Razorpay Key ID (test or live)                                                                   |
-| `RAZORPAY_KEY_SECRET`                  | Yes        | Razorpay API Secret                                                                   |
-| `RAZORPAY_WEBHOOK_SECRET`              | Yes        | Razorpay webhook signing secret for payments callbacks                                               |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID`        | Yes        | Razorpay **Key ID** (test: `rzp_test_...`; required for Checkout — enforced in app)                 |
+| `RAZORPAY_KEY_SECRET`                | Yes        | Razorpay **Key Secret** (server-only; pair with Key ID)                                            |
+| `RAZORPAY_WEBHOOK_SECRET`            | No         | Razorpay webhook signing secret for `POST /api/payments/webhook` (optional if you rely on client verify only) |
 | `CRON_SECRET`                        | Yes (prod) | Shared secret for cron endpoints under `/api/cron/*`                                               |
 | `WEBHOOK_SECRET`                     | If used    | Secret for `POST /api/webhooks/disruption` when using realtime push from providers                 |
 | `NEXT_PUBLIC_APP_URL`                | Yes (prod) | Canonical app URL used for redirects and links (e.g. `https://your-app.vercel.app`)                |
 | `OPENROUTER_API_KEY`                 | Yes        | LLM API key used for gov ID / face verification and news severity classification                   |
 | `WAQI_API_KEY`                       | No         | Optional AQI data source                                                                           |
-| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | No         | Razorpay publishable key ID for Checkout / embedded payment flows                                       |
 | `GOV_ID_ENCRYPTION_KEY`              | Prod       | 32-byte base64 key for encrypting stored government ID images                                      |
 | `FACE_PHOTO_ENCRYPTION_KEY`          | Prod       | 32-byte base64 key for encrypting face verification photos (falls back to `GOV_ID_ENCRYPTION_KEY`) |
 
@@ -460,8 +459,20 @@ Common workflows after setup:
 
 - **Rider flow**
   - Visit the app, register via `(auth)` routes, and complete **KYC onboarding** (government ID + face verification).
-  - Choose a **weekly plan** and complete payment via Razorpay (UPI and other India methods where configured).
+  - Choose a **weekly plan** and complete payment via **Razorpay Standard Checkout** (UPI, cards, and other methods enabled in your Razorpay test account).
   - Use the **dashboard** to view active coverage, disruption-based claims, and wallet payouts.
+
+#### Demo payments (no real money)
+
+Use **Razorpay Test mode** keys in `.env.local` (`NEXT_PUBLIC_RAZORPAY_KEY_ID` must start with `rzp_test_`, plus `RAZORPAY_KEY_SECRET`). Then:
+
+1. Open **`/dashboard/policy`** and select a plan.
+2. Complete the **Razorpay** modal using [Razorpay test payment details](https://razorpay.com/docs/payments/payments/test-card-details/) (e.g. test UPI VPAs and card numbers documented there).
+3. After success, the app calls **`/api/payments/verify`** and redirects to `/dashboard/policy?success=1` with the weekly policy active.
+
+Optional: register **`/api/payments/webhook`** in the Razorpay Dashboard (event `payment.captured`) and set `RAZORPAY_WEBHOOK_SECRET` for the server-side backup path.
+
+Full walkthrough: **[Demo payments](https://oasisdocs.vercel.app/demo-payments/)** on the docs site (or `/demo-payments` when running the Starlight app locally).
 - **Admin flow**
   - Log in with an email included in `ADMIN_EMAILS` (or `role = 'admin'` in Supabase).
   - Use the **admin console** to:
@@ -474,7 +485,7 @@ Common workflows after setup:
     - `/api/cron/weekly-premium` weekly for premium billing and coverage windows.
   - Optionally wire providers to `POST /api/webhooks/disruption` for **realtime push** instead of polling.
 
-Refer to the docs (`Development Setup`, `Parametric Triggers`, `Claims Processing`, `Deployment`) for exact endpoints and payloads.
+Refer to the docs (`Development Setup`, `Demo payments`, `Parametric Triggers`, `Claims Processing`, `Deployment`) for exact endpoints and payloads.
 
 <br />
 <hr />

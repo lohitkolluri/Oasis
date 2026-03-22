@@ -1,6 +1,6 @@
 ---
 title: Supabase Integrations
-description: pg_cron, Stripe, Queues
+description: pg_cron, Razorpay webhooks, Queues
 ---
 
 Several Supabase integrations reduce external dependencies and improve reliability.
@@ -15,26 +15,17 @@ Cron jobs run inside Postgres via `pg_cron` and call the Next.js API using `pg_n
 
 ---
 
-## Stripe (payments)
+## Razorpay (payments)
 
 **Status:** Implemented
 
-Oasis uses **Stripe** for weekly premium payments. Stripe Checkout handles the payment flow (INR) with **card** and **UPI**; eligible customers may also see **Google Pay** on the card path. The webhook at `/api/payments/webhook` activates policies on success.
+Oasis uses **Razorpay Standard Checkout** for weekly premium payments in **INR**. The client opens the hosted Checkout modal; on success, **`POST /api/payments/verify`** confirms the signature and activates coverage. An optional **`POST /api/payments/webhook`** handles Razorpay `payment.captured` events for the same idempotent processing path.
 
-### Supabase Stripe Wrapper (optional)
+For local demos without real charges, use **test mode** keys and follow **[Demo payments](/demo-payments/)**.
 
-The [Stripe Wrapper](https://supabase.com/integrations/stripe_wrapper) integration lets you query Stripe data from Postgres via Foreign Data Wrapper (FDW).
+### Querying payment data in Postgres
 
-**Setup:**
-1. Supabase Dashboard → Integrations → Stripe Wrapper → Install
-2. Add your Stripe API key when prompted
-3. Query Stripe data from SQL, e.g. `SELECT * FROM stripe_wrapper.payments`
-
-Useful for joining payment data with `profiles`, `weekly_policies` for reporting and analytics.
-
-### Stripe Sync Engine (optional)
-
-The [Stripe Sync Engine](https://supabase.com/integrations/stripe-sync-engine) syncs Stripe customers, payments, and subscriptions into a `stripe` schema. Install from Integrations for deeper reporting.
+Premium and payment rows live in Oasis tables (`weekly_policies`, `payment_transactions`, `razorpay_payment_events`). You can join them in SQL for reporting; no foreign-data wrapper is required for core flows.
 
 ---
 

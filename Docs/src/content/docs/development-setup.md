@@ -79,39 +79,31 @@ NEWSDATA_IO_API_KEY=
 OPENROUTER_API_KEY=
 ```
 
-### Payments
+### Payments (Razorpay test mode)
+
+Weekly premiums use **Razorpay Standard Checkout**. For demos and local development, use **Test mode** keys only.
 
 ```bash
-# Stripe test keys - https://dashboard.stripe.com/test/apikeys
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...   # From Stripe Dashboard → Developers → Webhooks
-
+# Dashboard → API Keys (test mode) — https://dashboard.razorpay.com/
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=...
+# Optional: webhook signing secret if you register https://your-host/api/payments/webhook
+RAZORPAY_WEBHOOK_SECRET=...
 ```
 
-:::tip[Demo Mode]{icon="approve-check-circle"}
-Use Stripe test keys (`sk_test_...`) to run the full Checkout flow without real charges: test cards (e.g. `4242 4242 4242 4242`) and **UPI** in test mode (see [Stripe UPI payments](https://stripe.com/docs/payments/upi)).
+The app requires `NEXT_PUBLIC_RAZORPAY_KEY_ID` to start with `rzp_test_` (see `lib/config/env.ts`). **Never** commit real (`rzp_live_`) keys into example files or docs.
+
+:::tip[Demo payments walkthrough]{icon="approve-check-circle"}
+Step-by-step subscribe flow, test UPI/cards, and optional webhooks: **[Demo payments (Razorpay test mode)](/demo-payments/)**.
 :::
 
 ```mermaid
-flowchart TB
-    subgraph Demo["Demo Mode"]
-        D1[sk_test_ keys] --> D2[Test card 4242...]
-        D2 --> D3[Full Checkout flow, no charges]
-    end
-    subgraph Local["Local Webhooks"]
-        L1[Stripe CLI] --> L2[stripe listen --forward-to]
-        L2 --> L3[localhost:3000/api/payments/webhook]
-        L3 --> L4[Copy whsec_ to STRIPE_WEBHOOK_SECRET]
-    end
+flowchart LR
+  P["/dashboard/policy"] --> C["POST /api/payments/create-checkout"]
+  C --> M["Razorpay modal"]
+  M --> V["POST /api/payments/verify"]
+  V --> OK["Policy active"]
 ```
-
-For local testing with real webhook events, use the [Stripe CLI](https://stripe.com/docs/stripe-cli):
-
-```bash
-stripe listen --forward-to localhost:3000/api/payments/webhook
-```
-
-Use the `whsec_...` signing secret from the CLI output in `STRIPE_WEBHOOK_SECRET`.
 
 ---
 
@@ -127,7 +119,7 @@ If you prefer more guidance, open the folder and apply them in this rough sequen
 
 - **Core tables** (profiles, weekly policies, claims, disruption events, plans)
 - **Improvements & fixes** (fraud flags, zone coordinates, audit logs)
-- **Payments & cron jobs** (Stripe, Supabase cron, rate limits)
+- **Payments & cron jobs** (Razorpay, Supabase cron, rate limits)
 - **Quality-of-life updates** (notifications, pricing tweaks, extra columns)
 
 ### Option B - Supabase CLI
