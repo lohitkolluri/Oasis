@@ -53,14 +53,31 @@ export function getWebhookSecret(): string | null {
   return optional('WEBHOOK_SECRET', process.env.WEBHOOK_SECRET);
 }
 
-/** Stripe webhook secret for checkout.session.completed. */
-export function getStripeWebhookSecret(): string | null {
-  return optional('STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET);
+const RAZORPAY_TEST_KEY_PREFIX = 'rzp_test_';
+
+function assertRazorpayTestKeyId(keyId: string): void {
+  if (!keyId.startsWith(RAZORPAY_TEST_KEY_PREFIX)) {
+    throw new Error(
+      'Only Razorpay test keys are allowed: set NEXT_PUBLIC_RAZORPAY_KEY_ID to a value starting with rzp_test_ (Dashboard → Test mode).',
+    );
+  }
 }
 
-/** Stripe secret key for creating Checkout Sessions and payouts (server-only). */
-export function getStripeSecretKey(): string {
-  return required('STRIPE_SECRET_KEY', process.env.STRIPE_SECRET_KEY);
+/** Razorpay Key Id (test mode only; safe to expose in the browser). */
+export function getRazorpayKeyId(): string {
+  const key = required('NEXT_PUBLIC_RAZORPAY_KEY_ID', process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+  assertRazorpayTestKeyId(key);
+  return key;
+}
+
+/** Razorpay Key Secret (server-only). */
+export function getRazorpayKeySecret(): string {
+  return required('RAZORPAY_KEY_SECRET', process.env.RAZORPAY_KEY_SECRET);
+}
+
+/** Razorpay webhook signing secret (server-only). */
+export function getRazorpayWebhookSecret(): string | null {
+  return optional('RAZORPAY_WEBHOOK_SECRET', process.env.RAZORPAY_WEBHOOK_SECRET);
 }
 
 /** OpenRouter API key for LLM and vision models (server-only). */
@@ -88,14 +105,14 @@ export function getGovIdEncryptionKey(): string | null {
 }
 
 /**
- * Canonical app URL (e.g. for Stripe redirects, emails).
+ * Canonical app URL (e.g. for redirects, emails).
  * In production this is required; in development defaults to http://localhost:3000.
  */
 export function getAppUrl(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (isProd && !raw) {
     throw new Error(
-      'Missing required env: NEXT_PUBLIC_APP_URL. Set it in production for Stripe redirects and links.',
+      'Missing required env: NEXT_PUBLIC_APP_URL. Set it in production for redirects and links.',
     );
   }
   if (raw) return raw.replace(/\/$/, '');

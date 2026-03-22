@@ -17,7 +17,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, platform, primary_zone_geofence, zone_latitude, zone_longitude, onboarding_complete, role")
+    .select("full_name, platform, primary_zone_geofence, zone_latitude, zone_longitude, role")
     .eq("id", user.id)
     .single();
 

@@ -6,12 +6,12 @@
 --   2. From terminal (need DB URL from Dashboard → Settings → Database):
 --      psql "postgresql://postgres.[ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres" -f scripts/reset-database-data.sql
 --
--- This truncates all 15 app tables in FK-safe order:
+-- This truncates all core app tables in FK-safe order:
 --   rider_notifications, payout_ledger, claim_verifications,
 --   parametric_claims, payment_transactions, weekly_policies,
 --   premium_recommendations, plan_pricing_snapshots, rider_delivery_reports, profiles,
 --   live_disruption_events, plan_packages, stripe_webhook_events,
---   rate_limit_entries, system_logs, app_config
+--   razorpay_payment_events, rate_limit_entries, system_logs, app_config
 --
 -- The aqi_zone_baselines VIEW is auto-cleared (derives from live_disruption_events).
 -- auth.users are NOT deleted by default; existing logins will have no profile
@@ -53,6 +53,7 @@ TRUNCATE TABLE profiles CASCADE;
 TRUNCATE TABLE live_disruption_events CASCADE;
 TRUNCATE TABLE plan_packages CASCADE;
 TRUNCATE TABLE stripe_webhook_events CASCADE;
+TRUNCATE TABLE razorpay_payment_events CASCADE;
 TRUNCATE TABLE rate_limit_entries CASCADE;
 TRUNCATE TABLE system_logs CASCADE;
 

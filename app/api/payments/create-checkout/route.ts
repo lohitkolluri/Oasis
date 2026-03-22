@@ -1,21 +1,16 @@
 /**
- * Initializes an external Stripe Checkout Session for weekly premium coverage.
- * Resolves localized pricing tiers, initializes a pending policy state within the database,
- * and securely hands off the transaction lifecycle to Stripe's hosted payment environment.
- *
- * @param request - Inbound HTTP POST payload detailing requested policy terms and targeted plans
- * @returns Re-directable checkout session URL and generated policy identifier
+ * Creates a Razorpay order for weekly premium coverage and returns checkout options
+ * for Razorpay Standard Checkout (client opens modal).
  */
 import { RATE_LIMITS } from '@/lib/config/constants';
-import { getAppUrl, getStripeSecretKey } from '@/lib/config/env';
+import { getRazorpayKeyId } from '@/lib/config/env';
+import { getRazorpayInstance } from '@/lib/clients/razorpay';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
-import type Stripe from 'stripe';
-import { createCheckoutSession } from '@/lib/clients/stripe';
 
 export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'payment-create');
@@ -84,77 +79,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const origin = request.headers.get('origin');
-    // Production: use only canonical app URL to avoid redirect abuse; never trust Origin/Referer.
-    let baseUrl: string;
-    try {
-      if (process.env.NODE_ENV === 'production') {
-        baseUrl = getAppUrl();
-      } else {
-        baseUrl = getAppUrl();
-        if (origin) baseUrl = origin.replace(/\/$/, '');
-        else {
-          const referer = request.headers.get('referer');
-          if (referer) {
-            try {
-              baseUrl = new URL(referer).origin;
-            } catch {
-              /* keep getAppUrl() default */
-            }
-          }
-        }
-      }
-    } catch (e) {
-      const msg =
-        e instanceof Error && e.message?.includes('NEXT_PUBLIC_APP_URL')
-          ? 'App URL not configured. Set NEXT_PUBLIC_APP_URL in production for Stripe redirects.'
-          : process.env.NODE_ENV === 'production'
-            ? 'App URL not configured.'
-            : (e instanceof Error ? e.message : 'Configuration error');
-      return NextResponse.json({ error: msg }, { status: 503 });
-    }
+    const amountPaise = Math.round(amountInr * 100);
 
-    const amountPaise = Math.round(amountInr * 100); // Stripe uses smallest currency unit for INR
+    getRazorpayKeyId();
 
-    // Ensure secret is present and valid; throws in production if missing.
-    getStripeSecretKey();
+    const razorpay = getRazorpayInstance();
+    const receipt = `oasis_${policy.id.replace(/-/g, '').slice(0, 32)}`;
 
-    const session = await createCheckoutSession({
-      mode: 'payment',
-      // Dashboard toggles alone do not apply: each method must be listed here.
-      // UPI requires `upi` for India INR Checkout. Google Pay appears on the card flow when eligible (browser + account).
-      // SDK `PaymentMethodType` union lags the API — `upi` is valid for Checkout.
-      payment_method_types: ['card', 'upi'] as Stripe.Checkout.SessionCreateParams['payment_method_types'],
-      currency: 'inr',
-      line_items: [
-        {
-          price_data: {
-            currency: 'inr',
-            product_data: {
-              name: 'Oasis Weekly Coverage',
-              description: `Parametric insurance ${weekStart} – ${weekEnd}`,
-              images: origin ? undefined : undefined,
-            },
-            unit_amount: amountPaise,
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        profile_id: user.id,
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt,
+      notes: {
         policy_id: policy.id,
+        profile_id: user.id,
         week_start: weekStart,
         week_end: weekEnd,
       },
-      success_url: `${baseUrl}/dashboard/policy?success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/dashboard/policy?canceled=1`,
-      customer_email: user.email ?? undefined,
     });
 
     await supabase
       .from('weekly_policies')
       .update({
-        stripe_checkout_session_id: session.id,
+        razorpay_order_id: order.id,
         updated_at: new Date().toISOString(),
       })
       .eq('id', policy.id);
@@ -163,14 +110,22 @@ export async function POST(request: Request) {
       profile_id: user.id,
       weekly_policy_id: policy.id,
       amount_inr: amountInr,
-      stripe_checkout_session_id: session.id,
+      razorpay_order_id: order.id,
       status: 'pending',
     });
 
     return NextResponse.json({
-      url: session.url,
-      sessionId: session.id,
+      keyId: getRazorpayKeyId(),
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
       policyId: policy.id,
+      name: 'Oasis Weekly Coverage',
+      description: `Parametric insurance ${weekStart} – ${weekEnd}`,
+      prefill: {
+        email: user.email ?? undefined,
+        name: user.user_metadata?.full_name as string | undefined,
+      },
     });
   } catch (err) {
     return errorResponse(err, 'Failed to create checkout');

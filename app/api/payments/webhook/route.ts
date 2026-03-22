@@ -1,80 +1,75 @@
 /**
  * POST /api/payments/webhook
- * Stripe server-to-server webhook for checkout.session.completed.
- * Idempotency and policy/payment update happen in one DB transaction via process_stripe_checkout_event.
+ * Razorpay webhooks (e.g. payment.captured) — idempotent backup to client-side verify.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getStripeClient } from '@/lib/clients/stripe';
-import { getStripeWebhookSecret } from '@/lib/config/env';
+import { getRazorpayWebhookSecret } from '@/lib/config/env';
+import { verifyRazorpayWebhookSignature } from '@/lib/payments/razorpay-crypto';
 import { logger } from '@/lib/logger';
-import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 const isProd = process.env.NODE_ENV === 'production';
 
+type RazorpayWebhookPayload = {
+  event?: string;
+  payload?: {
+    payment?: {
+      entity?: {
+        id?: string;
+        order_id?: string;
+        amount?: number;
+        status?: string;
+        method?: string;
+      };
+    };
+  };
+};
+
 export async function POST(request: Request) {
-  const webhookSecret = getStripeWebhookSecret();
+  const webhookSecret = getRazorpayWebhookSecret();
   if (!webhookSecret) {
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 });
   }
 
   const body = await request.text();
-  const signature = request.headers.get('stripe-signature');
-  if (!signature) {
-    return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+  const signature =
+    request.headers.get('x-razorpay-signature') ?? request.headers.get('X-Razorpay-Signature');
+
+  if (!verifyRazorpayWebhookSignature(body, signature, webhookSecret)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  let event: Stripe.Event;
+  let parsed: RazorpayWebhookPayload;
   try {
-    event = Stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid signature';
-    return NextResponse.json({ error: message }, { status: 400 });
+    parsed = JSON.parse(body) as RazorpayWebhookPayload;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (event.type !== 'checkout.session.completed') {
+  if (parsed.event !== 'payment.captured') {
     return NextResponse.json({ ok: true, message: 'Ignored event type' });
   }
 
-  const session = event.data.object as Stripe.Checkout.Session;
-  const policyId = session.metadata?.policy_id;
-  const paymentIntentId = (session.payment_intent as string) ?? null;
+  const entity = parsed.payload?.payment?.entity;
+  const paymentId = entity?.id;
+  const orderId = entity?.order_id;
+  const method = entity?.method ?? null;
 
-  if (!policyId) {
-    return NextResponse.json({ ok: true, message: 'No policy_id in metadata' });
+  if (!paymentId || !orderId) {
+    return NextResponse.json({ ok: true, message: 'Missing payment or order id' });
   }
 
-  let paymentMethodType: string | null = null;
-  if (paymentIntentId) {
-    try {
-      const stripe = getStripeClient();
-      const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
-        expand: ['payment_method'],
-      });
-      const pm = pi.payment_method;
-      if (pm && typeof pm !== 'string') {
-        const deleted =
-          'deleted' in pm &&
-          Boolean((pm as { deleted?: boolean }).deleted);
-        if (!deleted) {
-          paymentMethodType = pm.type ?? null;
-        }
-      }
-    } catch (err) {
-      logger.warn('Stripe webhook: could not resolve payment method type', {
-        payment_intent: paymentIntentId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+  if (entity?.status && entity.status !== 'captured') {
+    return NextResponse.json({ ok: true, message: 'Payment not captured' });
   }
 
   let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
   } catch (err) {
-    logger.error('Stripe webhook: Supabase not configured', {
+    logger.error('Razorpay webhook: Supabase not configured', {
       error: err instanceof Error ? err.message : String(err),
     });
     return NextResponse.json(
@@ -86,28 +81,36 @@ export async function POST(request: Request) {
   const { data: policy } = await admin
     .from('weekly_policies')
     .select('id, profile_id, weekly_premium_inr')
-    .eq('id', policyId)
+    .eq('razorpay_order_id', orderId)
     .single();
 
   if (!policy) {
     return NextResponse.json({ ok: true, message: 'Policy not found' });
   }
 
-  const { data: result, error: rpcError } = await admin.rpc('process_stripe_checkout_event', {
-    p_event_id: event.id,
+  const expectedPaise = Math.round(Number(policy.weekly_premium_inr) * 100);
+  if (entity?.amount != null && Number(entity.amount) !== expectedPaise) {
+    logger.warn('Razorpay webhook: amount mismatch', {
+      policy_id: policy.id,
+      expected: expectedPaise,
+      got: entity.amount,
+    });
+    return NextResponse.json({ ok: true, message: 'Amount mismatch' });
+  }
+
+  const { data: result, error: rpcError } = await admin.rpc('process_razorpay_payment_event', {
+    p_payment_id: paymentId,
     p_policy_id: policy.id,
-    p_session_id: session.id,
-    p_payment_intent_id: paymentIntentId,
+    p_order_id: orderId,
     p_profile_id: policy.profile_id,
     p_amount_inr: Number(policy.weekly_premium_inr),
-    p_payment_method_type: paymentMethodType,
+    p_payment_method: method,
   });
 
   if (rpcError) {
-    logger.error('Stripe webhook: process_stripe_checkout_event failed', {
-      event_id: event.id,
-      policy_id: policyId,
+    logger.error('Razorpay webhook: process_razorpay_payment_event failed', {
       error: rpcError.message,
+      payment_id: paymentId,
     });
     return NextResponse.json(
       { error: isProd ? 'Failed to process payment' : rpcError.message },

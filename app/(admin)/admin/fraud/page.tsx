@@ -16,7 +16,10 @@ export default async function FraudPage() {
       created_at,
       admin_review_status,
       reviewed_by,
-      weekly_policies(profile_id)
+      weekly_policies(
+        profile_id,
+        plan_packages(payout_per_claim_inr)
+      )
     `,
     )
     .eq('is_flagged', true)

@@ -2,11 +2,34 @@
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { createClient } from '@/lib/supabase/client';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import { Check, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SubscriptionDetails } from './SubscriptionDetails';
+
+function loadRazorpayScript(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load Razorpay Checkout'));
+    document.body.appendChild(s);
+  });
+}
+
+type CreateCheckoutResponse = {
+  keyId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  policyId: string;
+  prefill?: { email?: string; name?: string };
+};
 
 interface PolicySubscribeFormProps {
   profileId: string;
@@ -95,7 +118,7 @@ export function PolicySubscribeForm({
         }),
       });
 
-      const data = await createRes.json();
+      const data = (await createRes.json()) as CreateCheckoutResponse & { error?: string };
 
       if (!createRes.ok) {
         if (createRes.status === 503) {
@@ -103,7 +126,7 @@ export function PolicySubscribeForm({
             type: 'error',
             text:
               data.error ??
-              'Payment not configured. Add STRIPE_SECRET_KEY for Stripe Checkout.',
+              'Payment not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (test mode).',
           });
           setLoading(false);
           return;
@@ -111,18 +134,65 @@ export function PolicySubscribeForm({
         throw new Error(data.error ?? 'Failed to create checkout');
       }
 
-      if (data.url) {
-        window.location.href = data.url;
+      if (!data.keyId || !data.orderId || data.amount == null) {
+        setMessage({ type: 'error', text: 'Invalid checkout response.' });
+        setLoading(false);
         return;
       }
 
-      setMessage({ type: 'error', text: 'No checkout URL returned.' });
+      await loadRazorpayScript();
+      const RazorpayCtor = window.Razorpay;
+      if (!RazorpayCtor) {
+        setMessage({ type: 'error', text: 'Razorpay failed to load.' });
+        setLoading(false);
+        return;
+      }
+
+      const rzp = new RazorpayCtor({
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency,
+        name: data.name,
+        description: data.description,
+        order_id: data.orderId,
+        prefill: data.prefill,
+        theme: { color: '#16a34a' },
+        modal: {
+          ondismiss: () => setLoading(false),
+        },
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const verifyJson = (await verifyRes.json()) as { ok?: boolean; error?: string };
+            if (!verifyRes.ok || !verifyJson.ok) {
+              throw new Error(verifyJson.error ?? 'Payment verification failed');
+            }
+            window.location.href = '/dashboard/policy?success=1';
+          } catch (e) {
+            setMessage({
+              type: 'error',
+              text: e instanceof Error ? e.message : 'Verification failed',
+            });
+            setLoading(false);
+          }
+        },
+      });
+
+      rzp.open();
+      return;
     } catch (err) {
       setMessage({
         type: 'error',
         text: err instanceof Error ? err.message : 'Something went wrong',
       });
-    } finally {
       setLoading(false);
     }
   }
@@ -242,7 +312,7 @@ export function PolicySubscribeForm({
           size="lg"
           className="mt-4"
         >
-          {loading ? 'Redirecting to Stripe...' : 'Pay & Activate'}
+          {loading ? 'Opening Razorpay…' : 'Pay & Activate'}
         </Button>
       </Card>
     </form>

@@ -1,8 +1,8 @@
--- Reset payment data to re-run Stripe checkout verification
+-- Reset payment data to re-test Razorpay checkout (order + verify flow)
 -- Run in Supabase SQL Editor: Dashboard → SQL Editor → New query
 
 -- Resets: payment_transactions, weekly_policies (parametric_claims CASCADE)
--- After running: rider can subscribe again and go through full Checkout flow
+-- After running: rider can subscribe again and complete Razorpay Checkout
 
 BEGIN;
 

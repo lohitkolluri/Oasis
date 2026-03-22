@@ -62,7 +62,7 @@ function copyToClipboard(text: string, onCopied: () => void) {
   }
 }
 
-/** Stripe `payment_method.type` → rider-facing label (Card, UPI, …). Unknown → em dash. */
+/** Razorpay `method` (and legacy DB rows) → rider-facing label (Card, UPI, …). Unknown → em dash. */
 function paymentMethodLabel(type: string | null | undefined): string {
   if (!type || !type.trim()) return '—';
   switch (type.toLowerCase()) {
@@ -84,7 +84,7 @@ export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsPro
   const daysLeft = getDaysRemaining(policy.week_start_date, policy.week_end_date);
   const progress = getProgressPercent(policy.week_start_date, policy.week_end_date);
   const displayId = policy.id.slice(0, 8).toUpperCase();
-  const methodType = policy.stripe_payment_method_type;
+  const methodType = policy.razorpay_payment_method ?? policy.stripe_payment_method_type;
   const methodLabel = paymentMethodLabel(methodType);
   const hasKnownMethod = Boolean(methodType?.trim());
 

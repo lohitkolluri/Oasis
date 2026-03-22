@@ -239,7 +239,7 @@ export default function PolicyDocsPage() {
         <Section icon={IndianRupee} number="5" title="Premium, Plan Tiers & Benefit Schedule">
           <Clause id="5.1">
             The weekly premium is payable in Indian Rupees (INR) in advance of the Coverage Period
-            via the payment methods made available on the Oasis platform (currently Stripe Checkout).
+            via the payment methods made available on the Oasis platform (Razorpay Checkout, test mode).
             No coverage is effective until the premium is received and confirmed.
           </Clause>
           <Clause id="5.2">

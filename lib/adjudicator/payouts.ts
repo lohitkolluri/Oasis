@@ -34,7 +34,7 @@ export async function simulatePayout(
       mock_upi_ref: mockUpiRef,
       completed_at: new Date().toISOString(),
       metadata: {
-        gateway: 'stripe_connect',
+        gateway: 'razorpay',
         auto: true,
         demo: true,
       },

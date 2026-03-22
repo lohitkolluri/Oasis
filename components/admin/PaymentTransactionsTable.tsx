@@ -19,29 +19,27 @@ type PaymentRow = {
   amountInr: number;
   profileId: string;
   weeklyPolicyId: string | null;
-  stripePaymentIntentId: string | null;
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
   createdAt: string;
   paidAt: string | null;
-  stripeStatus: string | null;
-  amountMatch: boolean | null;
-  statusMismatch: boolean;
   hasIssue: boolean;
 };
 
 type StatusFilter = 'all' | 'paid' | 'failed' | 'pending';
-type StripeFilter = 'all' | 'linked' | 'unlinked' | 'issue';
+type RefFilter = 'all' | 'linked' | 'unlinked' | 'issue';
 
 interface PaymentTransactionsTableProps {
   rows: PaymentRow[];
-  stripeIntentsAvailable: boolean;
+  issueCount: number;
 }
 
 export function PaymentTransactionsTable({
   rows,
-  stripeIntentsAvailable,
+  issueCount,
 }: PaymentTransactionsTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [stripeFilter, setStripeFilter] = useState<StripeFilter>('all');
+  const [refFilter, setRefFilter] = useState<RefFilter>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
@@ -51,14 +49,14 @@ export function PaymentTransactionsTable({
         return false;
       }
 
-      const hasStripe = !!row.stripePaymentIntentId;
-      if (stripeFilter === 'linked' && !hasStripe) return false;
-      if (stripeFilter === 'unlinked' && hasStripe) return false;
-      if (stripeFilter === 'issue' && !row.hasIssue) return false;
+      const hasPayId = !!row.razorpayPaymentId;
+      if (refFilter === 'linked' && !hasPayId) return false;
+      if (refFilter === 'unlinked' && hasPayId) return false;
+      if (refFilter === 'issue' && !row.hasIssue) return false;
 
       return true;
     });
-  }, [rows, statusFilter, stripeFilter]);
+  }, [rows, statusFilter, refFilter]);
 
   const totalCount = rows.length;
   const visibleCount = filteredRows.length;
@@ -120,7 +118,7 @@ export function PaymentTransactionsTable({
 
           <div className="inline-flex max-w-full overflow-x-auto scrollbar-hide">
             <div className="inline-flex rounded-full bg-[#101010] p-1 text-[11px] border border-[#2d2d2d] shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-            {(['all', 'linked', 'unlinked', 'issue'] as StripeFilter[]).map(
+            {(['all', 'linked', 'unlinked', 'issue'] as RefFilter[]).map(
               (value) => (
                 <Button
                   key={value}
@@ -128,23 +126,23 @@ export function PaymentTransactionsTable({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setStripeFilter(value);
+                    setRefFilter(value);
                     setPage(1);
                   }}
                   className={cn(
                     'h-8 px-3 text-[11px] font-medium !rounded-full',
                     'text-[#9ca3af] hover:text-white hover:bg-white/[0.04]',
-                    stripeFilter === value &&
+                    refFilter === value &&
                       'bg-[#161616] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.10)] hover:bg-[#161616]',
                   )}
                 >
                   {value === 'all'
-                    ? 'All Stripe'
+                    ? 'All refs'
                     : value === 'linked'
-                      ? 'Stripe linked'
+                      ? 'With payment id'
                       : value === 'unlinked'
-                        ? 'No Stripe ID'
-                        : 'With issues'}
+                        ? 'No payment id'
+                        : `Issues (${issueCount})`}
                 </Button>
               ),
             )}
@@ -160,7 +158,7 @@ export function PaymentTransactionsTable({
               No payments match the current filters
             </p>
             <p className="text-xs text-[#444] mt-1">
-              Try changing the status or Stripe filters.
+              Try changing the status or reference filters.
             </p>
           </div>
         ) : (
@@ -174,35 +172,21 @@ export function PaymentTransactionsTable({
                   </TableHead>
                   <TableHead className="w-[140px]">Rider</TableHead>
                   <TableHead className="w-[140px]">Policy</TableHead>
-                  {stripeIntentsAvailable && (
-                    <TableHead className="w-[150px]">Stripe</TableHead>
-                  )}
+                  <TableHead className="w-[min(180px,22%)]">Razorpay</TableHead>
                   <TableHead className="w-[120px] text-right">Paid at</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.map((row) => {
-                  const hasStripe = !!row.stripePaymentIntentId;
-
-                  return (
+                {paginated.map((row) => (
                     <TableRow key={row.id} className="border-[#2d2d2d]">
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="inline-flex items-center rounded-full border border-[#2d2d2d] bg-[#1e1e1e] px-2 py-0.5 text-[10px] font-medium text-[#9ca3af]">
                             {row.status}
                           </span>
-                          {stripeIntentsAvailable && row.stripeStatus && (
-                            <span className="inline-flex items-center rounded-full border border-[#7dd3fc]/20 bg-[#7dd3fc]/10 px-2 py-0.5 text-[10px] font-medium text-[#7dd3fc]">
-                              {row.stripeStatus}
-                            </span>
-                          )}
                           {row.hasIssue && (
                             <span className="inline-flex items-center rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-2 py-0.5 text-[10px] font-medium text-[#f97316]">
-                              {row.amountMatch === false
-                                ? 'Amount mismatch'
-                                : row.statusMismatch
-                                  ? 'Status mismatch'
-                                  : 'No Stripe match'}
+                              Paid without Razorpay ref
                             </span>
                           )}
                         </div>
@@ -230,20 +214,22 @@ export function PaymentTransactionsTable({
                           '—'
                         )}
                       </TableCell>
-                      {stripeIntentsAvailable && (
-                        <TableCell>
-                          {row.stripePaymentIntentId ? (
-                            <CopyableId
-                              value={row.stripePaymentIntentId}
-                              prefix=""
-                              length={12}
-                              label="Copy Stripe payment intent ID"
-                            />
-                          ) : (
-                            '—'
-                          )}
-                        </TableCell>
-                      )}
+                      <TableCell>
+                        {row.razorpayPaymentId ? (
+                          <CopyableId
+                            value={row.razorpayPaymentId}
+                            prefix=""
+                            length={14}
+                            label="Copy Razorpay payment id"
+                          />
+                        ) : row.razorpayOrderId ? (
+                          <span className="text-[11px] text-[#9ca3af]">
+                            order only
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
                       <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums">
                         {row.paidAt
                           ? new Date(row.paidAt).toLocaleString('en-IN', {
@@ -260,8 +246,7 @@ export function PaymentTransactionsTable({
                             })}
                       </TableCell>
                     </TableRow>
-                  );
-                })}
+                  ))}
               </TableBody>
             </Table>
 
@@ -326,4 +311,3 @@ export function PaymentTransactionsTable({
     </div>
   );
 }
-

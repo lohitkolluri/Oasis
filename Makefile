@@ -1,4 +1,4 @@
-.PHONY: help configure install setup dev stripe-listen db-migrate setup-storage build lint docs
+.PHONY: help configure install setup dev webhook-tunnel-help db-migrate setup-storage build lint docs
 
 # Default target
 help:
@@ -9,7 +9,7 @@ help:
 	@echo "  setup          Full setup: install, configure, db-migrate, setup-storage"
 	@echo ""
 	@echo "  dev            Start Next.js dev server (localhost:3000)"
-	@echo "  stripe-listen  Forward Stripe webhooks to localhost:3000/api/payments/webhook"
+	@echo "  webhook-tunnel-help  How to expose localhost for Razorpay webhooks (Pinggy, etc.)"
 	@echo ""
 	@echo "  db-migrate     Apply Supabase migrations"
 	@echo "  setup-storage  Create storage buckets (rider-reports, government-ids, face-photos)"
@@ -19,7 +19,7 @@ help:
 	@echo ""
 	@echo "  docs           Start docs site (Docs/)"
 	@echo ""
-	@echo "Usage: Run 'make stripe-listen' in one terminal, 'make dev' in another for full local dev."
+	@echo "  Payments: use Test mode keys. Client verify works on localhost; webhooks need a public HTTPS URL — run: make webhook-tunnel-help"
 
 configure:
 	tsx scripts/configure-env.ts
@@ -28,13 +28,15 @@ install:
 	yarn install
 
 setup: install configure db-migrate setup-storage
-	@echo "Setup complete. Run 'make dev' and 'make stripe-listen' (separate terminals)."
+	@echo "Setup complete. Run 'make dev'. For Razorpay webhook testing see 'make webhook-tunnel-help'."
 
 dev:
 	yarn dev
 
-stripe-listen:
-	stripe listen --forward-to localhost:3000/api/payments/webhook
+webhook-tunnel-help:
+	@echo "Razorpay cannot POST to http://localhost. Use a public HTTPS URL for /api/payments/webhook."
+	@echo "Example (Pinggy):  ssh -p 443 -R0:localhost:3000 a.pinggy.io"
+	@echo "Then in Razorpay Dashboard (Test mode) set webhook URL to:  https://<tunnel-host>/api/payments/webhook"
 
 db-migrate:
 	yarn db:migrate
@@ -49,4 +51,4 @@ lint:
 	yarn lint
 
 docs:
-	cd Docs && npm install && npm run dev
+	cd Docs && npm run dev

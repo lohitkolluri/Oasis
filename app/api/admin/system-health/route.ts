@@ -1,14 +1,12 @@
 /**
  * GET /api/admin/system-health
- * Platform health: DB and optional Stripe reachability, last adjudicator run, API statuses. Admin-only.
+ * Platform health: DB and optional Razorpay reachability, last adjudicator run, API statuses. Admin-only.
  * Returns 503 when critical dependencies (Supabase) are unreachable.
  */
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { withAdminAuth } from "@/lib/utils/admin-guard";
-import Stripe from "stripe";
-
 export const dynamic = "force-dynamic";
 
 async function checkSupabase(admin: ReturnType<typeof createAdminClient>): Promise<{ ok: boolean; error?: string }> {
@@ -21,24 +19,30 @@ async function checkSupabase(admin: ReturnType<typeof createAdminClient>): Promi
   }
 }
 
-async function checkStripe(): Promise<{ ok: boolean; error?: string }> {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) return { ok: true };
+async function checkRazorpay(): Promise<{ ok: boolean; error?: string }> {
+  const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
+  const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
+  if (!keyId && !secret) return { ok: true };
+  if (!keyId?.startsWith("rzp_test_")) {
+    return { ok: false, error: "NEXT_PUBLIC_RAZORPAY_KEY_ID must be a test key (rzp_test_...)" };
+  }
+  if (!secret) return { ok: false, error: "RAZORPAY_KEY_SECRET not set" };
   try {
-    const stripe = new Stripe(key);
-    await stripe.balance.retrieve();
+    const { getRazorpayInstance } = await import("@/lib/clients/razorpay");
+    const rzp = getRazorpayInstance();
+    await rzp.orders.all({ count: 1 });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Stripe unreachable" };
+    return { ok: false, error: e instanceof Error ? e.message : "Razorpay unreachable" };
   }
 }
 
 export const GET = withAdminAuth(async () => {
   const admin = createAdminClient();
 
-  const [dbCheck, stripeCheck, lastRunRes, errorCountRes, recentLogsRes, lastRotationRes, logCountRes] = await Promise.all([
+  const [dbCheck, razorpayCheck, lastRunRes, errorCountRes, recentLogsRes, lastRotationRes, logCountRes] = await Promise.all([
     checkSupabase(admin),
-    checkStripe(),
+    checkRazorpay(),
     admin
       .from("system_logs")
       .select("created_at, metadata, severity")
@@ -69,7 +73,7 @@ export const GET = withAdminAuth(async () => {
   ]);
 
   const dbOk = dbCheck.ok;
-  const stripeOk = stripeCheck.ok;
+  const razorpayOk = razorpayCheck.ok;
   const lastRun = lastRunRes.data;
   const errorCount = errorCountRes.error ? 0 : (errorCountRes.count ?? 0);
   const recentLogs = recentLogsRes.data ?? [];
@@ -110,7 +114,11 @@ export const GET = withAdminAuth(async () => {
     { name: "Tomorrow.io", ok: !!process.env.TOMORROW_IO_API_KEY, status: process.env.TOMORROW_IO_API_KEY ? 200 : 0 },
     { name: "NewsData.io", ok: !!process.env.NEWSDATA_IO_API_KEY, status: process.env.NEWSDATA_IO_API_KEY ? 200 : 0 },
     { name: "OpenRouter LLM", ok: !!process.env.OPENROUTER_API_KEY, status: process.env.OPENROUTER_API_KEY ? 200 : 0 },
-    { name: "Stripe", ok: stripeOk, status: stripeOk ? 200 : process.env.STRIPE_SECRET_KEY ? 0 : 200 },
+    {
+      name: "Razorpay",
+      ok: razorpayOk,
+      status: razorpayOk ? 200 : process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ? 0 : 200,
+    },
   );
 
   const m = lastRun?.metadata as Record<string, unknown> | undefined;

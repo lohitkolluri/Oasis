@@ -23,6 +23,39 @@ interface Claim {
   created_at: string;
   admin_review_status?: string | null;
   reviewed_by?: string | null;
+  weekly_policies?: {
+    profile_id?: string | null;
+    plan_packages?: { payout_per_claim_inr: number | null } | null;
+  } | null;
+}
+
+function AmountCell({ claim }: { claim: Claim }) {
+  const payout = Number(claim.payout_amount_inr);
+  const cap =
+    claim.weekly_policies?.plan_packages?.payout_per_claim_inr != null
+      ? Number(claim.weekly_policies.plan_packages.payout_per_claim_inr)
+      : null;
+
+  if (payout > 0) {
+    return (
+      <span className="font-semibold tabular-nums text-white">
+        ₹{payout.toLocaleString('en-IN')}
+      </span>
+    );
+  }
+
+  return (
+    <div className="text-right space-y-0.5">
+      <span className="font-semibold tabular-nums text-[#9ca3af]" title="No payout authorized until review">
+        ₹0
+      </span>
+      {cap != null && cap > 0 && (
+        <p className="text-[10px] font-normal text-[#666] leading-tight">
+          Plan cap ₹{cap.toLocaleString('en-IN')} if approved
+        </p>
+      )}
+    </div>
+  );
 }
 
 function ReviewButtons({
@@ -148,7 +181,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
             <TableHeader>
               <TableRow className="hover:bg-transparent border-[#2d2d2d]">
                 <TableHead className="w-[100px]">Claim</TableHead>
-                <TableHead className="w-[90px] text-right">Amount</TableHead>
+                <TableHead className="w-[120px] text-right">Payout</TableHead>
                 <TableHead className="w-[110px] text-right">Date</TableHead>
                 <TableHead>Flag reason</TableHead>
                 <TableHead className="w-[200px] text-right">Actions</TableHead>
@@ -160,8 +193,8 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                   <TableCell>
                     <CopyableId value={c.id} prefix="" length={8} label="Copy claim ID" />
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums text-white">
-                    ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                  <TableCell className="align-top">
+                    <AmountCell claim={c} />
                   </TableCell>
                   <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums">
                     {formatDate(c.created_at)}
@@ -196,7 +229,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
             <TableHeader>
               <TableRow className="hover:bg-transparent border-[#2d2d2d]">
                 <TableHead className="w-[100px]">Claim</TableHead>
-                <TableHead className="w-[90px] text-right">Amount</TableHead>
+                <TableHead className="w-[120px] text-right">Payout</TableHead>
                 <TableHead className="w-[110px] text-right">Date</TableHead>
                 <TableHead>Flag reason</TableHead>
                 <TableHead className="w-[100px] text-right">Status</TableHead>
@@ -208,8 +241,8 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                   <TableCell>
                     <CopyableId value={c.id} prefix="" length={8} label="Copy claim ID" />
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums text-white">
-                    ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                  <TableCell className="align-top">
+                    <AmountCell claim={c} />
                   </TableCell>
                   <TableCell className="text-right text-xs text-[#9ca3af] tabular-nums">
                     {formatDate(c.created_at)}
