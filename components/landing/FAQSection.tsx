@@ -10,6 +10,14 @@ const faqs = [
     a: 'Loss of income when external disruptions reduce deliveries in your zone, like extreme weather or local restrictions. Not health, life, accidents, or vehicle repairs.',
   },
   {
+    q: 'What is explicitly excluded?',
+    a: 'Oasis does not cover health, life, accidents, or vehicle repairs. Coverage is for loss of income from qualifying external disruptions only. Fraud checks, zone eligibility, and the rest of the contract are in the Policy Documents after sign-in.',
+  },
+  {
+    q: 'How are reserves and reinsurance handled?',
+    a: 'Premiums include a technical reserve load in the pricing engine. Weekly benefit caps limit exposure. At scale, outward reinsurance would use quota share and catastrophe excess-of-loss for correlated events, details in Policy §10 (in-app).',
+  },
+  {
     q: 'How is pricing structured?',
     a: 'Weekly. Coverage and premiums run week-to-week to match delivery partner cashflows.',
   },

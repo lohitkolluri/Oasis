@@ -194,8 +194,8 @@ export async function processClaimsForEvent(
       pendingNotifications.push({
         profile_id: policy.profile_id,
         title: isDemo
-          ? `Demo: claim paid — ₹${payoutAmount} credited`
-          : `Claim created — verify location`,
+          ? `Demo: ₹${payoutAmount} credited to your wallet`
+          : `Claim created. Verify location`,
         body: isDemo
           ? `${eventLabel} (demo). Payout recorded to your wallet.`
           : `${eventLabel} in your zone. Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,

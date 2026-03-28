@@ -7,6 +7,7 @@ import { MiddleSection } from '@/components/landing/MiddleSection';
 import { FeatureGridSection } from '@/components/landing/FeatureGridSection';
 import { PrinciplesSection } from '@/components/landing/PrinciplesSection';
 import { FinalCTASection } from '@/components/landing/FinalCTASection';
+import { CoverageBoundariesSection } from '@/components/landing/CoverageBoundariesSection';
 import { EditorialTextSection } from '@/components/landing/EditorialTextSection';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
@@ -48,7 +49,7 @@ export default async function Home() {
           body={
             <>
               Triggers are transparent and auditable. When the week is active and a zone crosses thresholds, payouts
-              happen automatically—no manual claims processing.
+              happen automatically. No manual claims processing.
             </>
           }
           right={
@@ -60,6 +61,8 @@ export default async function Home() {
         <MiddleSection />
 
         <PrinciplesSection />
+
+        <CoverageBoundariesSection />
 
         <FinalCTASection />
         <FAQSection />

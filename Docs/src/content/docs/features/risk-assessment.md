@@ -166,6 +166,16 @@ export async function getForecastRiskFactor(
 
 ---
 
+## Technical reserve load
+
+Premiums apply `PREMIUM.RESERVE_LOAD` (currently **2%**) after core expected-loss math in both the legacy weekly formula and the dynamic engine. This funds **technical reserve** narrative (IBNR-style lag, tail correlation) and aligns with Policy §10. It is **not** a separate rider-visible line item — it is baked into the quoted weekly premium before clamping to `PREMIUM.BASE`–`PREMIUM.MAX`.
+
+**Dynamic engine:** `raw_premium = expected_loss × (1 + margin + safety_buffer) × (1 + RESERVE_LOAD)`.
+
+**Reinsurance** (quota share, catastrophe XL) is described at contract level in Policy §10; it is not modeled in application code in the current release.
+
+---
+
 ## Plan Tiers
 
 After the premium is calculated, riders choose from three flat-rate plans. The dynamic calculation informs the recommendation, but riders can select any tier:

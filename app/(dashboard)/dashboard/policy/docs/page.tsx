@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, FileText, ShieldCheck, AlertTriangle, IndianRupee, Clock, Scale, Ban, HelpCircle } from "lucide-react";
+import { ArrowLeft, FileText, ShieldCheck, AlertTriangle, IndianRupee, Clock, Scale, Ban, HelpCircle, Landmark } from "lucide-react";
 
 function Section({ icon: Icon, number, title, children }: { icon: React.ElementType; number: string; title: string; children: React.ReactNode }) {
   return (
@@ -60,7 +60,7 @@ export default function PolicyDocsPage() {
             UIN: OASIS-PARAM-WK-001
           </span>
           <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-            Version 2.1 — March 2025
+            Version 2.2, March 2026
           </span>
         </div>
       </div>
@@ -75,7 +75,7 @@ export default function PolicyDocsPage() {
           </div>
           <div>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Coverage Period</p>
-            <p className="text-zinc-200 font-medium mt-0.5">7 days (Monday 00:00 — Sunday 23:59 IST)</p>
+            <p className="text-zinc-200 font-medium mt-0.5">7 days (Monday 00:00 to Sunday 23:59 IST)</p>
           </div>
           <div>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Premium Frequency</p>
@@ -91,7 +91,7 @@ export default function PolicyDocsPage() {
           </div>
           <div>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Waiting Period</p>
-            <p className="text-zinc-200 font-medium mt-0.5">Nil — coverage begins immediately upon payment</p>
+            <p className="text-zinc-200 font-medium mt-0.5">Nil. Coverage begins immediately upon payment</p>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function PolicyDocsPage() {
           </Clause>
           <Clause id="1.3">
             <strong className="text-zinc-300">{'"'}Parametric Trigger{'"'}</strong> means a pre-defined, objectively measurable
-            index or threshold — derived from third-party data sources — the breach of which automatically
+            index or threshold (derived from third-party data sources), the breach of which automatically
             determines eligibility for a Benefit Payment, without the need for individual loss assessment
             or claims adjudication.
           </Clause>
@@ -218,13 +218,32 @@ export default function PolicyDocsPage() {
           </Clause>
           <ul className="list-[lower-alpha] pl-5 space-y-1.5 text-zinc-400 text-sm leading-relaxed text-justify ml-8">
             <li>Bodily injury, illness, disease, disability, hospitalisation, or death of the Insured or any third party;</li>
+            <li>
+              Epidemic, pandemic, or public-health emergency declarations (including WHO or government-declared
+              outbreaks), and income loss arising primarily from disease-related restrictions, quarantine, or
+              hospitalisation, except where a separate Parametric Trigger in §3 independently fires for the
+              Insured{"'"}s Primary Zone during the Coverage Period;
+            </li>
             <li>Loss of life or accidental death benefits;</li>
             <li>Damage to, repair of, or replacement of any motor vehicle, bicycle, or equipment;</li>
             <li>Personal accident coverage of any nature;</li>
             <li>Income loss arising from the Insured{"'"}s voluntary decision not to work, app deactivation,
               account suspension, or platform-imposed restrictions;</li>
             <li>Disruptions occurring outside the declared Primary Zone;</li>
-            <li>Events attributable to war, nuclear activity, terrorism (unless specifically endorsed), or sanctions;</li>
+            <li>
+              War, invasion, act of foreign enemy, hostilities, civil war, rebellion, revolution, insurrection,
+              military or usurped power, or mutiny;
+            </li>
+            <li>Nuclear reaction, nuclear radiation, or radioactive contamination;</li>
+            <li>
+              Terrorism or sabotage (unless specifically endorsed by endorsement to this Policy), and losses
+              attributable to trade or economic sanctions prohibiting payment;
+            </li>
+            <li>
+              Cyber attack, data breach, or widespread failure of telecommunications, electrical grid, or internet
+              infrastructure, except where an Insured Peril in §3 is independently satisfied by published
+              third-party indices;
+            </li>
             <li>Fraudulent or deliberately fabricated claims, including GPS spoofing or location manipulation;</li>
             <li>Losses already indemnified under any other insurance policy or government compensation scheme.</li>
           </ul>
@@ -384,6 +403,34 @@ export default function PolicyDocsPage() {
             <strong className="text-zinc-300">Amendments.</strong> The Company reserves the right to amend these terms
             upon reasonable notice to the Insured. Continued subscription after receiving notice of
             amendment constitutes acceptance of the revised terms.
+          </Clause>
+        </Section>
+
+        <Section icon={Landmark} number="10" title="Actuarial Framework, Technical Reserves & Reinsurance">
+          <Clause id="10.1">
+            <strong className="text-zinc-300">Premium adequacy.</strong> Weekly premiums are calibrated to expected
+            parametric loss costs for the Insured{"'"}s zone and behaviour, with loadings for volatility and
+            expenses. The Oasis pricing engine applies an explicit <strong className="text-zinc-300">technical reserve
+            load</strong> (disclosed in platform documentation) on top of core risk factors to reflect tail
+            correlation and reporting lag.
+          </Clause>
+          <Clause id="10.2">
+            <strong className="text-zinc-300">Technical reserves & IBNR.</strong> Benefit Payments are fixed and
+            parametric; settlement is largely automated. The Company holds <strong className="text-zinc-300">technical
+            reserves</strong> for incurred-but-not-reported exposures arising from the Verification Window,
+            payment retries, and dispute resolution. Aggregate weekly Benefit caps (§5.4) bound maximum weekly
+            gross outgo per Insured.
+          </Clause>
+          <Clause id="10.3">
+            <strong className="text-zinc-300">Reinsurance (outward).</strong> At portfolio scale, the Company intends to
+            cede risk through <strong className="text-zinc-300">quota-share treaties</strong> to stabilise loss ratios
+            across zones, supplemented by <strong className="text-zinc-300">catastrophe excess-of-loss</strong> cover
+            for correlated weather and civil-disruption events. Specific reinsurer panels, retentions, and limits
+            shall be filed as required by applicable regulations.
+          </Clause>
+          <Clause id="10.4">
+            <strong className="text-zinc-300">No savings component.</strong> This Policy is pure protection; there is no
+            surrender value, maturity benefit, or investment return.
           </Clause>
         </Section>
       </div>

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import { Check, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { SubscriptionDetails } from './SubscriptionDetails';
 
 function loadRazorpayScript(): Promise<void> {
@@ -304,6 +305,16 @@ export function PolicySubscribeForm({
             }`}
           >
             {message.text}
+          </p>
+        )}
+        {!activePolicy && (
+          <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">
+            By paying, you confirm you have read the{' '}
+            <Link href="/dashboard/policy/docs" className="text-uber-green hover:text-uber-green/90 underline-offset-2">
+              Policy Wording
+            </Link>
+            , including program exclusions (health, life, accident, vehicle repair) and all other terms. Weekly
+            parametric income protection only.
           </p>
         )}
         <Button
