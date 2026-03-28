@@ -8,7 +8,7 @@ const steps = [
   },
   {
     title: 'Verify automatically',
-    body: 'Parametric rules decide eligibility with transparent thresholds — no forms or calls.',
+    body: 'Parametric rules decide eligibility with transparent thresholds. No forms or calls.',
     icon: ShieldCheck,
   },
   {
@@ -31,7 +31,7 @@ export function HowItWorksSection() {
           </h2>
         </div>
         <p className="hidden max-w-md text-sm leading-relaxed text-white/60 md:block">
-          Oasis is purpose-built for income disruption — not health, life, accidents, or vehicle repairs.
+          Oasis is purpose-built for income disruption, not health, life, accidents, or vehicle repairs.
         </p>
       </div>
 

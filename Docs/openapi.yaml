@@ -224,40 +224,78 @@ paths:
     post:
       tags:
         - Payments & Subscriptions
-      summary: Create Stripe Checkout
-      description: Initiates a synchronous Stripe Checkout session for activating a weekly delivery risk premium. Checkout is configured for INR with card and UPI payment methods.
+      summary: Create Razorpay order for weekly coverage
+      description: |
+        Creates a Razorpay order and a pending `weekly_policies` row, then returns fields for Razorpay Standard Checkout (client opens the modal with `keyId`, `orderId`, `amount` in paise).
+        Requires an authenticated Supabase session. `planId` is optional; when omitted a default premium may apply.
       operationId: postCreateCheckout
       requestBody:
         content:
           application/json:
             schema:
               type: object
-              required: [planId, weekStart, weekEnd]
+              required: [weekStart, weekEnd]
               properties:
                 planId: { type: string, format: uuid, example: "basic-plan-uuid" }
                 weekStart: { type: string, format: date, example: "2026-03-09" }
                 weekEnd: { type: string, format: date, example: "2026-03-15" }
       responses:
         '200':
-          description: Redirect URL to Stripe hosted checkout page.
+          description: Options for Razorpay Standard Checkout.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  url: { type: string, example: "https://checkout.stripe.com/c/pay/..." }
-                  sessionId: { type: string, example: "cs_test_..." }
-                  policyId: { type: string, format: uuid, example: "policy-uuid..." }
+                  keyId: { type: string, example: "rzp_test_..." }
+                  orderId: { type: string, example: "order_..." }
+                  amount: { type: integer, description: Amount in paise, example: 9900 }
+                  currency: { type: string, example: "INR" }
+                  policyId: { type: string, format: uuid }
+                  name: { type: string, example: "Oasis Weekly Coverage" }
+                  description: { type: string }
+                  prefill: { type: object, properties: { email: { type: string }, name: { type: string } } }
+        '503':
+          description: Razorpay not configured
+  /api/payments/verify:
+    post:
+      tags:
+        - Payments & Subscriptions
+      summary: Verify Razorpay payment and activate policy
+      description: |
+        Verifies the Razorpay signature from Checkout success, fetches payment details when needed, and calls `process_razorpay_payment_event` to activate the weekly policy.
+        Primary path for demos and production after the client receives `razorpay_order_id`, `razorpay_payment_id`, and `razorpay_signature`.
+      operationId: postPaymentsVerify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [razorpay_order_id, razorpay_payment_id, razorpay_signature]
+              properties:
+                razorpay_order_id: { type: string }
+                razorpay_payment_id: { type: string }
+                razorpay_signature: { type: string }
+      responses:
+        '200':
+          description: Payment verified and policy activated (or already processed).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
   /api/payments/webhook:
     post:
       tags:
         - Payments & Subscriptions
-      summary: Stripe webhook
-      description: Securely handles the asynchronous `checkout.session.completed` event pushed from Stripe servers to finalize policy assignments.
+      summary: Razorpay webhook
+      description: |
+        Handles `payment.captured` from Razorpay (header `x-razorpay-signature`). Optional backup to client-side verify; uses the same idempotent processing.
       operationId: postPaymentsWebhook
       responses:
         '200':
-          description: Processed Event Successfully
+          description: Processed or ignored (non-captured events return ok with message).
 components:
   securitySchemes:
     cronSecret:

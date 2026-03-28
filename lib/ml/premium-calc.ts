@@ -83,7 +83,11 @@ export function calculateWeeklyPremium(input: PremiumInput): number {
   );
 
   const rawPremium =
-    (PREMIUM.BASE + totalRisk) * volumeMultiplier * seasonalMultiplier * claimFreqMultiplier;
+    (PREMIUM.BASE + totalRisk) *
+    volumeMultiplier *
+    seasonalMultiplier *
+    claimFreqMultiplier *
+    (1 + PREMIUM.RESERVE_LOAD);
   return Math.min(PREMIUM.MAX, Math.max(PREMIUM.BASE, Math.round(rawPremium)));
 }
 
@@ -452,7 +456,8 @@ export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngin
   
   const margin = 0.25;
   const safety_buffer = 0.15;
-  let raw_premium = expected_loss * (1 + margin + safety_buffer);
+  let raw_premium =
+    expected_loss * (1 + margin + safety_buffer) * (1 + PREMIUM.RESERVE_LOAD);
   
   // Clamping
   let clamped_premium = Math.max(PREMIUM.BASE, Math.min(PREMIUM.MAX, Math.round(raw_premium)));
@@ -465,7 +470,8 @@ export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngin
       base_payout = Math.round(target_expected_loss / expected_claims_per_week);
     }
     expected_loss = expected_claims_per_week * base_payout;
-    raw_premium = expected_loss * (1 + margin + safety_buffer);
+    raw_premium =
+      expected_loss * (1 + margin + safety_buffer) * (1 + PREMIUM.RESERVE_LOAD);
     clamped_premium = Math.max(PREMIUM.BASE, Math.min(PREMIUM.MAX, Math.round(raw_premium)));
   }
 

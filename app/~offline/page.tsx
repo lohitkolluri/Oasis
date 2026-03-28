@@ -16,7 +16,7 @@ export default function OfflinePage() {
 
         <h1 className="text-2xl font-bold mt-4 mb-2">You&apos;re offline</h1>
         <p className="text-zinc-400 mb-8 leading-relaxed text-sm">
-          Don&apos;t worry — your coverage is still active. Oasis monitors disruptions
+          Don&apos;t worry: your coverage is still active. Oasis monitors disruptions
           automatically, even when you&apos;re offline.
         </p>
 

@@ -15,7 +15,7 @@ export function MetricsRowSection() {
               Metrics <span className="text-white/20">(demo)</span>
             </p>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45 max-w-[60ch]">
-              A quick sense of scale — values shown are illustrative.
+              A quick sense of scale. Values shown are illustrative.
             </p>
           </div>
         </div>

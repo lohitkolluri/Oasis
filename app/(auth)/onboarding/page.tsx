@@ -984,7 +984,7 @@ export default function OnboardingPage() {
                 </div>
               )}
               <p className="text-xs text-zinc-400 text-center">
-                Click each button below. Your browser will show a permission prompt — check the
+                Click each button below. Your browser will show a permission prompt. Check the
                 address bar (lock icon) or a small popup.
               </p>
               <div className="space-y-4">
@@ -1439,7 +1439,7 @@ export default function OnboardingPage() {
                           <div className="px-3 py-3 bg-zinc-900/95 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <span className="text-xs text-zinc-400">
                               {captureReady
-                                ? 'Hold steady — capturing...'
+                                ? 'Hold steady. Capturing…'
                                 : 'Point your camera at the Aadhaar card (not your face). Fill the frame as much as possible; tap Capture if auto-capture doesn\'t trigger.'}
                             </span>
                             <button

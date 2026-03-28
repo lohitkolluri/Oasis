@@ -17,6 +17,11 @@ export const PREMIUM = {
   RISK_PER_EVENT: 12,
   FORECAST_WEIGHT: 20,
   WEEKS_LOOKBACK: 4,
+  /**
+   * Illustrative technical-reserve / tail-correlation load applied after expected-loss math.
+   * Supports IBNR and volatility narrative; see policy §10 and docs (risk-assessment).
+   */
+  RESERVE_LOAD: 0.02,
 } as const;
 
 /** Adjudicator trigger thresholds */

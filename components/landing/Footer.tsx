@@ -17,6 +17,12 @@ export function Footer() {
             <div className="space-y-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/30">Product</p>
               <nav className="flex flex-col gap-3">
+                <Link href="#coverage-boundaries" className="text-white/60 hover:text-white transition-colors">
+                  Coverage boundaries
+                </Link>
+                <Link href="/policy-summary" className="text-white/60 hover:text-white transition-colors">
+                  Public policy summary
+                </Link>
                 <Link href="#faq" className="text-white/60 hover:text-white transition-colors">
                   FAQ
                 </Link>

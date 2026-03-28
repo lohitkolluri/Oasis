@@ -489,7 +489,7 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
             try {
               await admin.from('rider_notifications').insert({
                 profile_id: user.id,
-                title: 'Report verified — verify location',
+                title: 'Report verified. Verify location',
                 body: `Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
                 type: 'payout',
                 metadata: {

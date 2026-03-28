@@ -58,7 +58,7 @@ export default async function AdminPaymentsPage() {
           Payment Logs
         </h1>
         <p className="text-sm text-[#666] mt-1">
-          Premium collections — order and payment IDs match Razorpay for audit
+          Premium collections: order and payment IDs match Razorpay for audit
         </p>
       </div>
 

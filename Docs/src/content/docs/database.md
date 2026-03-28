@@ -315,7 +315,7 @@ CREATE TABLE system_logs (
 
 ### `payment_transactions`
 
-Records every Stripe payment for audit and reconciliation.
+Audit log for **Razorpay** subscription charges (one row per attempt; updated when verify or webhook completes).
 
 <details>
 <summary>Show SQL</summary>
@@ -324,10 +324,12 @@ Records every Stripe payment for audit and reconciliation.
 CREATE TABLE payment_transactions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id          UUID REFERENCES profiles(id),
-  stripe_checkout_session_id TEXT,
-  stripe_payment_intent_id  TEXT,
+  weekly_policy_id    UUID REFERENCES weekly_policies(id) ON DELETE SET NULL,
+  razorpay_order_id   TEXT,
+  razorpay_payment_id TEXT,
+  razorpay_payment_method TEXT,
   amount_inr          NUMERIC(10, 2),
-  status              TEXT,    -- 'created' | 'verified' | 'failed'
+  status              TEXT,
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 ```

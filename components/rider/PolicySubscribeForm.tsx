@@ -3,8 +3,12 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
-import { Check, Shield } from 'lucide-react';
+import type { DynamicPlanQuote } from '@/lib/ml/resolve-dynamic-plan-quotes';
+import { getPolicyWeekRange } from '@/lib/utils/policy-week';
+import { cn } from '@/lib/utils';
+import { Check, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { SubscriptionDetails } from './SubscriptionDetails';
 
 function loadRazorpayScript(): Promise<void> {
@@ -28,7 +32,18 @@ type CreateCheckoutResponse = {
   name: string;
   description: string;
   policyId: string;
-  prefill?: { email?: string; name?: string };
+  prefill?: { email?: string; name?: string; contact?: string };
+};
+
+type CreateSubscriptionResponse = {
+  keyId: string;
+  subscriptionId: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  policyId: string;
+  prefill?: { email?: string; name?: string; contact?: string };
 };
 
 interface PolicySubscribeFormProps {
@@ -40,19 +55,19 @@ interface PolicySubscribeFormProps {
   suggestedPremium?: number;
   paymentSuccess?: boolean;
   paymentCanceled?: boolean;
+  /** Profile flag: subscription mandate is active after first successful charge */
+  autoRenewEnabled?: boolean;
+  /** Engine-priced weekly amounts per `plan.slug` (basic | standard | premium) */
+  dynamicQuotesBySlug?: Record<string, DynamicPlanQuote>;
 }
 
-function getNextWeekDates() {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
-  const nextMonday = new Date(now);
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  const nextSunday = new Date(nextMonday);
-  nextSunday.setDate(nextMonday.getDate() + 6);
+function quoteForPlan(plan: PlanPackage, dynamicQuotesBySlug?: Record<string, DynamicPlanQuote>): DynamicPlanQuote {
+  const q = dynamicQuotesBySlug?.[plan.slug];
+  if (q) return q;
   return {
-    start: nextMonday.toISOString().split('T')[0],
-    end: nextSunday.toISOString().split('T')[0],
+    weekly_premium_inr: Number(plan.weekly_premium_inr),
+    payout_per_claim_inr: Number(plan.payout_per_claim_inr),
+    max_claims_per_week: plan.max_claims_per_week,
   };
 }
 
@@ -65,16 +80,20 @@ export function PolicySubscribeForm({
   suggestedPremium = 99,
   paymentSuccess = false,
   paymentCanceled = false,
+  autoRenewEnabled = false,
+  dynamicQuotesBySlug,
 }: PolicySubscribeFormProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [weeklyAutoRenew, setWeeklyAutoRenew] = useState(false);
   const defaultPlan =
     plans.length > 0 ? (plans.find((p) => p.slug === 'standard') ?? plans[0]) : null;
   const [selectedPlan, setSelectedPlan] = useState<PlanPackage | null>(defaultPlan);
 
-  const { start, end } = getNextWeekDates();
+  const { start, end } = getPolicyWeekRange();
   const activePlan = selectedPlan ?? defaultPlan;
-  const defaultPremium = activePlan?.weekly_premium_inr ?? suggestedPremium ?? 99;
+  const activeQuote = activePlan ? quoteForPlan(activePlan, dynamicQuotesBySlug) : null;
+  const defaultPremium = activeQuote?.weekly_premium_inr ?? suggestedPremium ?? 99;
 
   const hasPlans = plans.length > 0;
 
@@ -104,11 +123,12 @@ export function PolicySubscribeForm({
       return;
     }
 
-    const premiumToPay = activePlan?.weekly_premium_inr ?? defaultPremium;
+    const premiumToPay = activeQuote?.weekly_premium_inr ?? defaultPremium;
     const planIdToUse = activePlan?.id ?? undefined;
 
     try {
-      const createRes = await fetch('/api/payments/create-checkout', {
+      const endpoint = weeklyAutoRenew ? '/api/payments/create-subscription' : '/api/payments/create-checkout';
+      const createRes = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,32 +138,82 @@ export function PolicySubscribeForm({
         }),
       });
 
-      const data = (await createRes.json()) as CreateCheckoutResponse & { error?: string };
+      const raw = (await createRes.json()) as Record<string, unknown>;
+      const err = typeof raw.error === 'string' ? raw.error : undefined;
 
       if (!createRes.ok) {
         if (createRes.status === 503) {
           setMessage({
             type: 'error',
             text:
-              data.error ??
+              err ??
               'Payment not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (test mode).',
           });
           setLoading(false);
           return;
         }
-        throw new Error(data.error ?? 'Failed to create checkout');
-      }
-
-      if (!data.keyId || !data.orderId || data.amount == null) {
-        setMessage({ type: 'error', text: 'Invalid checkout response.' });
-        setLoading(false);
-        return;
+        throw new Error(err ?? 'Failed to create checkout');
       }
 
       await loadRazorpayScript();
       const RazorpayCtor = window.Razorpay;
       if (!RazorpayCtor) {
         setMessage({ type: 'error', text: 'Razorpay failed to load.' });
+        setLoading(false);
+        return;
+      }
+
+      if (weeklyAutoRenew) {
+        const data = raw as CreateSubscriptionResponse;
+        if (!data.keyId || !data.subscriptionId) {
+          setMessage({ type: 'error', text: 'Invalid subscription response.' });
+          setLoading(false);
+          return;
+        }
+
+        const rzp = new RazorpayCtor({
+          key: data.keyId,
+          subscription_id: data.subscriptionId,
+          name: data.name,
+          description: data.description,
+          prefill: data.prefill,
+          theme: { color: '#16a34a' },
+          modal: {
+            ondismiss: () => setLoading(false),
+          },
+          handler: async (response: Record<string, string>) => {
+            try {
+              const verifyRes = await fetch('/api/payments/verify-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_subscription_id: response.razorpay_subscription_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+              const verifyJson = (await verifyRes.json()) as { ok?: boolean; error?: string };
+              if (!verifyRes.ok || !verifyJson.ok) {
+                throw new Error(verifyJson.error ?? 'Payment verification failed');
+              }
+              window.location.href = '/dashboard/policy?success=1';
+            } catch (e) {
+              setMessage({
+                type: 'error',
+                text: e instanceof Error ? e.message : 'Verification failed',
+              });
+              setLoading(false);
+            }
+          },
+        } as never);
+
+        rzp.open();
+        return;
+      }
+
+      const data = raw as CreateCheckoutResponse;
+      if (!data.keyId || !data.orderId || data.amount == null) {
+        setMessage({ type: 'error', text: 'Invalid checkout response.' });
         setLoading(false);
         return;
       }
@@ -160,7 +230,7 @@ export function PolicySubscribeForm({
         modal: {
           ondismiss: () => setLoading(false),
         },
-        handler: async (response) => {
+        handler: async (response: Record<string, string>) => {
           try {
             const verifyRes = await fetch('/api/payments/verify', {
               method: 'POST',
@@ -205,6 +275,7 @@ export function PolicySubscribeForm({
       <SubscriptionDetails
         policy={activePolicy}
         planName={planNameProp}
+        autoRenewEnabled={autoRenewEnabled}
       />
     );
   }
@@ -217,7 +288,8 @@ export function PolicySubscribeForm({
           <div className="space-y-2.5">
             {plans.map((plan) => {
               const isSelected = selectedPlan?.id === plan.id;
-              const premium = Number(plan.weekly_premium_inr);
+              const quote = quoteForPlan(plan, dynamicQuotesBySlug);
+              const premium = quote.weekly_premium_inr;
               const dailyCost = Math.round(premium / 7);
               const isPopular = plan.slug === 'standard';
               return (
@@ -255,11 +327,12 @@ export function PolicySubscribeForm({
                   </div>
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
                     <span className="text-[12px] text-zinc-400">
-                      ₹{Number(plan.payout_per_claim_inr).toLocaleString('en-IN')}/claim
+                      ₹{quote.payout_per_claim_inr.toLocaleString('en-IN')}/claim
                     </span>
                     <span className="text-zinc-600">·</span>
                     <span className="text-[12px] text-zinc-400">
-                      up to {plan.max_claims_per_week} {plan.max_claims_per_week === 1 ? 'claim' : 'claims'}/week
+                      up to {quote.max_claims_per_week}{' '}
+                      {quote.max_claims_per_week === 1 ? 'claim' : 'claims'}/week
                     </span>
                     <span className="text-zinc-600">·</span>
                     <span className="text-[12px] text-zinc-500">
@@ -273,47 +346,84 @@ export function PolicySubscribeForm({
         </div>
       )}
       <Card variant="elevated" padding="lg">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-uber-green/10">
-            <Shield className="h-5 w-5 text-uber-green" />
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">This week</p>
+            <p className="mt-1 text-sm text-zinc-300 tabular-nums">
+              {formatDate(start)} – {formatDate(end)}
+              {hasPlans && activePlan ? (
+                <span className="text-zinc-600"> · {activePlan.name}</span>
+              ) : null}
+            </p>
           </div>
-          <h2 className="font-semibold">Subscribe for next week</h2>
+          <div className="text-right shrink-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Due</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-white">₹{defaultPremium}</p>
+          </div>
         </div>
-        <div className="space-y-2 text-sm">
-          {hasPlans && (
-            <div className="flex justify-between py-1.5">
-              <span className="text-zinc-500">Plan</span>
-              <span className="text-zinc-300 font-medium">{activePlan?.name ?? '—'}</span>
-            </div>
-          )}
-          <div className="flex justify-between py-1.5">
-            <span className="text-zinc-500">Coverage period</span>
-            <span className="text-zinc-300 tabular-nums">
-              {start} – {end}
+
+        <Button
+          type="submit"
+          disabled={loading || (hasPlans && !activePlan)}
+          size="lg"
+          fullWidth
+          className="mt-5"
+        >
+          {loading
+            ? 'Opening Razorpay…'
+            : weeklyAutoRenew
+              ? 'Authorise & pay'
+              : 'Pay now'}
+        </Button>
+
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5">
+          <span className="text-[13px] text-zinc-300 flex items-center gap-2 min-w-0 pr-2">
+            <RefreshCw className="h-3.5 w-3.5 text-uber-green shrink-0" aria-hidden />
+            <span id="auto-renew-label">
+              <span className="font-medium text-white">Auto-renew</span>
+              <span className="text-zinc-500"> · UPI or card mandate</span>
             </span>
-          </div>
-          <div className="flex justify-between py-1.5">
-            <span className="text-zinc-500">Weekly premium</span>
-            <span className="font-medium tabular-nums">₹{defaultPremium}</span>
-          </div>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={weeklyAutoRenew}
+            aria-labelledby="auto-renew-label"
+            onClick={() => setWeeklyAutoRenew((v) => !v)}
+            className={cn(
+              'relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
+              weeklyAutoRenew ? 'bg-uber-green' : 'bg-zinc-600',
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-out',
+                weeklyAutoRenew ? 'translate-x-6' : 'translate-x-0',
+              )}
+            />
+          </button>
         </div>
+
         {message && (
           <p
-            className={`mt-4 text-sm ${
+            className={`mt-3 text-sm ${
               message.type === 'success' ? 'text-uber-green' : 'text-uber-red'
             }`}
           >
             {message.text}
           </p>
         )}
-        <Button
-          type="submit"
-          disabled={loading || (hasPlans && !activePlan)}
-          size="lg"
-          className="mt-4"
-        >
-          {loading ? 'Opening Razorpay…' : 'Pay & Activate'}
-        </Button>
+
+        {!activePolicy && (
+          <p className="mt-4 text-center text-[10px] leading-relaxed text-zinc-600">
+            <Link href="/dashboard/policy/docs" className="text-zinc-500 hover:text-uber-green underline-offset-2">
+              Policy terms
+            </Link>{' '}
+            apply. Income protection only (not health, life, accident, or vehicle cover).
+          </p>
+        )}
       </Card>
     </form>
   );

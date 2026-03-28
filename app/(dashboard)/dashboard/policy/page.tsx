@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
 import { ArrowLeft, FileText } from "lucide-react";
-import { calculateDynamicPremium, getForecastRiskFactor, getHistoricalEventCount, getSocialRiskFactor } from "@/lib/ml/premium-calc";
+import { computeDynamicPlanQuotesForProfile } from "@/lib/ml/resolve-dynamic-plan-quotes";
+import { getPolicyWeekRange } from "@/lib/utils/policy-week";
 import type { WeeklyPolicy } from "@/lib/types/database";
 
 export default async function PolicyPage({
@@ -19,15 +20,9 @@ export default async function PolicyPage({
 
   if (!user) redirect("/login");
 
-  const nextMonday = (() => {
-    const d = new Date();
-    const day = d.getDay();
-    const daysUntilMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day;
-    d.setDate(d.getDate() + daysUntilMonday);
-    return d.toISOString().split("T")[0];
-  })();
+  const { start: weekStart } = getPolicyWeekRange();
 
-  const [{ data: policies }, { data: profile }, { data: rec }, { data: plans }] =
+  const [{ data: policies }, { data: profile }, { data: plans }, dynamicQuotesBySlug] =
     await Promise.all([
       supabase
         .from("weekly_policies")
@@ -37,50 +32,20 @@ export default async function PolicyPage({
         .limit(5),
       supabase
         .from("profiles")
-        .select("primary_zone_geofence, zone_latitude, zone_longitude, platform")
+        .select(
+          "primary_zone_geofence, zone_latitude, zone_longitude, platform, auto_renew_enabled, razorpay_subscription_id",
+        )
         .eq("id", user.id)
-        .single(),
-      supabase
-        .from("premium_recommendations")
-        .select("recommended_premium_inr")
-        .eq("profile_id", user.id)
-        .eq("week_start_date", nextMonday)
         .single(),
       supabase
         .from("plan_packages")
         .select("*")
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
+      computeDynamicPlanQuotesForProfile(supabase, user.id, weekStart),
     ]);
 
-  const zoneData = profile?.primary_zone_geofence as Record<string, unknown> | null;
-  const zoneName = (zoneData?.zone_name as string) ?? null;
-  const zoneLat = profile?.zone_latitude ?? null;
-  const zoneLng = profile?.zone_longitude ?? null;
-
-  let premium: number;
-  if (rec?.recommended_premium_inr != null) {
-    premium = Number(rec.recommended_premium_inr);
-  } else {
-    const [eventCount, forecastRisk, socialRisk] = await Promise.all([
-      getHistoricalEventCount(supabase, zoneLat, zoneLng),
-      getForecastRiskFactor(supabase, zoneLat ?? 12.97, zoneLng ?? 77.59),
-      getSocialRiskFactor(supabase, zoneLat, zoneLng),
-    ]);
-    const engineOutput = calculateDynamicPremium({
-      zoneRiskFactors: {
-        heatEvents: 0,
-        rainEvents: eventCount, // fallback for historic events
-        trafficEvents: 0,
-        socialEvents: 0
-      },
-      forecastRisk,
-      platform: typeof profile?.platform === 'string' ? profile.platform : undefined,
-      socialStrikeFrequency: socialRisk,
-      riderClaimFrequency: 0, // Fallback for UI preview
-    });
-    premium = engineOutput.final_premium;
-  }
+  const premium = dynamicQuotesBySlug.standard?.weekly_premium_inr ?? 99;
 
   let activePolicy: (WeeklyPolicy & { plan_packages?: unknown }) | null =
     policies?.find((p) => p.is_active) ?? null;
@@ -89,6 +54,8 @@ export default async function PolicyPage({
     activePolicy?.plan_packages && typeof activePolicy.plan_packages === "object" && activePolicy.plan_packages !== null
       ? (activePolicy.plan_packages as { name?: string }).name ?? "Weekly plan"
       : "Weekly plan";
+
+  const autoRenewEnabled = Boolean(profile?.auto_renew_enabled);
 
   return (
     <div className="space-y-5">
@@ -116,8 +83,10 @@ export default async function PolicyPage({
             existingPolicies={policies ?? []}
             plans={plans ?? []}
             suggestedPremium={premium}
+            dynamicQuotesBySlug={dynamicQuotesBySlug}
             paymentSuccess={params.success === '1'}
             paymentCanceled={params.canceled === '1'}
+            autoRenewEnabled={autoRenewEnabled}
           />
         </>
       ) : (
@@ -146,8 +115,10 @@ export default async function PolicyPage({
             existingPolicies={policies ?? []}
             plans={plans ?? []}
             suggestedPremium={premium}
+            dynamicQuotesBySlug={dynamicQuotesBySlug}
             paymentSuccess={params.success === '1'}
             paymentCanceled={params.canceled === '1'}
+            autoRenewEnabled={autoRenewEnabled}
           />
         </>
       )}

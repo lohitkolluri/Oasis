@@ -277,7 +277,8 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
                   <span>{selected.emoji}</span>
                   <span className="font-medium text-white">{selected.label}</span>
                   <span className="text-[#555] hidden sm:inline">
-                    — {selected.desc}
+                    {' '}
+                    · {selected.desc}
                   </span>
                 </span>
                 <ChevronDown

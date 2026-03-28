@@ -1,12 +1,14 @@
 'use client';
 
 import type { WeeklyPolicy } from '@/lib/types/database';
-import { Copy, CreditCard, Hash, Smartphone, Wallet } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Copy, CreditCard, Hash, RefreshCw, Smartphone, Wallet } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 interface SubscriptionDetailsProps {
   policy: WeeklyPolicy;
   planName: string;
+  autoRenewEnabled?: boolean;
 }
 
 /** Parse YYYY-MM-DD as local calendar date (avoids UTC midnight skew on DATE fields). */
@@ -79,8 +81,14 @@ function paymentMethodLabel(type: string | null | undefined): string {
   }
 }
 
-export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsProps) {
+export function SubscriptionDetails({
+  policy,
+  planName,
+  autoRenewEnabled = false,
+}: SubscriptionDetailsProps) {
   const [copied, setCopied] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<string | null>(null);
   const daysLeft = getDaysRemaining(policy.week_start_date, policy.week_end_date);
   const progress = getProgressPercent(policy.week_start_date, policy.week_end_date);
   const displayId = policy.id.slice(0, 8).toUpperCase();
@@ -94,6 +102,24 @@ export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsPro
       setTimeout(() => setCopied(false), 2000);
     });
   }, [policy.id]);
+
+  const handleCancelAutoRenew = useCallback(async () => {
+    setCancelMessage(null);
+    setCancelLoading(true);
+    try {
+      const res = await fetch('/api/payments/cancel-subscription', { method: 'POST' });
+      const j = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !j.ok) {
+        setCancelMessage(j.error ?? 'Could not cancel auto-renewal');
+        return;
+      }
+      window.location.reload();
+    } catch {
+      setCancelMessage('Something went wrong');
+    } finally {
+      setCancelLoading(false);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -148,6 +174,46 @@ export function SubscriptionDetails({ policy, planName }: SubscriptionDetailsPro
           <span>Ends {formatShortDate(policy.week_end_date)}</span>
         </div>
       </div>
+
+      {autoRenewEnabled && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-4 py-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[13px] text-zinc-300 flex items-center gap-2 min-w-0 pr-2">
+              <RefreshCw className="h-3.5 w-3.5 text-uber-green shrink-0" aria-hidden />
+              <span id="subscription-auto-renew-label">
+                <span className="font-medium text-white">Auto-renew</span>
+                <span className="text-zinc-500"> · mandate · weekly</span>
+              </span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={true}
+              aria-busy={cancelLoading}
+              aria-labelledby="subscription-auto-renew-label"
+              aria-label={cancelLoading ? 'Turning off auto-renewal' : 'Turn off auto-renewal'}
+              disabled={cancelLoading}
+              onClick={handleCancelAutoRenew}
+              className={cn(
+                'relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
+                'disabled:cursor-wait disabled:opacity-70',
+                'bg-uber-green',
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-out',
+                  'translate-x-6',
+                )}
+              />
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-zinc-500">Switch off to cancel future weeks.</p>
+          {cancelMessage && <p className="mt-2 text-[12px] text-red-400">{cancelMessage}</p>}
+        </div>
+      )}
 
       {/* Payment details — same card style as rest of app */}
       <div className="rounded-2xl border border-white/10 bg-surface-1 px-4 py-4">

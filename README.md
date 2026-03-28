@@ -24,7 +24,7 @@ AI‑powered parametric wage protection for India's Q‑commerce delivery partne
 
 Oasis safeguards gig workers (Zepto, Blinkit) against **loss of income** caused by external disruptions (extreme weather, zone lockdowns, traffic gridlock) using **weekly premiums**, **parametric triggers**, and **automatic payouts** without manual claims forms ([NITI Aayog gig/platform economy baseline](https://www.niti.gov.in/sites/default/files/2022-06/25th_June_Final_Report_27062022.pdf); [GFDRR parametric insurance brief](https://www.gfdrr.org/sites/default/files/publication/Parametric-insurance-brief-eng.pdf)).
 
-> Coverage is strictly for **loss of income only**; there is no health, life, accident, or vehicle repair coverage (product scope decision aligned with hackathon constraints and parametric wage-protection design guidance in [GFDRR](https://www.gfdrr.org/sites/default/files/publication/Parametric-insurance-brief-eng.pdf) and [Swiss Re](https://corporatesolutions.swissre.com/dam/jcr:0cd24f12-ebfb-425a-ab42-0187c241bf4a/2023-01-corso-guide-of-parametric-insurance.pdf)).
+> Coverage is strictly for **loss of income only**; there is no health, life, accident, or vehicle repair coverage (product scope aligned with parametric wage-protection design guidance in [GFDRR](https://www.gfdrr.org/sites/default/files/publication/Parametric-insurance-brief-eng.pdf) and [Swiss Re](https://corporatesolutions.swissre.com/dam/jcr:0cd24f12-ebfb-425a-ab42-0187c241bf4a/2023-01-corso-guide-of-parametric-insurance.pdf)).
 
 <br />
 <hr />
@@ -310,7 +310,7 @@ On the “anti-spoofing” side, GNSS ecosystems are moving toward **signal auth
 
 ### India regulatory context (high-level, product-agnostic)
 
-Oasis is a hackathon prototype, not a live insurance product. But the design is informed by India’s innovation and distribution frameworks:
+Oasis is built for production-minded architecture; go-live insurance distribution requires licensed carriers and regulatory approval. The design is informed by India’s innovation and distribution frameworks:
 
 - **IRDAI Regulatory Sandbox**: IRDAI sandbox regulations provide a controlled path to test innovative product structures, data triggers, and operating models before scale ([IRDAI Regulatory Sandbox Regulations, 2019](https://financialservices.gov.in/beta/sites/default/files/2024-11/IRDAI%20%28Regulatory%20Sandbox%29%20Regulations%2C%202019.pdf); [IRDAI Regulatory Sandbox Regulations, 2025](https://irdai.gov.in/document-detail?documentId=6541188)).
 - **Micro-insurance**: IRDAI’s Micro Insurance Regulations (2015) are a frequently cited framework for simplified, low-premium products and distribution to underserved segments ([IRDAI Micro Insurance Regulations, 2015 Official PDF](https://irdai.gov.in/documents/37343/602265/Insurance+Regulatory+And+Development+Authority+Of+India+%28Micro+Insurance%29+Regulations%2C+2015.pdf/f5ba8a29-5b82-8b8a-aab4-6f6798f408d6?download=true&t=1665254170085&version=3.6)).
@@ -396,15 +396,14 @@ Core variables (see docs for the full list):
 | `ADMIN_EMAILS`                       | Yes        | Comma-separated admin emails allowed into the admin console                                        |
 | `TOMORROW_IO_API_KEY`                | Yes        | Weather API key for disruption detection                                                           |
 | `NEWSDATA_IO_API_KEY`                | Yes        | News API key for traffic/lockdown triggers                                                         |
-| `RAZORPAY_KEY_ID`                  | Yes        | Razorpay Key ID (test or live)                                                                   |
-| `RAZORPAY_KEY_SECRET`                  | Yes        | Razorpay API Secret                                                                   |
-| `RAZORPAY_WEBHOOK_SECRET`              | Yes        | Razorpay webhook signing secret for payments callbacks                                               |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID`        | Yes        | Razorpay **Key ID** (test: `rzp_test_...`; required for Checkout — enforced in app)                 |
+| `RAZORPAY_KEY_SECRET`                | Yes        | Razorpay **Key Secret** (server-only; pair with Key ID)                                            |
+| `RAZORPAY_WEBHOOK_SECRET`            | No         | Razorpay webhook signing secret for `POST /api/payments/webhook` (optional if you rely on client verify only) |
 | `CRON_SECRET`                        | Yes (prod) | Shared secret for cron endpoints under `/api/cron/*`                                               |
 | `WEBHOOK_SECRET`                     | If used    | Secret for `POST /api/webhooks/disruption` when using realtime push from providers                 |
 | `NEXT_PUBLIC_APP_URL`                | Yes (prod) | Canonical app URL used for redirects and links (e.g. `https://your-app.vercel.app`)                |
 | `OPENROUTER_API_KEY`                 | Yes        | LLM API key used for gov ID / face verification and news severity classification                   |
 | `WAQI_API_KEY`                       | No         | Optional AQI data source                                                                           |
-| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | No         | Razorpay publishable key ID for Checkout / embedded payment flows                                       |
 | `GOV_ID_ENCRYPTION_KEY`              | Prod       | 32-byte base64 key for encrypting stored government ID images                                      |
 | `FACE_PHOTO_ENCRYPTION_KEY`          | Prod       | 32-byte base64 key for encrypting face verification photos (falls back to `GOV_ID_ENCRYPTION_KEY`) |
 
@@ -460,8 +459,20 @@ Common workflows after setup:
 
 - **Rider flow**
   - Visit the app, register via `(auth)` routes, and complete **KYC onboarding** (government ID + face verification).
-  - Choose a **weekly plan** and complete payment via Razorpay (UPI and other India methods where configured).
+  - Choose a **weekly plan** and complete payment via **Razorpay Standard Checkout** (UPI, cards, and other methods enabled in your Razorpay test account).
   - Use the **dashboard** to view active coverage, disruption-based claims, and wallet payouts.
+
+#### Demo payments (no real money)
+
+Use **Razorpay Test mode** keys in `.env.local` (`NEXT_PUBLIC_RAZORPAY_KEY_ID` must start with `rzp_test_`, plus `RAZORPAY_KEY_SECRET`). Then:
+
+1. Open **`/dashboard/policy`** and select a plan.
+2. Complete the **Razorpay** modal using [Razorpay test payment details](https://razorpay.com/docs/payments/payments/test-card-details/) (e.g. test UPI VPAs and card numbers documented there).
+3. After success, the app calls **`/api/payments/verify`** and redirects to `/dashboard/policy?success=1` with the weekly policy active.
+
+Optional: register **`/api/payments/webhook`** in the Razorpay Dashboard (event `payment.captured`) and set `RAZORPAY_WEBHOOK_SECRET` for the server-side backup path.
+
+Full walkthrough: **[Demo payments](https://oasisdocs.vercel.app/demo-payments/)** on the docs site (or `/demo-payments` when running the Starlight app locally).
 - **Admin flow**
   - Log in with an email included in `ADMIN_EMAILS` (or `role = 'admin'` in Supabase).
   - Use the **admin console** to:
@@ -474,7 +485,7 @@ Common workflows after setup:
     - `/api/cron/weekly-premium` weekly for premium billing and coverage windows.
   - Optionally wire providers to `POST /api/webhooks/disruption` for **realtime push** instead of polling.
 
-Refer to the docs (`Development Setup`, `Parametric Triggers`, `Claims Processing`, `Deployment`) for exact endpoints and payloads.
+Refer to the docs (`Development Setup`, `Demo payments`, `Parametric Triggers`, `Claims Processing`, `Deployment`) for exact endpoints and payloads.
 
 <br />
 <hr />

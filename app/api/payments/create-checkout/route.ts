@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
+import { getPolicyWeekRange } from '@/lib/utils/policy-week';
+import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -32,14 +34,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = parseWithSchema(createCheckoutSchema, body);
     if (!parsed.success) return parsed.response;
-    const { planId, weekStart, weekEnd } = parsed.data;
+    const { planId } = parsed.data;
+    const admin = createAdminClient();
+    const { start: weekStart, end: weekEnd } = getPolicyWeekRange();
 
     let amountInr: number;
     if (planId) {
-      const admin = createAdminClient();
       const { data: plan, error: planErr } = await admin
         .from('plan_packages')
-        .select('weekly_premium_inr, is_active')
+        .select('weekly_premium_inr, is_active, slug')
         .eq('id', planId)
         .single();
 
@@ -49,9 +52,9 @@ export async function POST(request: Request) {
       if (!plan.is_active) {
         return NextResponse.json({ error: 'Plan is not active' }, { status: 400 });
       }
-      amountInr = Number(plan.weekly_premium_inr);
+      amountInr = await resolveWeeklyPremiumInrForPlan(admin, user.id, plan.slug, weekStart);
     } else {
-      amountInr = 79;
+      amountInr = await resolveWeeklyPremiumInrForPlan(admin, user.id, 'standard', weekStart);
     }
 
     if (!amountInr || amountInr <= 0) {
