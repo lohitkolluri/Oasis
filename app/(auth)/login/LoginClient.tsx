@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { createClient } from '@/lib/supabase/client';
 import { gooeyToast } from 'goey-toast';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -115,37 +115,6 @@ function LoginForm() {
             Get started
           </Link>
         </p>
-        
-        <div className="mt-12 pt-8 border-t border-zinc-800">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <ShieldCheck className="h-4 w-4 text-zinc-500" />
-            <h2 className="text-sm font-semibold text-zinc-300">Product scope</h2>
-          </div>
-          <p className="text-xs text-zinc-500 mb-4 text-center leading-relaxed">
-            Weekly parametric income protection when external disruptions hit your zone. Oasis does not offer health,
-            life, accident, or vehicle repair cover. Other terms (fraud, zone rules, full exclusions) are in Policy
-            Documents or the{' '}
-            <Link href="/policy-summary" className="underline hover:text-zinc-300 transition-colors">
-              public summary
-            </Link>.
-          </p>
-          <ul className="space-y-3 text-xs text-zinc-500 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50">
-            <li className="flex gap-2">
-              <span className="text-zinc-700 shrink-0">•</span>
-              <span>
-                <strong className="text-zinc-400 font-medium">Not covered:</strong> health, life, personal accident,
-                vehicle repair.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-zinc-700 shrink-0">•</span>
-              <span>
-                <strong className="text-zinc-400 font-medium">In scope:</strong> loss of income from qualifying
-                external disruption triggers in your registered area, per Policy Wording.
-              </span>
-            </li>
-          </ul>
-        </div>
       </div>
     </main>
   );
@@ -178,37 +147,6 @@ function LoginFallback() {
             Get started
           </Link>
         </p>
-
-        <div className="mt-12 pt-8 border-t border-zinc-800">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <ShieldCheck className="h-4 w-4 text-zinc-500" />
-            <h2 className="text-sm font-semibold text-zinc-300">Product scope</h2>
-          </div>
-          <p className="text-xs text-zinc-500 mb-4 text-center leading-relaxed">
-            Weekly parametric income protection when external disruptions hit your zone. Oasis does not offer health,
-            life, accident, or vehicle repair cover. Other terms (fraud, zone rules, full exclusions) are in Policy
-            Documents or the{' '}
-            <Link href="/policy-summary" className="underline hover:text-zinc-300 transition-colors">
-              public summary
-            </Link>.
-          </p>
-          <ul className="space-y-3 text-xs text-zinc-500 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50">
-            <li className="flex gap-2">
-              <span className="text-zinc-700 shrink-0">•</span>
-              <span>
-                <strong className="text-zinc-400 font-medium">Not covered:</strong> health, life, personal accident,
-                vehicle repair.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-zinc-700 shrink-0">•</span>
-              <span>
-                <strong className="text-zinc-400 font-medium">In scope:</strong> loss of income from qualifying
-                external disruption triggers in your registered area, per Policy Wording.
-              </span>
-            </li>
-          </ul>
-        </div>
       </div>
     </main>
   );

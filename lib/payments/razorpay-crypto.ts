@@ -1,5 +1,21 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
+/** Subscription authorisation: HMAC-SHA256(payment_id + "|" + subscription_id, key_secret). */
+export function verifyRazorpaySubscriptionPaymentSignature(
+  paymentId: string,
+  subscriptionId: string,
+  signature: string,
+  keySecret: string,
+): boolean {
+  const body = `${paymentId}|${subscriptionId}`;
+  const expected = createHmac('sha256', keySecret).update(body).digest('hex');
+  try {
+    return timingSafeEqual(Buffer.from(expected, 'utf8'), Buffer.from(signature, 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
 /** Razorpay payment signature: HMAC-SHA256(order_id + "|" + payment_id, key_secret). */
 export function verifyRazorpayPaymentSignature(
   orderId: string,

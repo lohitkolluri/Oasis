@@ -65,6 +65,9 @@
     "vitest": "^4.1.0"
   },
   "trustedDependencies": [
+    "esbuild",
+    "msw",
+    "sharp",
     "unrs-resolver"
   ]
 }

@@ -25,20 +25,24 @@ const typeIcons: Record<string, React.ReactNode> = {
   social: <Megaphone style={{ width: 15, height: 15 }} />,
 };
 
+/** 3 columns: trigger · severity · when (when stays on one line) */
+const RADAR_GRID =
+  "grid grid-cols-[minmax(0,1fr)_minmax(6.75rem,7.25rem)_minmax(10.5rem,1fr)] gap-x-2";
+
 function SeverityBar({ score }: { score: number }) {
   const pct = (score / 10) * 100;
   const color =
     score >= 7 ? "bg-uber-red" : score >= 4 ? "bg-uber-yellow" : "bg-uber-green";
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+    <div className="flex w-[7rem] shrink-0 items-center gap-2">
+      <div className="h-1.5 w-12 shrink-0 rounded-full bg-white/10 overflow-hidden">
         <div
           className={`h-full rounded-full ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
       <span
-        className={`text-[11px] font-bold tabular-nums ${
+        className={`min-w-[2.75rem] w-11 shrink-0 text-right text-[11px] font-bold tabular-nums whitespace-nowrap ${
           score >= 7 ? "text-uber-red" : score >= 4 ? "text-uber-yellow" : "text-uber-green"
         }`}
       >
@@ -46,6 +50,19 @@ function SeverityBar({ score }: { score: number }) {
       </span>
     </div>
   );
+}
+
+/** DD/MM · 12-hour local time (no year in UI; DB still stores full `created_at`). */
+function formatWhen(iso: string): string {
+  const d = new Date(iso);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const time = d.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${day}/${month} · ${time}`;
 }
 
 export function RiskRadar() {
@@ -110,9 +127,16 @@ export function RiskRadar() {
           <p className="text-[11px] text-zinc-500 mt-0.5">No active disruptions in your area</p>
         </div>
       ) : (
-        <div className="px-3 pb-3 space-y-1.5 max-h-[280px] overflow-y-auto scrollbar-thin">
+        <div className="px-3 pb-3 max-h-[280px] overflow-y-auto scrollbar-thin">
+          <div
+            className={`${RADAR_GRID} items-center px-2 py-1.5 mb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap`}
+          >
+            <span className="min-w-0 truncate">Trigger</span>
+            <span className="text-left">Severity</span>
+            <span className="text-right">When</span>
+          </div>
           <AnimatePresence mode="popLayout" initial={false}>
-            {events.map((e, i) => (
+            {events.map((e) => (
               <motion.div
                 key={e.id}
                 layout
@@ -120,23 +144,24 @@ export function RiskRadar() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center gap-2.5 rounded-xl bg-black/40 border border-white/10 px-3 py-3 active:bg-white/5 transition-colors"
+                className={`${RADAR_GRID} items-center rounded-xl bg-black/40 border border-white/10 px-2 py-2 mb-1.5 last:mb-0 active:bg-white/5 transition-colors`}
               >
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-700/40 text-zinc-400 shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">
-                {typeIcons[e.event_type] ?? <MapPin className="h-3.5 w-3.5" />}
-              </div>
-              <span className="text-[12px] text-zinc-300 capitalize flex-1 font-medium min-w-0 truncate">
-                {typeLabels[e.event_type] ?? e.event_type}
-              </span>
-              <SeverityBar score={e.severity_score} />
-              <span className="text-[10px] text-zinc-600 tabular-nums w-9 text-right shrink-0">
-                {new Date(e.created_at).toLocaleTimeString("en-IN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </motion.div>
-          ))}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-700/40 text-zinc-400 shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">
+                    {typeIcons[e.event_type] ?? <MapPin className="h-3.5 w-3.5" />}
+                  </div>
+                  <span className="text-[12px] text-zinc-300 capitalize font-medium truncate">
+                    {typeLabels[e.event_type] ?? e.event_type}
+                  </span>
+                </div>
+                <div className="flex justify-start shrink-0">
+                  <SeverityBar score={e.severity_score} />
+                </div>
+                <p className="min-w-0 text-right text-[11px] tabular-nums text-zinc-300 truncate">
+                  {formatWhen(e.created_at)}
+                </p>
+              </motion.div>
+            ))}
           </AnimatePresence>
         </div>
       )}

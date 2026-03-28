@@ -5,6 +5,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getRazorpayWebhookSecret } from '@/lib/config/env';
 import { verifyRazorpayWebhookSignature } from '@/lib/payments/razorpay-crypto';
+import { handleSubscriptionPaymentCapture } from '@/lib/payments/handle-subscription-capture';
 import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
@@ -18,7 +19,8 @@ type RazorpayWebhookPayload = {
     payment?: {
       entity?: {
         id?: string;
-        order_id?: string;
+        order_id?: string | null;
+        subscription_id?: string | null;
         amount?: number;
         status?: string;
         method?: string;
@@ -55,10 +57,11 @@ export async function POST(request: Request) {
   const entity = parsed.payload?.payment?.entity;
   const paymentId = entity?.id;
   const orderId = entity?.order_id;
-  const method = entity?.method ?? null;
+  const subscriptionId = entity?.subscription_id;
+  const method = entity?.method != null ? String(entity.method) : undefined;
 
-  if (!paymentId || !orderId) {
-    return NextResponse.json({ ok: true, message: 'Missing payment or order id' });
+  if (!paymentId) {
+    return NextResponse.json({ ok: true, message: 'Missing payment id' });
   }
 
   if (entity?.status && entity.status !== 'captured') {
@@ -76,6 +79,27 @@ export async function POST(request: Request) {
       { error: isProd ? 'Service unavailable' : 'Supabase not configured' },
       { status: 503 },
     );
+  }
+
+  if (subscriptionId) {
+    const subResult = await handleSubscriptionPaymentCapture(admin, {
+      id: paymentId,
+      subscription_id: subscriptionId,
+      amount: entity?.amount,
+      status: entity?.status,
+      method: method ?? null,
+    });
+    if (!subResult.ok) {
+      return NextResponse.json(
+        { error: isProd ? 'Failed to process subscription payment' : subResult.error },
+        { status: subResult.status ?? 500 },
+      );
+    }
+    return NextResponse.json({ ok: true, message: subResult.message });
+  }
+
+  if (!orderId) {
+    return NextResponse.json({ ok: true, message: 'Missing order id' });
   }
 
   const { data: policy } = await admin
@@ -104,7 +128,7 @@ export async function POST(request: Request) {
     p_order_id: orderId,
     p_profile_id: policy.profile_id,
     p_amount_inr: Number(policy.weekly_premium_inr),
-    p_payment_method: method,
+    p_payment_method: method ?? null,
   });
 
   if (rpcError) {

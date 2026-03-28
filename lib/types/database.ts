@@ -7,6 +7,12 @@ export interface Profile {
   full_name: string | null;
   phone_number: string | null;
   platform: PlatformType | null;
+  /** Razorpay Customer id when using subscriptions / mandates */
+  razorpay_customer_id?: string | null;
+  /** Active or last subscription id (cleared when auto-renew cancelled) */
+  razorpay_subscription_id?: string | null;
+  /** True after a successful subscription charge (weekly auto-renew) */
+  auto_renew_enabled?: boolean | null;
   payment_routing_id: string | null;
   primary_zone_geofence: Record<string, unknown> | null;
   zone_latitude?: number | null;
@@ -30,6 +36,8 @@ export interface PlanPackage {
   max_claims_per_week: number;
   is_active: boolean;
   sort_order: number;
+  /** Razorpay Plan id for weekly subscription billing */
+  razorpay_plan_id?: string | null;
 }
 
 export interface WeeklyPolicy {
@@ -44,6 +52,7 @@ export interface WeeklyPolicy {
   razorpay_payment_method?: string | null;
   razorpay_order_id?: string | null;
   razorpay_payment_id?: string | null;
+  razorpay_subscription_id?: string | null;
   /** Legacy import only (pre–Razorpay migration). */
   stripe_payment_method_type?: string | null;
   stripe_payment_intent_id?: string | null;
