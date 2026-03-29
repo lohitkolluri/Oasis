@@ -69,34 +69,34 @@ export default async function WalletPage() {
           className="rounded-2xl border border-white/10 bg-[#0c0c0c] overflow-hidden"
         >
           <div className="grid grid-cols-3 gap-px bg-white/5">
-            <div className="bg-[#0c0c0c] p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
+            <div className="bg-gradient-to-b from-amber-500/10 to-amber-500/5 p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
               <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
                 <TrendingUp className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                <span className="text-[11px] font-medium text-zinc-500 truncate max-w-[12ch]">
+                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider truncate max-w-[12ch]">
                   Earnings
                 </span>
               </div>
-              <p className="text-lg font-bold tabular-nums text-white">
+              <p className="text-lg font-bold tabular-nums text-amber-400">
                 ₹{stats.totalPayouts.toLocaleString("en-IN")}
               </p>
             </div>
-            <div className="bg-[#0c0c0c] p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
+            <div className="bg-gradient-to-b from-violet-500/10 to-violet-500/5 p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
               <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
                 <FileCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />
-                <span className="text-[11px] font-medium text-zinc-500 truncate max-w-[12ch]">
-                  Claims Paid
+                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider truncate max-w-[12ch]">
+                  Claims
                 </span>
               </div>
-              <p className="text-lg font-bold tabular-nums text-white">{stats.totalClaimCount}</p>
+              <p className="text-lg font-bold tabular-nums text-violet-400">{stats.totalClaimCount}</p>
             </div>
-            <div className="bg-[#0c0c0c] p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]">
+            <div className={`bg-gradient-to-b ${result.activePolicy ? 'from-uber-green/10 to-uber-green/5' : 'from-zinc-500/10 to-zinc-500/5'} p-3.5 flex flex-col items-center justify-center text-center min-h-[84px]`}>
               <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
-                <Shield className="h-3.5 w-3.5 text-uber-green shrink-0" />
-                <span className="text-[11px] font-medium text-zinc-500 truncate max-w-[12ch]">
+                <Shield className={`h-3.5 w-3.5 shrink-0 ${result.activePolicy ? 'text-uber-green' : 'text-zinc-500'}`} />
+                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider truncate max-w-[12ch]">
                   Coverage
                 </span>
               </div>
-              <p className="text-lg font-bold text-uber-green">{result.activePolicy ? "Active" : "None"}</p>
+              <p className={`text-lg font-bold ${result.activePolicy ? 'text-uber-green' : 'text-zinc-500'}`}>{result.activePolicy ? "Active" : "None"}</p>
             </div>
           </div>
         </Card>

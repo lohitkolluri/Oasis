@@ -257,6 +257,16 @@ body {
   animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Coverage progress bar fill */
+.progress-fill {
+  animation: progress-expand 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes progress-expand {
+  from {
+    width: 0%;
+  }
+}
+
 .reveal-in-up {
   opacity: 0;
   animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;

@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/Card';
+import { formatShortDateIST } from '@/lib/datetime/ist';
 import { ChevronRight, FileCheck, Shield } from 'lucide-react';
 import Link from 'next/link';
 import type { WeeklyPolicy, ParametricClaim } from '@/lib/types/database';
@@ -9,13 +10,12 @@ interface PolicyCardProps {
   profileId: string;
   claims: ParametricClaim[];
   planName?: string;
+  /** Single-row link; use on home when coverage dates are shown elsewhere. */
+  compact?: boolean;
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  });
+  return formatShortDateIST(dateStr);
 }
 
 export function PolicyCard({
@@ -23,9 +23,27 @@ export function PolicyCard({
   profileId: _profileId,
   claims: _claims,
   planName,
+  compact = false,
 }: PolicyCardProps) {
 
   if (!policy) {
+    if (compact) {
+      return (
+        <Link
+          href="/dashboard/policy"
+          className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface-1 px-3.5 py-3 hover:bg-white/[0.04] active:scale-[0.99] transition-all min-h-[48px]"
+        >
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 shrink-0">
+            <FileCheck className="h-4 w-4 text-zinc-500" />
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-[13px] font-semibold text-zinc-300">Get coverage</p>
+            <p className="text-[11px] text-zinc-600">Tap to subscribe</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-zinc-600 shrink-0" />
+        </Link>
+      );
+    }
     return (
       <Card
         variant="default"
@@ -47,6 +65,26 @@ export function PolicyCard({
           Get coverage
         </ButtonLink>
       </Card>
+    );
+  }
+
+  if (compact) {
+    return (
+      <Link
+        href="/dashboard/policy"
+        className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface-1 px-3.5 py-3 hover:bg-white/[0.04] active:scale-[0.99] transition-all min-h-[52px]"
+      >
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-uber-green/12 border border-uber-green/20 shrink-0">
+          <Shield className="h-4 w-4 text-uber-green" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-[13px] font-semibold text-white truncate">{planName ?? 'Policy'}</p>
+          <p className="text-[11px] text-zinc-500 tabular-nums">
+            ₹{Number(policy.weekly_premium_inr).toLocaleString('en-IN')}/week · Details
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-zinc-600 shrink-0" />
+      </Link>
     );
   }
 

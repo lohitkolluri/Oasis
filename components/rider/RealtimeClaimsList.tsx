@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useRealtime } from '@/components/rider/RealtimeProvider';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,15 +12,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  AlertCircle,
   Car,
-  CheckCircle,
-  Clock,
   Cloud,
   MapPin,
   Megaphone,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatShortDateIST } from '@/lib/datetime/ist';
 import { cn } from '@/lib/utils';
 
 type DisruptionEvent = {
@@ -54,6 +51,12 @@ const typeLabels: Record<string, string> = {
   social: 'Social',
 };
 
+const eventTypeIconBg: Record<string, string> = {
+  weather: 'bg-sky-500/15 text-sky-400',
+  traffic: 'bg-amber-500/15 text-amber-400',
+  social: 'bg-red-500/15 text-red-400',
+};
+
 function EventTypeIcon({ type }: { type: string }) {
   const cls = { width: 14, height: 14 };
   if (type === 'weather') return <Cloud style={cls} />;
@@ -84,36 +87,34 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
     status: string;
     justPaid: boolean;
   }) {
-    const label = claim.is_flagged
+    const isUnderReview = claim.is_flagged;
+    const isPaid = !isUnderReview && status === 'paid';
+    const isPending = !isUnderReview && status !== 'paid';
+
+    const label = isUnderReview
       ? 'Under review'
-      : status === 'paid'
+      : isPaid
         ? 'Paid'
         : 'Pending verification';
+        
     return (
       <span className="flex items-center gap-1.5">
-        <Badge
-          variant="outline"
+        <span
           className={cn(
-            'rounded-full border font-semibold px-2.5 py-0.5 text-[11px] leading-none',
-            claim.is_flagged &&
-              'bg-[#ffc043]/15 text-[#ffc043] border-[#ffc043]/30',
-            !claim.is_flagged &&
-              status === 'paid' &&
-              'bg-[#3AA76D]/15 text-[#3AA76D] border-[#3AA76D]/30',
-            !claim.is_flagged &&
-              status !== 'paid' &&
-              'bg-amber-400/15 text-amber-400 border-amber-400/30'
+            'inline-flex items-center rounded-full font-bold px-2 py-0.5 text-[10px] uppercase tracking-wide leading-tight outline outline-1 outline-offset-1 transition-all',
+            isUnderReview && 'bg-[#ffc043]/15 text-[#ffc043] outline-[#ffc043]/40',
+            isPaid && 'bg-[#3AA76D]/15 text-[#3AA76D] outline-[#3AA76D]/40',
+            isPending && 'bg-amber-400/15 text-amber-400 outline-amber-400/40'
           )}
         >
           {label}
-        </Badge>
+        </span>
         {justPaid && (
-          <Badge
-            variant="outline"
-            className="rounded-full bg-[#3AA76D]/15 text-[#3AA76D] border-[#3AA76D]/30 animate-pulse text-[10px] font-semibold px-2 py-0.5 leading-none"
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-[#3AA76D]/20 text-[#3AA76D] outline outline-1 outline-[#3AA76D]/50 px-2 py-0.5 animate-pulse text-[10px] font-bold uppercase tracking-wide leading-tight"
           >
             Just paid
-          </Badge>
+          </span>
         )}
       </span>
     );
@@ -123,7 +124,7 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
     <Card
       variant="default"
       padding="none"
-      className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden"
+      className="rounded-2xl border-white/10 bg-[#0c0c0c] overflow-hidden"
     >
       <div className="px-5 py-3.5 border-b border-white/10">
         <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-[0.12em]">
@@ -131,14 +132,14 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
         </p>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto scrollbar-thin">
         <Table>
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
               <TableHead className="text-zinc-500 font-medium">Date & time</TableHead>
               <TableHead className="text-zinc-500 font-medium">Event</TableHead>
               <TableHead className="text-zinc-500 font-medium text-right">Amount</TableHead>
-              <TableHead className="text-zinc-500 font-medium">Status</TableHead>
+              <TableHead className="text-zinc-500 font-medium whitespace-nowrap">Status</TableHead>
               <TableHead className="text-zinc-500 font-medium">Policy</TableHead>
             </TableRow>
           </TableHeader>
@@ -156,8 +157,9 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
                   ? `${typeLabels[event.event_type] ?? event.event_type}${event.severity_score != null ? ` · ${event.severity_score}/10` : ''}`
                   : '—';
                 const policyLabel = policy
-                  ? `${policy.planName} · ${new Date(policy.weekStart).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`
+                  ? `${policy.planName} · ${formatShortDateIST(policy.weekStart)}`
                   : '—';
+                const iconBg = event?.event_type ? (eventTypeIconBg[event.event_type] ?? 'bg-white/10 text-zinc-400') : 'bg-white/10 text-zinc-400';
 
                 return (
                   <React.Fragment key={claim.id}>
@@ -170,9 +172,9 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
                           : {}
                       }
                       transition={{ duration: 1.5 }}
-                      className="border-b border-white/10 transition-colors hover:bg-white/[0.03]"
+                      className="border-b border-white/10 transition-colors hover:bg-white/[0.04]"
                     >
-                      <TableCell className="tabular-nums text-zinc-300 text-[13px] py-3">
+                      <TableCell className="tabular-nums text-zinc-300 text-[13px] py-3.5 whitespace-nowrap">
                         {new Date(claim.created_at).toLocaleString('en-IN', {
                           month: 'short',
                           day: 'numeric',
@@ -180,18 +182,20 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
                           minute: '2-digit',
                         })}
                       </TableCell>
-                      <TableCell className="py-3">
-                        <span className="flex items-center gap-2 text-[13px] text-zinc-300">
+                      <TableCell className="py-3.5 min-w-[140px]">
+                        <span className="flex items-center gap-2.5 text-[13px] font-medium text-zinc-200">
                           {event?.event_type ? (
-                            <EventTypeIcon type={event.event_type} />
+                            <div className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 ${iconBg}`}>
+                              <EventTypeIcon type={event.event_type} />
+                            </div>
                           ) : null}
-                          {eventLabel}
+                          <span className="truncate max-w-[180px]">{eventLabel}</span>
                         </span>
                       </TableCell>
-                      <TableCell className="text-right py-3">
+                      <TableCell className="text-right py-3.5">
                         <span
                           className={cn(
-                            'font-semibold tabular-nums text-[13px]',
+                            'font-bold tabular-nums text-[13px]',
                             status === 'paid' ? 'text-[#3AA76D]' : 'text-zinc-400'
                           )}
                         >
@@ -199,14 +203,14 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
                           {Number(claim.payout_amount_inr).toLocaleString('en-IN')}
                         </span>
                       </TableCell>
-                      <TableCell className="py-3">
+                      <TableCell className="py-3.5 whitespace-nowrap">
                         <StatusBadge
                           claim={claim}
                           status={status}
                           justPaid={justPaid}
                         />
                       </TableCell>
-                      <TableCell className="text-[13px] text-zinc-500 py-3">
+                      <TableCell className="text-[12px] truncate max-w-[140px] font-medium text-zinc-500 py-3.5 whitespace-nowrap">
                         {policyLabel}
                       </TableCell>
                     </motion.tr>
@@ -216,7 +220,7 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
                       >
                         <TableCell
                           colSpan={5}
-                          className="text-[11px] text-[#ffc043] py-2"
+                          className="text-[11px] text-[#ffc043] py-2.5 px-4 font-medium"
                         >
                           Under review: {claim.flag_reason}. Re-verify your
                           location from the dashboard or contact support for

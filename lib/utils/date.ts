@@ -1,11 +1,14 @@
-/** ISO date string (YYYY-MM-DD) for the given date. */
-export function toDateString(d: Date): string {
-  return d.toISOString().split('T')[0];
+import { addCalendarDaysIST, getISTDateString } from '@/lib/datetime/ist';
+
+/**
+ * YYYY-MM-DD for the IST calendar day containing `d`.
+ * Use for comparing `weekly_policies.week_*` DATE fields and policy logic.
+ */
+export function toDateString(d: Date = new Date()): string {
+  return getISTDateString(d);
 }
 
-/** Add n days to a date and return YYYY-MM-DD. */
+/** Add n calendar days on the IST civil calendar; `dateStr` is YYYY-MM-DD. */
 export function addDays(dateStr: string, n: number): string {
-  const d = new Date(dateStr + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().split('T')[0];
+  return addCalendarDaysIST(dateStr, n);
 }

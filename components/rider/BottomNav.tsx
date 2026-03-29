@@ -26,18 +26,22 @@ export function BottomNav() {
               href={href}
               className="relative flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 min-h-[48px] transition-colors duration-150 active:scale-95 active:opacity-80"
             >
+              {/* Pill-style active indicator behind icon+label */}
               {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-uber-green" />
+                <span
+                  className="absolute inset-x-2 top-1.5 bottom-1.5 rounded-2xl bg-uber-green/10 pointer-events-none"
+                  aria-hidden
+                />
               )}
               <Icon
-                className={`h-[22px] w-[22px] shrink-0 transition-colors duration-150 ${
-                  isActive ? "text-white" : "text-zinc-500"
+                className={`relative z-[1] h-[22px] w-[22px] shrink-0 transition-colors duration-150 ${
+                  isActive ? "text-uber-green" : "text-zinc-500"
                 }`}
                 strokeWidth={isActive ? 2.2 : 1.6}
               />
               <span
-                className={`text-[10px] font-semibold tracking-wide transition-colors duration-150 ${
-                  isActive ? "text-white" : "text-zinc-500"
+                className={`relative z-[1] text-[10px] font-semibold tracking-wide transition-colors duration-150 ${
+                  isActive ? "text-uber-green" : "text-zinc-500"
                 }`}
               >
                 {label}

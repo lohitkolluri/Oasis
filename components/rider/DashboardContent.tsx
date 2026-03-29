@@ -1,17 +1,18 @@
 'use client';
 
 import { domAnimation, LazyMotion, m } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import type { User } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
-import { PolicyCard } from './PolicyCard';
-import { PolicyDocumentsLink } from './PolicyDocumentsLink';
+import { ActivityTimeline } from './ActivityTimeline';
+import { CoverageStatusBanner } from './CoverageStatusBanner';
 import { PredictiveAlert } from './PredictiveAlert';
-import { WalletBalanceCard } from './WalletBalanceCard';
-import { KPIGrid } from './KPIGrid';
-import { ClaimsPreview } from './ClaimsPreview';
-import { RiderInsightCard } from './RiderInsightCard';
+import { PolicyCard } from './PolicyCard';
+import { QuickLinks } from './QuickLinks';
 import { ReportDeliveryImpact } from './ReportDeliveryImpact';
+import { RiderInsightCard } from './RiderInsightCard';
+import { WalletBalanceCard } from './WalletBalanceCard';
 
 type ClaimWithType = ParametricClaim & {
   live_disruption_events?: { event_type?: string } | null;
@@ -36,13 +37,13 @@ const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.05 },
+    transition: { staggerChildren: 0.03 },
   },
 };
 
 const item = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
 };
 
 const WeeklyEarningsChart = dynamic(
@@ -104,26 +105,22 @@ export function DashboardContent({
         variants={container}
         initial="hidden"
         animate="show"
-        className="space-y-3 pb-2"
+        className="space-y-6 pb-4"
       >
-        {/* Greeting — personal touch */}
-        <m.div variants={item} className="pt-1 pb-1">
-          <h2 className="text-lg font-bold text-white tracking-tight">
-            {getGreeting()}
-            {firstName ? `, ${firstName}` : ''}
-          </h2>
-          <p className="text-[13px] text-zinc-500 mt-0.5">
-            {activePolicy ? 'Your coverage is active' : 'Subscribe to get covered'}
-          </p>
-        </m.div>
-
-        {/* Urgent: predictive alert at the top when active */}
-        <m.div variants={item}>
+        {/* Hero: greeting + coverage */}
+        <m.section variants={item} className="space-y-3">
+          <div className="pt-0.5">
+            <h2 className="text-lg font-bold text-white tracking-tight">
+              {getGreeting()}
+              {firstName ? `, ${firstName}` : ''}
+            </h2>
+          </div>
+          <CoverageStatusBanner policy={activePolicy} planName={planName} />
           <PredictiveAlert />
-        </m.div>
+        </m.section>
 
-        {/* Wallet + KPIs — at a glance */}
-        <m.div variants={item}>
+        {/* Wallet */}
+        <m.section variants={item}>
           <WalletBalanceCard
             initialBalance={totalPayouts}
             weeklyChange={thisWeekEarned}
@@ -135,51 +132,67 @@ export function DashboardContent({
                 : undefined
             }
           />
-        </m.div>
-        <m.div variants={item}>
-          <KPIGrid
-            totalEarnings={totalPayouts}
+        </m.section>
+
+        {/* Activity (no duplicate stat strip — wallet + banner cover it) */}
+        <m.section variants={item}>
+          <ActivityTimeline
+            claims={claimsFiltered}
+            totalPayouts={totalPayouts}
             claimsPaid={totalClaimCount}
             hasActiveCoverage={activePolicy != null}
             riskLevel={riskLevel}
+            claimIdsNeedingVerification={claimIdsNeedingVerification}
+            showCompactStats={false}
           />
-        </m.div>
+        </m.section>
 
-        {/* Primary CTA — report delivery issue */}
-        <m.div variants={item} className="w-full">
-          <ReportDeliveryImpact renderTrigger={true} triggerClassName="w-full" />
-        </m.div>
-
-        {/* Policy + Earnings — core content */}
-        <m.div variants={item}>
+        {/* Actions: compact policy row + quieter report CTA */}
+        <m.section variants={item} className="space-y-2">
           <PolicyCard
             policy={activePolicy}
             profileId={user.id}
             claims={claimsFiltered}
             planName={planName}
+            compact
           />
-        </m.div>
-        <m.div variants={item}>
-          <WeeklyEarningsChart dailyEarnings={weeklyDailyEarnings} />
-        </m.div>
-        <m.div variants={item}>
-          <ClaimsPreview
-            claims={claimsFiltered}
-            claimIdsNeedingVerification={claimIdsNeedingVerification}
+          <ReportDeliveryImpact
+            renderTrigger
+            triggerTone="neutral"
+            triggerClassName="w-full"
           />
-        </m.div>
+        </m.section>
 
-        {/* Risk + Insight — secondary info */}
-        <m.div variants={item}>
-          <RiskRadar />
-        </m.div>
+        {/* Secondary: charts & radar (collapsed by default) */}
+        <m.section variants={item}>
+          <details className="group rounded-2xl border border-white/10 bg-surface-1 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] open:shadow-[0_0_0_1px_rgba(58,167,109,0.12)_inset] overflow-hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-left min-h-[52px] hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green/35 focus-visible:ring-inset rounded-t-2xl">
+              <div className="min-w-0">
+                <span className="text-[13px] font-semibold text-zinc-200">
+                  Week chart & zone risk
+                </span>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  Tap to show earnings trend and live zone activity
+                </p>
+              </div>
+              <ChevronDown
+                className="h-5 w-5 shrink-0 text-zinc-400 group-open:text-uber-green transition-[transform,color] duration-200 group-open:rotate-180"
+                aria-hidden
+              />
+            </summary>
+            <div className="space-y-4 border-t border-white/10 bg-black/30 px-1 sm:px-0 pb-4 pt-4">
+              <WeeklyEarningsChart dailyEarnings={weeklyDailyEarnings} />
+              <RiskRadar />
+            </div>
+          </details>
+        </m.section>
+
+        <m.section variants={item}>
+          <QuickLinks />
+        </m.section>
+
         <m.div variants={item}>
           <RiderInsightCard />
-        </m.div>
-
-        {/* Policy docs — quick access at bottom */}
-        <m.div variants={item}>
-          <PolicyDocumentsLink />
         </m.div>
       </m.div>
     </LazyMotion>

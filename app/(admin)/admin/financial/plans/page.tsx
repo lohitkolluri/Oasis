@@ -4,19 +4,16 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { PlanPricingTimelineRow, PlanTierKey } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingTimelineTable } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingForecastChartLazy } from '@/components/admin/PlanPricingForecastChartLazy';
-import { addDays, toDateString } from '@/lib/utils/date';
+import { getISTCurrentCoverageWeekMondayStart, getISTDateString } from '@/lib/datetime/ist';
+import { addDays } from '@/lib/utils/date';
 
 export const dynamic = 'force-dynamic';
 
 type PlanPackage = Record<string, any>;
 
-function isoWeekMonday(date: Date): string {
-  // Use a UTC-safe string workflow to avoid timezone shifts (e.g. IST midnight → previous UTC day).
-  const today = toDateString(date); // YYYY-MM-DD in UTC
-  const d = new Date(`${today}T12:00:00Z`);
-  const dow = d.getUTCDay(); // 0 Sun .. 6 Sat
-  const offset = (dow + 6) % 7; // days since Monday
-  return addDays(today, -offset);
+/** Monday YYYY-MM-DD (IST) for the policy week containing `date`. */
+function istPolicyWeekMondayYmd(date: Date): string {
+  return getISTDateString(getISTCurrentCoverageWeekMondayStart(date));
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -102,7 +99,7 @@ export default async function PlansPage() {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   const now = new Date();
-  const currentWeekStart = isoWeekMonday(now);
+  const currentWeekStart = istPolicyWeekMondayYmd(now);
   const sinceIso = addDays(currentWeekStart, -7 * 23);
 
   const [snapshotsRes, policiesPaidRes, recsRes] = await Promise.all([
@@ -118,7 +115,7 @@ export default async function PlansPage() {
       .in('payment_status', ['paid', 'demo']),
     (async () => {
       // Prefer DB-derived week_start_date for alignment; fallback to +7 days from current ISO week.
-      const baseWeekStart = isoWeekMonday(now);
+      const baseWeekStart = istPolicyWeekMondayYmd(now);
       const nextWeekStart = addDays(baseWeekStart, 7);
       return supabase
         .from('premium_recommendations')
@@ -184,7 +181,7 @@ export default async function PlansPage() {
       weekStarts.push(addDays(last, -7));
     }
   } else {
-    const base = isoWeekMonday(now);
+    const base = istPolicyWeekMondayYmd(now);
     for (let i = 0; i < 24; i++) weekStarts.push(addDays(base, -7 * i));
   }
 
@@ -212,7 +209,7 @@ export default async function PlansPage() {
   });
 
   // Forecast is driven by `premium_recommendations` generated for next week relative to current ISO week (Mon).
-  const baseWeekStart = isoWeekMonday(now);
+  const baseWeekStart = istPolicyWeekMondayYmd(now);
   const nextWeekStart = addDays(baseWeekStart, 7);
   const recs = (recsRes.data ?? []) as Array<{ recommended_premium_inr: number }>;
   const recValues = recs

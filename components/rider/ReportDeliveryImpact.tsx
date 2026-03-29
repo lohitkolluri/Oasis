@@ -12,6 +12,8 @@ export interface ReportDeliveryImpactProps {
   onOpenChange?: (open: boolean) => void;
   renderTrigger?: boolean;
   triggerClassName?: string;
+  /** `neutral` = quieter outline for dense layouts (e.g. home dashboard). */
+  triggerTone?: 'accent' | 'neutral';
 }
 
 export function ReportDeliveryImpact({
@@ -19,6 +21,7 @@ export function ReportDeliveryImpact({
   onOpenChange,
   renderTrigger = true,
   triggerClassName,
+  triggerTone = 'accent',
 }: ReportDeliveryImpactProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -176,9 +179,13 @@ export function ReportDeliveryImpact({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`inline-flex items-center justify-center gap-2.5 rounded-2xl border-2 border-uber-yellow/50 bg-uber-yellow/15 px-4 py-3.5 text-sm font-semibold text-uber-yellow active:scale-[0.97] active:bg-uber-yellow/25 hover:bg-uber-yellow/25 transition-all min-h-[48px] ${triggerClassName ?? ''}`}
+          className={`inline-flex w-full items-center justify-center gap-2 transition-all active:scale-[0.99] ${
+            triggerTone === 'neutral'
+              ? 'rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-[13px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-zinc-200 min-h-[44px]'
+              : 'rounded-2xl border-2 border-uber-yellow/50 bg-uber-yellow/15 px-4 py-3.5 text-sm font-semibold text-uber-yellow active:bg-uber-yellow/25 hover:bg-uber-yellow/25 min-h-[48px]'
+          } ${triggerClassName ?? ''}`}
         >
-          <Flag className="h-4 w-4 shrink-0" />
+          <Flag className={`h-4 w-4 shrink-0 ${triggerTone === 'neutral' ? 'text-zinc-500' : ''}`} />
           Report delivery issue
         </button>
       )}

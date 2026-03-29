@@ -1,10 +1,10 @@
 'use client';
 
 import { Card } from '@/components/ui/Card';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { Car, ChevronRight, Cloud, FileCheck, Megaphone } from 'lucide-react';
 import type { ParametricClaim } from '@/lib/types/database';
+import { motion } from 'framer-motion';
+import { Car, ChevronRight, Cloud, FileCheck, Megaphone } from 'lucide-react';
+import Link from 'next/link';
 import { ClaimVerificationPrompt } from './ClaimVerificationPrompt';
 
 type ClaimWithType = ParametricClaim & {
@@ -24,6 +24,35 @@ function eventTypeIcon(type: string) {
     case 'social': return Megaphone;
     default: return FileCheck;
   }
+}
+
+function plainLanguageStatus(claim: ClaimWithType): { label: string; step: number; total: number } {
+  if (claim.is_flagged) return { label: 'Under review', step: 2, total: 3 };
+  switch (claim.status) {
+    case 'paid': return { label: 'Paid', step: 3, total: 3 };
+    case 'pending_verification': return { label: 'Verifying zone', step: 2, total: 3 };
+    case 'triggered': return { label: 'Triggered', step: 1, total: 3 };
+    default: return { label: 'Processing', step: 1, total: 3 };
+  }
+}
+
+function statusTextColor(claim: ClaimWithType): string {
+  if (claim.is_flagged) return 'text-uber-yellow';
+  if (claim.status === 'paid') return 'text-uber-green';
+  return 'text-amber-400';
+}
+
+function StepDots({ step, total }: { step: number; total: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`Step ${step} of ${total}`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span
+          key={i}
+          className={`inline-block w-1 h-1 rounded-full ${i < step ? 'bg-uber-green' : 'bg-white/15'}`}
+        />
+      ))}
+    </span>
+  );
 }
 
 function formatTimeAgo(dateStr: string) {
@@ -170,11 +199,14 @@ export function ClaimsPreview({
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[13px] font-bold text-uber-green tabular-nums">
-                      ₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                    <span className={`text-[13px] font-bold tabular-nums ${c.status === 'paid' ? 'text-uber-green' : 'text-zinc-400'}`}>
+                      {c.status === 'paid' ? '+' : ''}₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] font-semibold text-uber-green/80 bg-uber-green/10 px-2 py-0.5 rounded-full">
-                      {c.is_flagged ? 'Under review' : c.status === 'paid' ? 'Paid' : 'Pending'}
+                    <span className="flex items-center gap-1.5">
+                      <StepDots step={plainLanguageStatus(c).step} total={plainLanguageStatus(c).total} />
+                      <span className={`text-[10px] font-semibold ${statusTextColor(c)}`}>
+                        {plainLanguageStatus(c).label}
+                      </span>
                     </span>
                   </div>
                 </div>

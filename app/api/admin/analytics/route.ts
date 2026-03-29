@@ -6,6 +6,7 @@
  * P3 fix: full-period rows for summaries (no row cap that skewed loss ratio / flagged counts).
  */
 
+import { getISTMondayYmdForInstant, getISTDateString } from '@/lib/datetime/ist';
 import { getNextWeekPrediction } from '@/lib/ml/next-week-risk';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
@@ -25,11 +26,10 @@ export const GET = withAdminAuth(async (ctx, request) => {
   );
 
   const admin = createAdminClient();
-  const sinceDate = new Date(
-    Date.now() - daysBack * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  /** Match premium rows to the same calendar window as claims (policy week start in range). */
-  const sinceWeekStartDay = sinceDate.slice(0, 10);
+  const sinceInstant = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+  const sinceDate = sinceInstant.toISOString();
+  /** Match premium rows to the same calendar window as claims (IST policy dates). */
+  const sinceWeekStartDay = getISTDateString(sinceInstant);
 
   const [claimsRes, policiesRes, eventsRes] = await Promise.all([
     admin
@@ -61,7 +61,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
     { claims: number; payout: number; flagged: number }
   >();
   for (const c of claims) {
-    const day = c.created_at.slice(0, 10);
+    const day = getISTDateString(new Date(c.created_at));
     const prev = claimsByDay.get(day) ?? { claims: 0, payout: 0, flagged: 0 };
     claimsByDay.set(day, {
       claims: prev.claims + 1,
@@ -90,10 +90,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
   const payoutsByWeek = new Map<string, number>();
   for (const c of claims) {
     const d = new Date(c.created_at);
-    const dayOfWeek = d.getDay();
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7));
-    const week = monday.toISOString().slice(0, 10);
+    const week = getISTMondayYmdForInstant(d);
     payoutsByWeek.set(
       week,
       (payoutsByWeek.get(week) ?? 0) + Number(c.payout_amount_inr),

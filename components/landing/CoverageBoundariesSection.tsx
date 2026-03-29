@@ -89,8 +89,10 @@ export function CoverageBoundariesSection() {
             </div>
             <p className="text-[14px] leading-relaxed text-white/55">
               <strong className="text-white/75 font-medium">Health, life, personal accident, and vehicle repair</strong>{' '}
-              are not covered. Oasis pays for <strong className="text-white/75 font-medium">income loss</strong> tied to
-              parametric triggers, not hospital bills, life benefits, crash compensation, or garage costs.
+              are not covered. Standard general-insurance exclusions also apply in the full wording — for example{' '}
+              <strong className="text-white/75 font-medium">war, pandemic-led disease restrictions, nuclear risk, and terrorism</strong>{' '}
+              (unless separately endorsed). Oasis pays for <strong className="text-white/75 font-medium">income loss</strong>{' '}
+              when named parametric triggers fire, not hospital bills, life benefits, crash compensation, or garage costs.
             </p>
           </div>
         </div>

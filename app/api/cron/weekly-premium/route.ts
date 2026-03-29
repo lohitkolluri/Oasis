@@ -8,7 +8,7 @@ import {
 } from '@/lib/ml/premium-calc';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { clusterKey } from '@/lib/utils/geo';
-import { toDateString } from '@/lib/utils/date';
+import { getPolicyWeekRange } from '@/lib/utils/policy-week';
 import { checkRateLimit, errorResponse } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 
@@ -63,7 +63,8 @@ export async function GET(request: Request) {
     const zoneCache = new Map<string, { historicalEvents: number; forecastRisk: number; socialRisk: number }>();
     let processed = 0;
     const BATCH_SIZE = 5;
-    let computedWeekStartDate: string | null = null;
+    const { start: premiumWeekStartDate } = getPolicyWeekRange();
+    let computedWeekStartDate: string | null = premiumWeekStartDate;
 
     // Precompute 4-week window for claim frequency and social risk
     const fourWeeksAgo = new Date();
@@ -113,13 +114,7 @@ export async function GET(request: Request) {
           const reasoning = engineOutput.explanation;
           const source = 'model';
 
-          const now = new Date();
-          const dayOfWeek = now.getDay();
-          const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-          const nextMonday = new Date(now);
-          nextMonday.setDate(now.getDate() + daysUntilMonday);
-          const weekStartDate = toDateString(nextMonday);
-          computedWeekStartDate = computedWeekStartDate ?? weekStartDate;
+          const weekStartDate = premiumWeekStartDate;
 
           await admin.from('premium_recommendations').upsert(
             {

@@ -8,6 +8,7 @@ import circle from '@turf/circle';
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 import type { Feature, GeoJSON, MultiPolygon, Polygon } from 'geojson';
+import { getISTCurrentCoverageWeekMondayStart } from '@/lib/datetime/ist';
 
 // ── Zone clustering (for API deduplication) ───────────────────────────────────
 
@@ -185,11 +186,7 @@ export async function reverseGeocode(
 
 // ── Time utilities ────────────────────────────────────────────────────────────
 
+/** Monday 00:00 IST for the week that contains “now” (policy calendar). */
 export function currentWeekMonday(): Date {
-  const d = new Date();
-  const dayOfWeek = d.getDay();
-  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  d.setDate(d.getDate() - daysFromMonday);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return getISTCurrentCoverageWeekMondayStart();
 }
