@@ -6,6 +6,7 @@
  * P3 fix: full-period rows for summaries (no row cap that skewed loss ratio / flagged counts).
  */
 
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { getISTMondayYmdForInstant, getISTDateString } from '@/lib/datetime/ist';
 import { getNextWeekPrediction } from '@/lib/ml/next-week-risk';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -43,6 +44,7 @@ export const GET = withAdminAuth(async (ctx, request) => {
       .from('weekly_policies')
       .select('weekly_premium_inr, week_start_date, created_at')
       .gte('week_start_date', sinceWeekStartDay)
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
       .order('week_start_date', { ascending: true }),
     admin
       .from('live_disruption_events')

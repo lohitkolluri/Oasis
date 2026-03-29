@@ -336,6 +336,37 @@ body {
   }
 }
 
+/* Rider app — skeleton shimmer (dashboard / wallet / profile loading) */
+@keyframes rider-sk-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.rider-sk {
+  background: linear-gradient(
+    110deg,
+    rgba(255, 255, 255, 0.035) 0%,
+    rgba(255, 255, 255, 0.05) 42%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 58%,
+    rgba(255, 255, 255, 0.035) 100%
+  );
+  background-size: 220% 100%;
+  animation: rider-sk-shimmer 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rider-sk {
+    animation: none;
+    background: rgba(255, 255, 255, 0.06);
+    background-size: auto;
+  }
+}
+
 /* Status pulse */
 @keyframes neon-pulse {
   0%,

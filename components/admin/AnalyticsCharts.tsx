@@ -194,7 +194,7 @@ export function AnalyticsCharts() {
           {
             label: 'Premiums Collected',
             value: formatINR(summary.totalPremium),
-            sub: 'active policies',
+            sub: 'paid / demo policies in range',
             color: 'text-[#a78bfa]',
             accent: 'bg-[#a78bfa]/10 text-[#a78bfa]',
           },

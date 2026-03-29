@@ -1,5 +1,6 @@
 import { RidersTable } from '@/components/admin/RidersTable';
 import { KPICard } from '@/components/ui/KPICard';
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Users } from 'lucide-react';
 
@@ -26,7 +27,8 @@ export default async function AdminRidersPage() {
   const { data: activePolicies } = await supabase
     .from('weekly_policies')
     .select('profile_id, weekly_premium_inr, plan_id')
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]);
 
   const uniqueRidersWithPolicy = new Set<string>();
   let modeledPremium = 0;

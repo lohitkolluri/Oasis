@@ -46,9 +46,10 @@ export default async function AdminPaymentsPage() {
       };
     }) ?? [];
 
-  const totalCollected = rows.reduce((s, r) => s + r.amountInr, 0);
-  const withPaymentIdCount = rows.filter((r) => !!r.razorpayPaymentId).length;
-  const paidCount = rows.filter((r) => r.status === 'paid').length;
+  const paidRows = rows.filter((r) => r.status === 'paid');
+  const totalCollected = paidRows.reduce((s, r) => s + r.amountInr, 0);
+  const paidWithRazorpayIdCount = paidRows.filter((r) => !!r.razorpayPaymentId).length;
+  const paidCount = paidRows.length;
   const issueCount = rows.filter((r) => r.hasIssue).length;
 
   return (
@@ -65,7 +66,7 @@ export default async function AdminPaymentsPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <KPICard
           title="Total Collected"
-          label={`Last ${rows.length} transactions`}
+          label={`Paid only · ${rows.length} rows loaded`}
           value={`₹${totalCollected.toLocaleString('en-IN')}`}
           accent="cyan"
         />
@@ -77,13 +78,13 @@ export default async function AdminPaymentsPage() {
         />
         <KPICard
           title="Linked payments"
-          label="With Razorpay payment id"
+          label="Paid rows with Razorpay payment id"
           value={
-            rows.length > 0
-              ? `${Math.round((withPaymentIdCount / rows.length) * 100)}%`
+            paidCount > 0
+              ? `${Math.round((paidWithRazorpayIdCount / paidCount) * 100)}%`
               : '—'
           }
-          accent={withPaymentIdCount > 0 ? 'violet' : 'blue'}
+          accent={paidWithRazorpayIdCount > 0 ? 'violet' : 'blue'}
         />
       </div>
 

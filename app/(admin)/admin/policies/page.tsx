@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { isEarnedPremiumStatus } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ChevronRight, FileCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ type PolicyRow = {
   week_end_date: string;
   weekly_premium_inr: number;
   is_active: boolean;
+  payment_status?: string | null;
   profiles: { full_name?: string; platform?: string; primary_zone_geofence?: unknown } | null;
   plan_packages: { name?: string; slug?: string } | null;
 };
@@ -130,6 +132,7 @@ export default async function AdminPoliciesPage() {
       week_end_date,
       weekly_premium_inr,
       is_active,
+      payment_status,
       created_at,
       profiles(full_name, platform, primary_zone_geofence),
       plan_packages(name, slug)
@@ -143,10 +146,10 @@ export default async function AdminPoliciesPage() {
   const expiredToShow = expiredPolicies.slice(0, 25);
 
   const activeCount = activePolicies.length;
-  const activePremium = activePolicies.reduce(
-    (s, p) => s + Number(p.weekly_premium_inr),
-    0,
-  );
+  const activePremium = activePolicies.reduce((s, p) => {
+    if (!isEarnedPremiumStatus(p.payment_status)) return s;
+    return s + Number(p.weekly_premium_inr);
+  }, 0);
   const plansInUse = new Set(
     (policies ?? [])
       .filter((p) => p.plan_id)
@@ -175,7 +178,7 @@ export default async function AdminPoliciesPage() {
         />
         <KPICard
           title="Total Premium"
-          label="Active only"
+          label="Active · paid or demo"
           value={`₹${activePremium.toLocaleString('en-IN')}`}
           accent="emerald"
         />

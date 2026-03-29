@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileCheck, Wallet, Banknote } from "lucide-react";
+import { LayoutDashboard, FileCheck, Wallet, Banknote, UserRound } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/dashboard/claims", label: "Claims", icon: FileCheck },
   { href: "/dashboard/policy", label: "Policy", icon: Wallet },
   { href: "/dashboard/wallet", label: "Wallet", icon: Banknote },
+  { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ] as const;
 
 export function BottomNav() {
@@ -16,10 +17,12 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-2xl border-t border-white/[0.06] safe-area-pb">
-      <div className="max-w-xl mx-auto flex items-stretch justify-around h-16 px-1">
+      <div className="max-w-xl mx-auto flex items-stretch justify-between sm:justify-around h-16 px-0.5 sm:px-1 gap-0">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive =
-            pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+            href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={`${href}-${label}`}
@@ -34,13 +37,13 @@ export function BottomNav() {
                 />
               )}
               <Icon
-                className={`relative z-[1] h-[22px] w-[22px] shrink-0 transition-colors duration-150 ${
+                className={`relative z-[1] h-[20px] w-[20px] sm:h-[22px] sm:w-[22px] shrink-0 transition-colors duration-150 ${
                   isActive ? "text-uber-green" : "text-zinc-500"
                 }`}
                 strokeWidth={isActive ? 2.2 : 1.6}
               />
               <span
-                className={`relative z-[1] text-[10px] font-semibold tracking-wide transition-colors duration-150 ${
+                className={`relative z-[1] text-[9px] sm:text-[10px] font-semibold tracking-wide transition-colors duration-150 truncate max-w-[56px] sm:max-w-none ${
                   isActive ? "text-uber-green" : "text-zinc-500"
                 }`}
               >

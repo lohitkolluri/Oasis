@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { PlanPricingTimelineRow, PlanTierKey } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingTimelineTable } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingForecastChartLazy } from '@/components/admin/PlanPricingForecastChartLazy';
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { getISTCurrentCoverageWeekMondayStart, getISTDateString } from '@/lib/datetime/ist';
 import { addDays } from '@/lib/utils/date';
 
@@ -44,8 +45,9 @@ export default async function PlansPage() {
 
   const { data: policies } = await supabase
     .from('weekly_policies')
-    .select('plan_id, weekly_premium_inr')
-    .eq('is_active', true);
+    .select('id, plan_id, weekly_premium_inr')
+    .eq('is_active', true)
+    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]);
 
   const { data: claims } = await supabase
     .from('parametric_claims')
@@ -112,7 +114,7 @@ export default async function PlansPage() {
       .from('weekly_policies')
       .select('week_start_date, plan_id, payment_status')
       .gte('week_start_date', sinceIso)
-      .in('payment_status', ['paid', 'demo']),
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
     (async () => {
       // Prefer DB-derived week_start_date for alignment; fallback to +7 days from current ISO week.
       const baseWeekStart = istPolicyWeekMondayYmd(now);

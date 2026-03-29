@@ -4,7 +4,11 @@
  * Falls back to historical claim rate when no API key is configured.
  */
 
-import { DEFAULT_ZONE, EXTERNAL_APIS } from '@/lib/config/constants';
+import {
+  DEFAULT_ZONE,
+  EXTERNAL_APIS,
+  WEEKLY_POLICY_EARNED_PREMIUM_STATUSES,
+} from '@/lib/config/constants';
 import { getTomorrowApiKey } from '@/lib/config/env';
 import { getISTDateString } from '@/lib/datetime/ist';
 import { fetchWithRetry } from '@/lib/utils/retry';
@@ -209,6 +213,7 @@ async function getActiveZones(
     .from('weekly_policies')
     .select('profile_id')
     .eq('is_active', true)
+    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
     .lte('week_start_date', today)
     .gte('week_end_date', today);
 
@@ -246,6 +251,7 @@ async function getActivePolicyCount(
     .from('weekly_policies')
     .select('id', { count: 'exact', head: true })
     .eq('is_active', true)
+    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
     .lte('week_start_date', today)
     .gte('week_end_date', today);
   return count ?? 0;

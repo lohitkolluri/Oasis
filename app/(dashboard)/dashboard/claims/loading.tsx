@@ -1,41 +1,45 @@
+import { RiderSk } from '@/components/rider/RiderSkeleton';
+
 export default function ClaimsLoading() {
   return (
-    <div className="space-y-6 animate-pulse">
-      {/* Back link skeleton */}
-      <div className="h-4 w-20 bg-white/10 rounded" />
+    <div className="space-y-6" aria-busy="true" aria-label="Loading claims">
+      <RiderSk className="h-4 w-16 rounded-md" />
 
-      {/* Title skeleton */}
       <div>
-        <div className="h-6 w-36 bg-white/10 rounded-lg" />
-        <div className="h-3 w-48 bg-white/10/40 rounded mt-1.5" />
+        <RiderSk className="h-7 w-40 max-w-full rounded-lg" />
+        <RiderSk className="mt-1.5 h-3 w-52 max-w-full rounded-md" />
       </div>
 
-      {/* KPI cards skeleton */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="rounded-2xl border border-white/10 p-4 min-h-[120px] flex flex-col bg-white/5">
-            <div className="h-4 w-20 bg-white/10 rounded mb-1" />
-            <div className="h-3 w-14 bg-white/10/60 rounded mt-0.5" />
+          <div
+            key={i}
+            className="flex min-h-[120px] flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-4"
+          >
+            <RiderSk className="h-4 w-20 rounded" />
+            <RiderSk className="mt-1 h-3 w-14 rounded" />
             <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-              <div className="h-6 w-16 bg-white/10 rounded" />
-              <div className="w-8 h-8 rounded-lg bg-white/10" />
+              <RiderSk className="h-6 w-16 rounded" />
+              <RiderSk className="h-8 w-8 rounded-lg" />
             </div>
           </div>
         ))}
       </div>
 
-      {/* Claims list skeleton */}
-      <div className="rounded-2xl bg-surface-1 border border-white/10 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-white/10">
-          <div className="h-3 w-16 bg-white/10 rounded" />
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface-1">
+        <div className="border-b border-white/10 px-5 py-3.5">
+          <RiderSk className="h-3 w-20 rounded" />
         </div>
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="px-5 py-4 flex items-start gap-3.5 border-b border-white/10 last:border-0">
-            <div className="w-9 h-9 rounded-xl bg-white/10" />
-            <div className="flex-1">
-              <div className="h-4 w-20 bg-white/10 rounded mb-2" />
-              <div className="h-3 w-32 bg-white/10/40 rounded mb-1.5" />
-              <div className="h-3 w-24 bg-white/10/30 rounded" />
+          <div
+            key={i}
+            className="flex items-start gap-3.5 border-b border-white/10 px-5 py-4 last:border-0"
+          >
+            <RiderSk className="h-9 w-9 shrink-0 rounded-xl" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <RiderSk className="h-4 w-24 rounded" />
+              <RiderSk className="h-3 w-36 max-w-full rounded" />
+              <RiderSk className="h-3 w-28 max-w-full rounded" />
             </div>
           </div>
         ))}

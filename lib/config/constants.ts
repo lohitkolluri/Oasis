@@ -78,6 +78,19 @@ export const RATE_LIMITS = {
   DEFAULT_PER_MINUTE: 60,
 } as const;
 
+/**
+ * `weekly_policies.payment_status` values that count as premium received for revenue / loss ratio.
+ * Excludes pending checkout and failed charges.
+ */
+export const WEEKLY_POLICY_EARNED_PREMIUM_STATUSES = ['paid', 'demo'] as const;
+
+export function isEarnedPremiumStatus(status: string | null | undefined): boolean {
+  return (
+    typeof status === 'string' &&
+    (WEEKLY_POLICY_EARNED_PREMIUM_STATUSES as readonly string[]).includes(status)
+  );
+}
+
 /** Adjudicator: max triggers processed in parallel (reduces run time when many candidates). */
 export const ADJUDICATOR = {
   TRIGGER_CONCURRENCY: 3,

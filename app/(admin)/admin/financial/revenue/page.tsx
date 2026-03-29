@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { RevenueCharts } from '@/components/admin/RevenueCharts';
 
@@ -50,7 +51,8 @@ export default async function RevenuePage() {
       .from('weekly_policies')
       .select('id, weekly_premium_inr, plan_packages(slug,name), profiles(primary_zone_geofence)')
       .gte('created_at', sinceIso)
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
     supabase
       .from('parametric_claims')
       .select('policy_id, payout_amount_inr')

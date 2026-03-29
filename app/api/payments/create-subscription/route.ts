@@ -112,13 +112,14 @@ export async function POST(request: Request) {
 
     let customerId = profile.razorpay_customer_id;
     if (!customerId) {
+      // Razorpay expects string "0"|"1" for fail_existing; numeric 0 can be treated as default "1" → duplicate customer errors after DB resets.
       const customer = await razorpay.customers.create({
         name: profile.full_name ?? user.email?.split('@')[0] ?? 'Rider',
         email: user.email ?? undefined,
         contact: profile.phone_number ?? undefined,
-        fail_existing: 0,
+        fail_existing: '0',
         notes: { profile_id: user.id },
-      });
+      } as unknown as Parameters<ReturnType<typeof getRazorpayInstance>['customers']['create']>[0]);
       customerId = customer.id;
       await admin
         .from('profiles')
@@ -232,7 +233,7 @@ export async function POST(request: Request) {
       currency: 'INR',
       policyId: policy.id,
       name: 'Oasis Weekly Coverage',
-      description: `Auto-renew weekly · ${weekStart} – ${weekEnd}`,
+      description: `Weekly coverage · ${weekStart} – ${weekEnd}`,
       prefill: {
         email: user.email ?? undefined,
         name:

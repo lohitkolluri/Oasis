@@ -12,6 +12,7 @@ import { PolicyCard } from './PolicyCard';
 import { QuickLinks } from './QuickLinks';
 import { ReportDeliveryImpact } from './ReportDeliveryImpact';
 import { RiderInsightCard } from './RiderInsightCard';
+import { RiderSk } from './RiderSkeleton';
 import { WalletBalanceCard } from './WalletBalanceCard';
 
 type ClaimWithType = ParametricClaim & {
@@ -53,11 +54,11 @@ const WeeklyEarningsChart = dynamic(
     loading: () => (
       <div className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden">
         <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
-          <div className="h-4 w-40 rounded bg-white/10 animate-pulse" />
-          <div className="h-4 w-20 rounded bg-white/10 animate-pulse" />
+          <RiderSk className="h-4 w-40 rounded" />
+          <RiderSk className="h-4 w-20 rounded" />
         </div>
         <div className="w-full h-[160px] px-3 pb-3">
-          <div className="h-full w-full rounded-xl bg-white/5 animate-pulse" />
+          <RiderSk className="h-full w-full rounded-xl" />
         </div>
       </div>
     ),
@@ -69,8 +70,8 @@ const RiskRadar = dynamic(() => import('./RiskRadar').then((m) => m.RiskRadar), 
   loading: () => (
     <div className="rounded-2xl border border-white/10 bg-surface-1 overflow-hidden">
       <div className="px-4 pt-4 pb-4">
-        <div className="h-4 w-28 rounded bg-white/10 animate-pulse" />
-        <div className="mt-3 h-20 w-full rounded-xl bg-white/5 animate-pulse" />
+        <RiderSk className="h-4 w-28 rounded" />
+        <RiderSk className="mt-3 h-20 w-full rounded-xl" />
       </div>
     </div>
   ),
