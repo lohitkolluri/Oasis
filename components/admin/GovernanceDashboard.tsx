@@ -1,6 +1,7 @@
 'use client';
 
 import { G } from '@/components/admin/governance-styles';
+import { AdminInlineHelp } from '@/components/admin/AdminPageTitle';
 import { RuleSetInteractiveForm } from '@/components/admin/RuleSetInteractiveForm';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -121,7 +122,13 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Governance</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Governance</h1>
+          <AdminInlineHelp
+            text="Versioned parametric_rule_sets control thresholds, payout ladder, and exclusions the adjudicator uses. Creating a new set does not rewrite history — ledger rows and claims record which rule_set_id applied. Audit log captures admin actions. Changes affect automated loss-of-income triggers only."
+            className="translate-y-0.5"
+          />
+        </div>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/45">
           Rule versions in Postgres drive adjudication. Ledger and disruption rows store which version
           applied at event time.

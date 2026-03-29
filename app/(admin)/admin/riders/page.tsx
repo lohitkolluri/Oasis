@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { RidersTable } from '@/components/admin/RidersTable';
 import { KPICard } from '@/components/ui/KPICard';
 import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
@@ -47,19 +48,16 @@ export default async function AdminRidersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
-            Riders
-          </h1>
-          <p className="text-sm text-[#666] mt-1">
-            View and manage delivery partner profiles
-          </p>
-        </div>
-        <span className="text-xs px-3 py-1.5 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20 tabular-nums font-medium">
-          {profiles?.length ?? 0} total
-        </span>
-      </div>
+      <AdminPageTitle
+        title="Riders"
+        help="Delivery partners registered in Oasis: identity, platform (Zepto/Blinkit/etc.), zone geofence, and role. KPIs summarize who has an active paid/demo weekly policy right now. Open a rider to review claims, KYC, and admin actions."
+        description="View and manage delivery partner profiles"
+        actions={
+          <span className="text-xs px-3 py-1.5 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20 tabular-nums font-medium">
+            {profiles?.length ?? 0} total
+          </span>
+        }
+      />
 
       {profiles && profiles.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-3">

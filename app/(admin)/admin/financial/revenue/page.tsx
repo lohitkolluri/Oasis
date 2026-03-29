@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { KPICard } from '@/components/ui/KPICard';
 import { Card } from '@/components/ui/Card';
 import {
@@ -153,14 +154,11 @@ export default async function RevenuePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Revenue &amp; Loss Ratio
-        </h1>
-        <p className="text-sm text-[#666] mt-1">
-          Weekly premium collected vs. parametric payouts over the last 90 days.
-        </p>
-      </div>
+      <AdminPageTitle
+        title="Revenue & Loss Ratio"
+        help="Rolling view of earned weekly premium (paid or demo policies created in the window) against parametric claim payouts, broken down by rider zone label and plan tier. Loss ratio = payouts ÷ premium. Useful for portfolio monitoring — not the same as the reserves stress cohort view."
+        description="Weekly premium collected vs. parametric payouts over the last 90 days."
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <KPICard

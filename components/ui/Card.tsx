@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 
 type CardVariant = 'default' | 'elevated' | 'outline' | 'ghost' | 'neon';
 
@@ -45,7 +45,7 @@ export function CardHeader({
   className = '',
 }: {
   icon?: React.ReactNode;
-  title: string;
+  title: ReactNode;
   badge?: React.ReactNode;
   description?: string;
   className?: string;
@@ -55,7 +55,7 @@ export function CardHeader({
       <div className="flex items-center gap-2.5">
         {icon && <div className="shrink-0">{icon}</div>}
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          <h2 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-white">{title}</h2>
           {description && <p className="text-xs text-[#666666] mt-0.5">{description}</p>}
         </div>
         {badge && <span className="ml-auto shrink-0">{badge}</span>}

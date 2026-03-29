@@ -1,20 +1,25 @@
 /**
  * Canonical coverage week for weekly policies and premium_recommendations.
  * All boundaries use IST (Asia/Kolkata), matching policy wording.
- * If today is Monday IST, the active enrollment week is the *next* Monday (not the same day).
+ *
+ * Enrollment / pricing week = the Monday-starting week *after* the IST week that contains
+ * `referenceDate`. Equivalently: Monday of the coverage week containing the instant, plus 7 days.
+ * (On IST Monday you are inside the current coverage week; premiums target the following Monday.)
+ *
+ * Important for scheduling: if the weekly-premium job runs on IST *Sunday*, `getPolicyWeekRange`
+ * resolves to the Monday that starts the next calendar day — one week earlier than the same
+ * function on IST *Monday*. Run that cron after IST Monday 00:00 so DB keys match the admin UI.
  */
 
 import {
   addCalendarDaysIST,
   getISTDateString,
-  getISTWeekdaySun0,
+  getISTCurrentCoverageWeekMondayStart,
 } from '@/lib/datetime/ist';
 
 export function getPolicyWeekRange(referenceDate: Date = new Date()): { start: string; end: string } {
-  const todayStr = getISTDateString(referenceDate);
-  const dow = getISTWeekdaySun0(referenceDate);
-  const daysUntilMonday = dow === 0 ? 1 : dow === 1 ? 7 : 8 - dow;
-  const start = addCalendarDaysIST(todayStr, daysUntilMonday);
+  const currentMondayYmd = getISTDateString(getISTCurrentCoverageWeekMondayStart(referenceDate));
+  const start = addCalendarDaysIST(currentMondayYmd, 7);
   const end = addCalendarDaysIST(start, 6);
   return { start, end };
 }

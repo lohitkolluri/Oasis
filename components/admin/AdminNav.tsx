@@ -12,6 +12,7 @@ import {
   Folder,
   Gavel,
   LayoutDashboard,
+  PiggyBank,
   Users,
   Wallet,
   Zap,
@@ -40,6 +41,7 @@ const navSections = [
     items: [
       { href: '/admin/payments', label: 'Payments', icon: CreditCard },
       { href: '/admin/financial/revenue', label: 'Revenue & Loss', icon: BarChart },
+      { href: '/admin/financial/reserves', label: 'Reserves & stress', icon: PiggyBank },
       { href: '/admin/financial/plans', label: 'Plans & Pricing', icon: Wallet },
     ],
   },

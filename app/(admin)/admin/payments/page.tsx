@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { KPICard } from '@/components/ui/KPICard';
 import { PaymentTransactionsTable } from '@/components/admin/PaymentTransactionsTable';
 import { Card } from '@/components/ui/Card';
@@ -54,14 +55,11 @@ export default async function AdminPaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Payment Logs
-        </h1>
-        <p className="text-sm text-[#666] mt-1">
-          Premium collections: order and payment IDs match Razorpay for audit
-        </p>
-      </div>
+      <AdminPageTitle
+        title="Payment Logs"
+        help="Checkout and charge attempts for weekly premiums (Razorpay). Paid rows should carry a Razorpay payment id for reconciliation. Flags highlight paid rows missing an id. Weekly billing only — no monthly or annual products."
+        description="Premium collections: order and payment IDs match Razorpay for audit"
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <KPICard

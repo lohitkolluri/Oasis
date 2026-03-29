@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { KPICard } from '@/components/ui/KPICard';
 import { PlatformLogo } from '@/components/ui/PlatformLogo';
 import {
@@ -160,14 +161,11 @@ export default async function AdminPoliciesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Policy Monitoring
-        </h1>
-        <p className="text-sm text-[#666] mt-1">
-          Weekly policies. Active and expired coverage
-        </p>
-      </div>
+      <AdminPageTitle
+        title="Policy Monitoring"
+        help="Each row is one weekly coverage period (Monday–Sunday IST) for a rider. Active = current week and is_active. Premium counts toward revenue when payment_status is paid or demo. Expired rows are historical. Loss-of-income parametric product only — not health or motor coverage."
+        description="Weekly policies. Active and expired coverage"
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <KPICard

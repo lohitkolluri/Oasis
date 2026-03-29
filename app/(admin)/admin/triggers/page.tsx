@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { TriggersList } from '@/components/admin/TriggersList';
 import { TriggerAnalytics } from '@/components/admin/TriggerAnalytics';
 import { TriggerTrustConsole } from '@/components/admin/TriggerTrustConsole';
@@ -56,35 +57,33 @@ export default async function TriggersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Trigger Feed</h1>
-          <p className="text-sm text-[#666] mt-1">
-            Parametric events from weather, traffic, and news APIs
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {highCount > 0 && (
-            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20 flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#a78bfa]" />
-              {highCount} High
-            </span>
-          )}
-          {medCount > 0 && (
-            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20 flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#7dd3fc]" />
-              {medCount} Medium
-            </span>
-          )}
-          {(!events || events.length === 0) && (
-            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[#262626] text-[#555] border border-[#3a3a3a] flex items-center gap-1.5">
-              <Zap className="h-3 w-3" />
-              No events
-            </span>
-          )}
-        </div>
-      </div>
+      <AdminPageTitle
+        title="Trigger Feed"
+        help="Live and recent disruption events that the adjudicator ingests (weather, AQI, traffic, news/curfew, etc.). Severity badges summarize the current list. Below: trust console (source health + immutable trigger ledger + replay), analytics for the loaded events, then the full event list."
+        description="Parametric events from weather, traffic, and news APIs"
+        actions={
+          <div className="flex items-center gap-2">
+            {highCount > 0 && (
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#a78bfa]" />
+                {highCount} High
+              </span>
+            )}
+            {medCount > 0 && (
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[#7dd3fc]/10 text-[#7dd3fc] border border-[#7dd3fc]/20 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#7dd3fc]" />
+                {medCount} Medium
+              </span>
+            )}
+            {(!events || events.length === 0) && (
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[#262626] text-[#555] border border-[#3a3a3a] flex items-center gap-1.5">
+                <Zap className="h-3 w-3" />
+                No events
+              </span>
+            )}
+          </div>
+        }
+      />
 
       <TriggerTrustConsole healthRows={healthRows} ledgerRows={ledgerRows} />
 

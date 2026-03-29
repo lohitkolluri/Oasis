@@ -1,3 +1,4 @@
+import { AdminInlineHelp } from '@/components/admin/AdminPageTitle';
 import { AdminRiderActions } from '@/components/admin/AdminRiderActions';
 import { AdminRiderGovIdCard } from '@/components/admin/AdminRiderGovIdCard';
 import { ClaimReviewButtons } from '@/components/admin/ClaimReviewButtons';
@@ -169,6 +170,11 @@ export default async function AdminRiderDetailPage({
                 <h1 className="text-xl font-semibold text-white tracking-tight truncate">
                   {displayName}
                 </h1>
+                <AdminInlineHelp
+                  size="sm"
+                  className="shrink-0"
+                  text="Single rider 360°: profile, zone, weekly policies, parametric claims, payout status, government ID, and role. Claim review and fraud actions apply only to loss-of-income parametric coverage — not medical or vehicle claims."
+                />
                 {(profile as { role?: string }).role === 'admin' && (
                   <Badge className="rounded-full border-sky-400/25 bg-sky-400/10 text-sky-400 text-[10px] font-semibold">
                     Admin

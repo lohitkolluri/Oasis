@@ -1,5 +1,6 @@
 'use client';
 
+import { InlineHelp } from '@/components/ui/inline-help';
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
@@ -11,6 +12,8 @@ interface MetricCardProps {
   accent?: 'default' | 'cyan' | 'violet' | 'emerald' | 'amber' | 'red';
   delay?: number;
   subtext?: string;
+  /** Hover/focus ? tooltip explaining the metric for new operators */
+  help?: string;
   trend?: { direction: 'up' | 'down'; label: string };
 }
 
@@ -53,7 +56,16 @@ const accentMap = {
   },
 };
 
-export function MetricCard({ label, value, icon: Icon, accent = 'default', delay = 0, subtext, trend }: MetricCardProps) {
+export function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  accent = 'default',
+  delay = 0,
+  subtext,
+  help,
+  trend,
+}: MetricCardProps) {
   const styles = accentMap[accent] ?? accentMap.default;
 
   return (
@@ -62,16 +74,19 @@ export function MetricCard({ label, value, icon: Icon, accent = 'default', delay
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay }}
       whileHover={{ scale: 1.01, boxShadow: '0 0 25px rgba(125, 211, 252, 0.12)' }}
-      className="relative bg-[#161616]/80 backdrop-blur border border-[#2d2d2d] rounded-2xl p-5 overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.03)] transition-all hover:border-[#3a3a3a] cursor-default"
+      className="relative cursor-default rounded-2xl border border-[#2d2d2d] bg-[#161616]/80 p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] backdrop-blur transition-all hover:border-[#3a3a3a] overflow-visible"
     >
       {/* Top accent line */}
       {accent !== 'default' && (
         <div className={`absolute top-0 left-0 right-0 h-px ${styles.bar}`} />
       )}
 
-      <div className="flex items-start justify-between mb-4">
-        <span className="text-[11px] font-medium text-[#666666] tracking-wide uppercase">{label}</span>
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${styles.icon}`}>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          <span className="text-[11px] font-medium tracking-wide text-[#666666] uppercase">{label}</span>
+          {help ? <InlineHelp text={help} size="sm" className="translate-y-px" /> : null}
+        </div>
+        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
           <Icon className="h-3.5 w-3.5" />
         </div>
       </div>

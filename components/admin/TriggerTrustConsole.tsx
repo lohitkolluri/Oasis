@@ -1,5 +1,6 @@
 'use client';
 
+import { AdminInlineHelp } from '@/components/admin/AdminPageTitle';
 import { ParametricLedgerTable } from '@/components/admin/ParametricLedgerTable';
 import type { LedgerRow } from '@/components/admin/ParametricLedgerTable';
 import { ParametricSourceHealth } from '@/components/admin/ParametricSourceHealth';
@@ -35,7 +36,16 @@ export function TriggerTrustConsole({ healthRows, ledgerRows }: TriggerTrustCons
             <Database className="h-4 w-4 text-[#3ECF8E]" />
           </div>
         }
-        title="Parametric trust & ledger"
+        title={
+          <>
+            Parametric trust &amp; ledger
+            <AdminInlineHelp
+              size="sm"
+              className="translate-y-px"
+              text="parametric_source_health: last success/error per data feed. parametric_trigger_ledger: append-only record of each trigger evaluation (outcome, rule version, dry-run). Replay re-runs a past candidate against current or selected rule sets for governance — does not delete ledger history."
+            />
+          </>
+        }
         description="Supabase-backed append-only audit, per-source ingestion health, and rule replay"
         className="px-5 pt-5 pb-3"
       />
