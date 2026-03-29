@@ -1,6 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
-import { ADJUDICATOR, TRIGGERS } from "@/lib/config/constants";
+import { ADJUDICATOR } from "@/lib/config/constants";
+import { resolveParametricRulesAt } from "@/lib/parametric-rules/resolve";
+import {
+  ensureAdjudicatorRuleContext,
+  getAdjudicatorRuleContext,
+  runWithAdjudicatorRulesAsync,
+  triggersFromContext,
+} from "@/lib/adjudicator/rule-context";
 import { isWithinCircle } from "@/lib/utils/geo";
 import { getActiveZones } from "@/lib/adjudicator/zones";
 import { checkWeatherTriggers } from "@/lib/adjudicator/triggers/weather";
@@ -44,50 +51,69 @@ export async function processSingleTrigger(
     adjudicatorRunId?: string | null;
   } = {},
 ): Promise<ProcessTriggerResult> {
-  const { skipIdempotency = false, restrictToProfileId, adjudicatorRunId } = options;
-  const t0 = Date.now();
+  return ensureAdjudicatorRuleContext(supabase, async () => {
+    const { skipIdempotency = false, restrictToProfileId, adjudicatorRunId } = options;
+    const t0 = Date.now();
+    const ctx = getAdjudicatorRuleContext();
+    const subtype = String(candidate.subtype ?? "");
 
-  if (!skipIdempotency && (await isDuplicateEvent(supabase, candidate))) {
+    if (subtype && ctx.excludedSubtypes.includes(subtype)) {
+      await appendParametricLedgerEntry(supabase, {
+        adjudicatorRunId,
+        candidate,
+        outcome: "no_pay",
+        errorMessage: "subtype_excluded_by_rule_set",
+        latencyMs: Date.now() - t0,
+      });
+      return { claimsCreated: 0, payoutsInitiated: 0 };
+    }
+
+    if (!skipIdempotency && (await isDuplicateEvent(supabase, candidate))) {
+      await appendParametricLedgerEntry(supabase, {
+        adjudicatorRunId,
+        candidate,
+        outcome: "deferred",
+        errorMessage: "duplicate_event_within_window",
+        latencyMs: Date.now() - t0,
+      });
+      return { claimsCreated: 0, payoutsInitiated: 0 };
+    }
+
+    const event = await insertDisruptionEvent(
+      supabase,
+      candidate,
+      ctx.ruleSetId,
+    );
+    if (!event) {
+      await appendParametricLedgerEntry(supabase, {
+        adjudicatorRunId,
+        candidate,
+        outcome: "deferred",
+        errorMessage: "disruption_insert_failed",
+        latencyMs: Date.now() - t0,
+      });
+      return { claimsCreated: 0, payoutsInitiated: 0 };
+    }
+
+    const result = await processClaimsForEvent(supabase, event.id, candidate, {
+      ...(restrictToProfileId && { restrictToProfileId }),
+    });
+
+    const outcome: ParametricLedgerOutcome =
+      result.claimsCreated > 0 || result.payoutsInitiated > 0 ? "pay" : "no_pay";
+
     await appendParametricLedgerEntry(supabase, {
       adjudicatorRunId,
       candidate,
-      outcome: "deferred",
-      errorMessage: "duplicate_event_within_window",
+      outcome,
+      disruptionEventId: event.id,
+      claimsCreated: result.claimsCreated,
+      payoutsInitiated: result.payoutsInitiated,
       latencyMs: Date.now() - t0,
     });
-    return { claimsCreated: 0, payoutsInitiated: 0 };
-  }
 
-  const event = await insertDisruptionEvent(supabase, candidate);
-  if (!event) {
-    await appendParametricLedgerEntry(supabase, {
-      adjudicatorRunId,
-      candidate,
-      outcome: "deferred",
-      errorMessage: "disruption_insert_failed",
-      latencyMs: Date.now() - t0,
-    });
-    return { claimsCreated: 0, payoutsInitiated: 0 };
-  }
-
-  const result = await processClaimsForEvent(supabase, event.id, candidate, {
-    ...(restrictToProfileId && { restrictToProfileId }),
+    return result;
   });
-
-  const outcome: ParametricLedgerOutcome =
-    result.claimsCreated > 0 || result.payoutsInitiated > 0 ? "pay" : "no_pay";
-
-  await appendParametricLedgerEntry(supabase, {
-    adjudicatorRunId,
-    candidate,
-    outcome,
-    disruptionEventId: event.id,
-    claimsCreated: result.claimsCreated,
-    payoutsInitiated: result.payoutsInitiated,
-    latencyMs: Date.now() - t0,
-  });
-
-  return result;
 }
 
 /**
@@ -107,6 +133,9 @@ export async function runAdjudicatorCore(
   const startMs = Date.now();
 
   logger.info("adjudicator run started", { runId, is_demo: !!demoTrigger });
+
+  const ruleCtx = await resolveParametricRulesAt(supabase, new Date());
+  return runWithAdjudicatorRulesAsync(ruleCtx, async () => {
   const instCtx = { supabase };
   const tomorrowKey = process.env.TOMORROW_IO_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
@@ -133,7 +162,8 @@ export async function runAdjudicatorCore(
         geofence: {
           lat: demoTrigger.lat,
           lng: demoTrigger.lng,
-          radius_km: demoTrigger.radiusKm ?? TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+          radius_km:
+            demoTrigger.radiusKm ?? triggersFromContext().DEFAULT_GEOFENCE_RADIUS_KM,
         },
         raw: {
           trigger: demoTrigger.eventSubtype,
@@ -158,7 +188,7 @@ export async function runAdjudicatorCore(
           return [...weatherCandidates, ...trafficCandidates];
         }),
       );
-      const radiusKm = TRIGGERS.CANDIDATE_DEDUPE_RADIUS_KM;
+      const radiusKm = triggersFromContext().CANDIDATE_DEDUPE_RADIUS_KM;
       for (const zoneCandidates of results) {
         for (const c of zoneCandidates) {
           const geofenceLat = c.geofence?.lat;
@@ -240,5 +270,6 @@ export async function runAdjudicatorCore(
     error: result.error,
   });
   return { ...result, run_id: runId };
+  });
 }
 

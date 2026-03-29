@@ -4,7 +4,8 @@
  */
 
 import { fetchNewsDataLatest } from '@/lib/adjudicator/newsdata-io';
-import { DEFAULT_ZONE, EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
+import { DEFAULT_ZONE, EXTERNAL_APIS } from '@/lib/config/constants';
+import { triggersFromContext } from '@/lib/adjudicator/rule-context';
 import { probeSource } from '@/lib/adjudicator/instrumentation';
 import type {
   AdjudicatorInstrumentationContext,
@@ -34,6 +35,7 @@ export async function checkNewsTriggers(
   activeZones?: Array<{ lat: number; lng: number }>,
   ctx?: AdjudicatorInstrumentationContext,
 ): Promise<TriggerCandidate[]> {
+  const T = triggersFromContext();
   const candidates: TriggerCandidate[] = [];
 
   /** Separate health rows per endpoint — two calls per run share one id and conflate streak / last_ok. */
@@ -101,7 +103,7 @@ export async function checkNewsTriggers(
           };
           if (
             parsed.qualifies &&
-            (parsed.severity ?? 0) >= TRIGGERS.LLM_SEVERITY_THRESHOLD
+            (parsed.severity ?? 0) >= T.LLM_SEVERITY_THRESHOLD
           ) {
             candidates.push({
               type: 'traffic',
@@ -111,7 +113,7 @@ export async function checkNewsTriggers(
                 type: 'circle',
                 lat: DEFAULT_ZONE.lat,
                 lng: DEFAULT_ZONE.lng,
-                radius_km: TRIGGERS.NEWS_GEOFENCE_RADIUS_KM,
+                radius_km: T.NEWS_GEOFENCE_RADIUS_KM,
               },
               raw: {
                 articles,
@@ -192,7 +194,7 @@ export async function checkNewsTriggers(
           };
           if (
             parsed.qualifies &&
-            (parsed.severity ?? 0) >= TRIGGERS.LLM_SEVERITY_THRESHOLD
+            (parsed.severity ?? 0) >= T.LLM_SEVERITY_THRESHOLD
           ) {
             const zone =
               typeof parsed.zone === 'string' ? parsed.zone.trim() : '';
@@ -213,8 +215,8 @@ export async function checkNewsTriggers(
                   lat: geo.results[0].latitude,
                   lng: geo.results[0].longitude,
                   radius_km: zone
-                    ? TRIGGERS.NEWS_GEOFENCE_RADIUS_KM
-                    : TRIGGERS.NEWS_GEOFENCE_RADIUS_KM_COUNTRY,
+                    ? T.NEWS_GEOFENCE_RADIUS_KM
+                    : T.NEWS_GEOFENCE_RADIUS_KM_COUNTRY,
                 };
               }
             } catch {
@@ -222,7 +224,7 @@ export async function checkNewsTriggers(
                 type: 'circle',
                 lat: DEFAULT_ZONE.lat,
                 lng: DEFAULT_ZONE.lng,
-                radius_km: TRIGGERS.NEWS_GEOFENCE_RADIUS_KM,
+                radius_km: T.NEWS_GEOFENCE_RADIUS_KM,
               };
             }
 
@@ -260,7 +262,7 @@ export async function checkNewsTriggers(
     return candidates.filter((c) => {
       const cLat = c.geofence?.lat;
       const cLng = c.geofence?.lng;
-      const cRadius = c.geofence?.radius_km ?? TRIGGERS.NEWS_GEOFENCE_RADIUS_KM;
+      const cRadius = c.geofence?.radius_km ?? T.NEWS_GEOFENCE_RADIUS_KM;
       if (cLat == null || cLng == null) return false;
       return activeZones.some((z) => isWithinCircle(z.lat, z.lng, cLat, cLng, cRadius));
     });

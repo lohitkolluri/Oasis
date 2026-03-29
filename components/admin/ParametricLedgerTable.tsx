@@ -27,6 +27,7 @@ export interface LedgerRow {
   event_type: string | null;
   outcome: string;
   rule_version: string;
+  rule_set_id?: string | null;
   claims_created: number | null;
   payouts_initiated: number | null;
   is_dry_run: boolean | null;
@@ -101,6 +102,9 @@ export function ParametricLedgerTable({ rows, variant = 'standalone' }: Parametr
                     <TableHead className="sticky top-0 z-20 bg-[#181818] text-xs font-medium text-[#9ca3af] shadow-[inset_0_-1px_0_#2d2d2d]">
                       Rule
                     </TableHead>
+                    <TableHead className="sticky top-0 z-20 bg-[#181818] text-xs font-medium text-[#9ca3af] shadow-[inset_0_-1px_0_#2d2d2d]">
+                      Rule set
+                    </TableHead>
                     <TableHead className="sticky top-0 z-20 bg-[#181818] text-right text-xs font-medium text-[#9ca3af] shadow-[inset_0_-1px_0_#2d2d2d]">
                       Claims
                     </TableHead>
@@ -133,6 +137,12 @@ export function ParametricLedgerTable({ rows, variant = 'standalone' }: Parametr
                       title={r.rule_version}
                     >
                       {r.rule_version}
+                    </TableCell>
+                    <TableCell
+                      className="max-w-[72px] truncate font-mono text-[10px] text-[#525252]"
+                      title={r.rule_set_id ?? ''}
+                    >
+                      {r.rule_set_id ? `${r.rule_set_id.slice(0, 8)}…` : '—'}
                     </TableCell>
                     <TableCell className="text-right text-xs tabular-nums text-[#a3a3a3]">
                       {r.claims_created ?? 0}

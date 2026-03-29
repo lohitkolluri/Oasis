@@ -3,6 +3,7 @@
  */
 
 import { PARAMETRIC_RULE_VERSION } from '@/lib/config/constants';
+import { getAdjudicatorRuleContext } from '@/lib/adjudicator/rule-context';
 import type {
   ParametricLedgerOutcome,
   RawTriggerData,
@@ -24,6 +25,7 @@ export interface AppendLedgerInput {
   isDryRun?: boolean;
   dryRunRuleVersion?: string | null;
   replayOfDisruptionId?: string | null;
+  ruleSetId?: string | null;
 }
 
 /** Slim, governance-friendly snapshot of what the rules saw (not full API payloads). */
@@ -117,7 +119,7 @@ export async function appendParametricLedgerEntry(
     candidate,
     outcome,
     adjudicatorRunId,
-    ruleVersion = PARAMETRIC_RULE_VERSION,
+    ruleVersion: inputRuleVersion,
     disruptionEventId,
     claimsCreated = 0,
     payoutsInitiated = 0,
@@ -126,7 +128,15 @@ export async function appendParametricLedgerEntry(
     isDryRun = false,
     dryRunRuleVersion,
     replayOfDisruptionId,
+    ruleSetId: inputRuleSetId,
   } = input;
+
+  const ctx = getAdjudicatorRuleContext();
+  const ruleSetId = inputRuleSetId ?? ctx.ruleSetId ?? null;
+  const versionLabel =
+    inputRuleVersion != null && inputRuleVersion !== ''
+      ? inputRuleVersion
+      : (ctx.versionLabel || PARAMETRIC_RULE_VERSION);
 
   const gf = candidate.geofence;
   const row = {
@@ -137,7 +147,8 @@ export async function appendParametricLedgerEntry(
     zone_lat: gf?.lat ?? null,
     zone_lng: gf?.lng ?? null,
     observed_values: normalizeObservedValues(candidate.raw),
-    rule_version: ruleVersion,
+    rule_version: versionLabel,
+    rule_set_id: ruleSetId,
     outcome,
     disruption_event_id: disruptionEventId ?? null,
     evidence: buildEvidence(disruptionEventId ?? null, candidate),

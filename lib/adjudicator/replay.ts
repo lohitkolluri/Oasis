@@ -3,6 +3,7 @@
  */
 
 import { PARAMETRIC_RULE_VERSION, TRIGGERS } from '@/lib/config/constants';
+import { mergeTriggersPartial } from '@/lib/parametric-rules/resolve';
 import type { ParametricLedgerOutcome, SupabaseAdmin } from '@/lib/adjudicator/types';
 
 export type ThresholdOverrides = Partial<{
@@ -18,6 +19,8 @@ export type ReplayEvaluationRow = {
   simulated_outcome: ParametricLedgerOutcome;
   reason: string;
   rule_version_applied: string;
+  /** Rule set frozen on the disruption row at event time (if present). */
+  rule_set_id?: string | null;
 };
 
 function effectiveTriggers(overrides?: ThresholdOverrides) {
@@ -200,21 +203,62 @@ export async function replayDisruptionsAgainstRules(
     ruleVersionLabel?: string;
   },
 ): Promise<ReplayEvaluationRow[]> {
-  const T = effectiveTriggers(params.thresholdOverrides);
-  const ruleVersion =
-    params.ruleVersionLabel ?? `${PARAMETRIC_RULE_VERSION}_replay`;
+  const overrideKeys = params.thresholdOverrides
+    ? Object.keys(params.thresholdOverrides).length
+    : 0;
 
   const { data: events, error } = await supabase
     .from('live_disruption_events')
-    .select('id, event_subtype, severity_score, raw_api_data, created_at')
+    .select('id, event_subtype, severity_score, raw_api_data, created_at, rule_set_id')
     .gte('created_at', params.fromIso)
     .lte('created_at', params.toIso)
     .order('created_at', { ascending: true });
 
   if (error || !events?.length) return [];
 
+  const setIds = [
+    ...new Set(
+      events
+        .map((e) => e.rule_set_id as string | null | undefined)
+        .filter((x): x is string => typeof x === 'string'),
+    ),
+  ];
+  const setMap = new Map<
+    string,
+    { triggers: Record<string, unknown>; version_label: string }
+  >();
+  if (setIds.length > 0) {
+    const { data: sets } = await supabase
+      .from('parametric_rule_sets')
+      .select('id,triggers,version_label')
+      .in('id', setIds);
+    for (const s of sets ?? []) {
+      setMap.set(s.id, {
+        triggers: (s.triggers ?? {}) as Record<string, unknown>,
+        version_label: s.version_label as string,
+      });
+    }
+  }
+
   return events.map((e) => {
     const raw = (e.raw_api_data ?? {}) as Record<string, unknown>;
+    const rsId = e.rule_set_id as string | null | undefined;
+    const rs = rsId ? setMap.get(rsId) : undefined;
+
+    const T =
+      overrideKeys > 0
+        ? effectiveTriggers(params.thresholdOverrides)
+        : rs
+          ? mergeTriggersPartial(rs.triggers)
+          : effectiveTriggers(undefined);
+
+    const ruleVersion =
+      overrideKeys > 0
+        ? (params.ruleVersionLabel ?? `${PARAMETRIC_RULE_VERSION}_replay`)
+        : rs
+          ? rs.version_label
+          : (params.ruleVersionLabel ?? PARAMETRIC_RULE_VERSION);
+
     const { wouldFire, reason } = evaluateSnapshot(e.event_subtype ?? null, raw, T);
     const simulated_outcome: ParametricLedgerOutcome = wouldFire ? 'pay' : 'no_pay';
     return {
@@ -226,6 +270,7 @@ export async function replayDisruptionsAgainstRules(
       simulated_outcome,
       reason,
       rule_version_applied: ruleVersion,
+      rule_set_id: rsId ?? null,
     };
   });
 }
@@ -247,7 +292,8 @@ export async function persistReplayDryRunRows(
       would_fire: r.would_fire,
       reason: r.reason,
     },
-    rule_version: PARAMETRIC_RULE_VERSION,
+    rule_version: r.rule_version_applied,
+    rule_set_id: r.rule_set_id ?? null,
     outcome: r.simulated_outcome,
     disruption_event_id: null,
     evidence: {

@@ -65,6 +65,8 @@ export const TRIGGERS = {
   TRAFFIC_MIN_CONFIDENCE: 0.2,
 } as const;
 
+export type TriggersConfig = typeof TRIGGERS;
+
 /** Fraud detection thresholds */
 export const FRAUD = {
   RAPID_CLAIMS_WINDOW_HOURS: 24,

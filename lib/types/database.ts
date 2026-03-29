@@ -68,6 +68,8 @@ export interface LiveDisruptionEvent {
   verified_by_llm: boolean;
   raw_api_data: Record<string, unknown> | null;
   created_at: string;
+  /** Parametric rule set row applied when this event was recorded. */
+  rule_set_id?: string | null;
 }
 
 export interface ParametricClaim {

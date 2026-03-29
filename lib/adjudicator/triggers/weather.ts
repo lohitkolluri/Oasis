@@ -3,7 +3,8 @@
  * Uses Open-Meteo (and optionally Tomorrow.io, WAQI) with retry and cache.
  */
 
-import { EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
+import { EXTERNAL_APIS } from '@/lib/config/constants';
+import { triggersFromContext } from '@/lib/adjudicator/rule-context';
 import { probeSource } from '@/lib/adjudicator/instrumentation';
 import { mergeSourceHealth } from '@/lib/adjudicator/ledger';
 import type {
@@ -95,6 +96,7 @@ export async function checkWeatherTriggers(
   waqiKey: string | undefined,
   ctx?: AdjudicatorInstrumentationContext,
 ): Promise<TriggerCandidate[]> {
+  const T = triggersFromContext();
   const { lat, lng } = zone;
   const candidates: TriggerCandidate[] = [];
 
@@ -125,8 +127,8 @@ export async function checkWeatherTriggers(
       }
     }
     if (
-      last3.length >= TRIGGERS.HEAT_SUSTAINED_HOURS &&
-      last3.every((v) => v >= TRIGGERS.HEAT_THRESHOLD_C)
+      last3.length >= T.HEAT_SUSTAINED_HOURS &&
+      last3.every((v) => v >= T.HEAT_THRESHOLD_C)
     ) {
       heatSustained3h = true;
       heatRawData = {
@@ -170,15 +172,15 @@ export async function checkWeatherTriggers(
       const temp = vals.temperature ?? 0;
       precip = vals.precipitationIntensity ?? 0;
 
-      if (temp >= TRIGGERS.HEAT_THRESHOLD_C) {
+      if (temp >= T.HEAT_THRESHOLD_C) {
         const hourly = forecastData.timelines?.hourly ?? [];
         let streak = 0;
         for (const interval of hourly) {
           const t = interval.values?.temperature ?? 0;
-          streak = t >= TRIGGERS.HEAT_THRESHOLD_C ? streak + 1 : 0;
-          if (streak >= TRIGGERS.HEAT_SUSTAINED_HOURS) break;
+          streak = t >= T.HEAT_THRESHOLD_C ? streak + 1 : 0;
+          if (streak >= T.HEAT_SUSTAINED_HOURS) break;
         }
-        heatSustained3h = streak >= TRIGGERS.HEAT_SUSTAINED_HOURS;
+        heatSustained3h = streak >= T.HEAT_SUSTAINED_HOURS;
       }
     } catch {
       /* skip zone */
@@ -194,7 +196,7 @@ export async function checkWeatherTriggers(
         type: 'circle',
         lat,
         lng,
-        radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+        radius_km: T.DEFAULT_GEOFENCE_RADIUS_KM,
       },
       raw: {
         ...heatRawData,
@@ -207,7 +209,7 @@ export async function checkWeatherTriggers(
     });
   }
 
-  if (tomorrowKey && precip >= TRIGGERS.RAIN_THRESHOLD_MM_H) {
+  if (tomorrowKey && precip >= T.RAIN_THRESHOLD_MM_H) {
     candidates.push({
       type: 'weather',
       subtype: 'heavy_rain',
@@ -216,7 +218,7 @@ export async function checkWeatherTriggers(
         type: 'circle',
         lat,
         lng,
-        radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+        radius_km: T.DEFAULT_GEOFENCE_RADIUS_KM,
       },
       raw: { ...precipRawData, trigger: 'heavy_rain', source: 'tomorrow_io' },
     });
@@ -263,26 +265,26 @@ export async function checkWeatherTriggers(
         historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length,
       );
 
-      isChronic = baseline75 >= TRIGGERS.AQI_CHRONIC_P75_FLOOR;
+      isChronic = baseline75 >= T.AQI_CHRONIC_P75_FLOOR;
 
       if (isChronic) {
         // Chronically polluted zone (e.g., Delhi, Lucknow, Kanpur):
         // use p90 with a tighter multiplier so only truly anomalous spikes trigger.
         adaptiveThreshold = Math.min(
-          TRIGGERS.AQI_MAX_THRESHOLD,
+          T.AQI_MAX_THRESHOLD,
           Math.max(
-            TRIGGERS.AQI_CHRONIC_MIN_THRESHOLD,
-            Math.round(baseline90 * TRIGGERS.AQI_CHRONIC_MULTIPLIER),
+            T.AQI_CHRONIC_MIN_THRESHOLD,
+            Math.round(baseline90 * T.AQI_CHRONIC_MULTIPLIER),
           ),
         );
       } else {
         // Clean-to-moderate zone (e.g., Bangalore, coastal cities):
         // use p75 with standard multiplier.
         adaptiveThreshold = Math.min(
-          TRIGGERS.AQI_MAX_THRESHOLD,
+          T.AQI_MAX_THRESHOLD,
           Math.max(
-            TRIGGERS.AQI_MIN_THRESHOLD,
-            Math.round(baseline75 * TRIGGERS.AQI_EXCESS_MULTIPLIER),
+            T.AQI_MIN_THRESHOLD,
+            Math.round(baseline75 * T.AQI_EXCESS_MULTIPLIER),
           ),
         );
       }
@@ -302,7 +304,7 @@ export async function checkWeatherTriggers(
           type: 'circle',
           lat,
           lng,
-          radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+          radius_km: T.DEFAULT_GEOFENCE_RADIUS_KM,
         },
         raw: {
           trigger: 'severe_aqi',

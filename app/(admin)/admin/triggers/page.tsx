@@ -18,7 +18,7 @@ export default async function TriggersPage() {
     supabase
       .from('parametric_trigger_ledger')
       .select(
-        'id,created_at,source,trigger_subtype,event_type,outcome,rule_version,claims_created,payouts_initiated,is_dry_run,error_message,disruption_event_id',
+        'id,created_at,source,trigger_subtype,event_type,outcome,rule_version,rule_set_id,claims_created,payouts_initiated,is_dry_run,error_message,disruption_event_id',
       )
       .order('created_at', { ascending: false })
       .limit(75),
