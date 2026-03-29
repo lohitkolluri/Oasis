@@ -1,16 +1,38 @@
 import { TriggersList } from '@/components/admin/TriggersList';
 import { TriggerAnalytics } from '@/components/admin/TriggerAnalytics';
+import { TriggerTrustConsole } from '@/components/admin/TriggerTrustConsole';
+import type { LedgerRow } from '@/components/admin/ParametricLedgerTable';
+import type { SourceHealthRow } from '@/components/admin/ParametricSourceHealth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Zap } from 'lucide-react';
 
 export default async function TriggersPage() {
   const supabase = createAdminClient();
 
-  const { data: events } = await supabase
-    .from('live_disruption_events')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const [eventsRes, ledgerRes, healthRes] = await Promise.all([
+    supabase
+      .from('live_disruption_events')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100),
+    supabase
+      .from('parametric_trigger_ledger')
+      .select(
+        'id,created_at,source,trigger_subtype,event_type,outcome,rule_version,claims_created,payouts_initiated,is_dry_run,error_message,disruption_event_id',
+      )
+      .order('created_at', { ascending: false })
+      .limit(75),
+    supabase
+      .from('parametric_source_health')
+      .select(
+        'source_id,last_success_at,last_error_at,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of',
+      )
+      .order('source_id', { ascending: true }),
+  ]);
+
+  const events = eventsRes.error ? null : eventsRes.data;
+  const ledgerRows = (ledgerRes.error ? [] : ledgerRes.data ?? []) as LedgerRow[];
+  const healthRows = (healthRes.error ? [] : healthRes.data ?? []) as SourceHealthRow[];
 
   const list = events ?? [];
   const total = list.length;
@@ -63,6 +85,8 @@ export default async function TriggersPage() {
           )}
         </div>
       </div>
+
+      <TriggerTrustConsole healthRows={healthRows} ledgerRows={ledgerRows} />
 
       {/* Analytics charts */}
       {list.length > 0 && <TriggerAnalytics events={list} />}

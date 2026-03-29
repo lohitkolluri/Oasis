@@ -4,7 +4,12 @@
  */
 
 import { EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
-import type { TriggerCandidate } from '@/lib/adjudicator/types';
+import { probeSource } from '@/lib/adjudicator/instrumentation';
+import { mergeSourceHealth } from '@/lib/adjudicator/ledger';
+import type {
+  AdjudicatorInstrumentationContext,
+  TriggerCandidate,
+} from '@/lib/adjudicator/types';
 import { fetchWithRetry } from '@/lib/utils/retry';
 import { toDateString } from '@/lib/utils/date';
 
@@ -12,8 +17,11 @@ export async function fetchCurrentAqi(
   lat: number,
   lng: number,
   waqiKey: string | undefined,
+  ctx?: AdjudicatorInstrumentationContext,
 ): Promise<number> {
   if (waqiKey) {
+    const t0 = Date.now();
+    const observedAt = new Date().toISOString();
     try {
       const data = await fetchWithRetry<{
         status?: string;
@@ -25,21 +33,53 @@ export async function fetchCurrentAqi(
       );
       if (data.status === 'ok' && data.data?.aqi != null) {
         const aqi = Number(data.data.aqi);
-        if (!isNaN(aqi) && aqi >= 0) return aqi;
+        if (!isNaN(aqi) && aqi >= 0) {
+          if (ctx) {
+            await mergeSourceHealth(ctx.supabase, 'waqi_ground_station', {
+              ok: true,
+              latencyMs: Date.now() - t0,
+              observedAt,
+            });
+          }
+          return aqi;
+        }
       }
-    } catch {
-      /* fallback to Open-Meteo */
+      if (ctx) {
+        await mergeSourceHealth(ctx.supabase, 'waqi_ground_station', {
+          ok: false,
+          latencyMs: Date.now() - t0,
+          observedAt,
+          errorDetail: 'no_valid_aqi',
+        });
+      }
+    } catch (err) {
+      if (ctx) {
+        await mergeSourceHealth(ctx.supabase, 'waqi_ground_station', {
+          ok: false,
+          latencyMs: Date.now() - t0,
+          observedAt,
+          errorDetail: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   }
 
   try {
-    const data = await fetchWithRetry<{
-      current?: { us_aqi?: number | null };
-      hourly?: { us_aqi?: (number | null)[] };
-    }>(
-      `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`,
-      undefined,
-      { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
+    const data = await probeSource(
+      ctx,
+      'openmeteo_aqi_current',
+      () =>
+        fetchWithRetry<{
+          current?: { us_aqi?: number | null };
+          hourly?: { us_aqi?: (number | null)[] };
+        }>(
+          `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`,
+          undefined,
+          { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
+        ),
+      waqiKey
+        ? { isFallback: true, fallbackOf: 'waqi_ground_station' }
+        : undefined,
     );
     return Number(
       data.current?.us_aqi ?? (data.hourly?.us_aqi ?? []).find((v) => v != null) ?? 0,
@@ -53,6 +93,7 @@ export async function checkWeatherTriggers(
   zone: { lat: number; lng: number },
   tomorrowKey: string | undefined,
   waqiKey: string | undefined,
+  ctx?: AdjudicatorInstrumentationContext,
 ): Promise<TriggerCandidate[]> {
   const { lat, lng } = zone;
   const candidates: TriggerCandidate[] = [];
@@ -63,12 +104,14 @@ export async function checkWeatherTriggers(
   let precipRawData: Record<string, unknown> = {};
 
   try {
-    const forecast = await fetchWithRetry<{
-      hourly?: { time?: string[]; temperature_2m?: (number | null)[] };
-    }>(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m&past_hours=24&forecast_hours=0&timeformat=iso8601`,
-      undefined,
-      { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+    const forecast = await probeSource(ctx, 'openmeteo_forecast', () =>
+      fetchWithRetry<{
+        hourly?: { time?: string[]; temperature_2m?: (number | null)[] };
+      }>(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m&past_hours=24&forecast_hours=0&timeformat=iso8601`,
+        undefined,
+        { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+      ),
     );
     const times = forecast.hourly?.time ?? [];
     const temps = forecast.hourly?.temperature_2m ?? [];
@@ -98,26 +141,28 @@ export async function checkWeatherTriggers(
 
   if (!heatSustained3h && tomorrowKey) {
     try {
-      const [data, forecastData] = await Promise.all([
-        fetchWithRetry<{
-          data?: {
-            values?: { temperature?: number; precipitationIntensity?: number };
-          };
-        }>(
-          `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`,
-          undefined,
-          { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
-        ),
-        fetchWithRetry<{
-          timelines?: {
-            hourly?: Array<{ values?: { temperature?: number } }>;
-          };
-        }>(
-          `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${tomorrowKey}`,
-          undefined,
-          { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
-        ),
-      ]);
+      const [data, forecastData] = await probeSource(ctx, 'tomorrow_io', () =>
+        Promise.all([
+          fetchWithRetry<{
+            data?: {
+              values?: { temperature?: number; precipitationIntensity?: number };
+            };
+          }>(
+            `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`,
+            undefined,
+            { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+          ),
+          fetchWithRetry<{
+            timelines?: {
+              hourly?: Array<{ values?: { temperature?: number } }>;
+            };
+          }>(
+            `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${tomorrowKey}`,
+            undefined,
+            { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
+          ),
+        ]),
+      );
 
       heatRawData = data;
       precipRawData = data;
@@ -151,7 +196,14 @@ export async function checkWeatherTriggers(
         lng,
         radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
       },
-      raw: { ...heatRawData, trigger: 'extreme_heat' },
+      raw: {
+        ...heatRawData,
+        trigger: 'extreme_heat',
+        source:
+          typeof heatRawData.source === 'string'
+            ? heatRawData.source
+            : 'tomorrow_io',
+      },
     });
   }
 
@@ -166,24 +218,30 @@ export async function checkWeatherTriggers(
         lng,
         radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
       },
-      raw: { ...precipRawData, trigger: 'heavy_rain' },
+      raw: { ...precipRawData, trigger: 'heavy_rain', source: 'tomorrow_io' },
     });
   }
 
   try {
     const today = new Date();
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const startDate = toDateString(thirtyDaysAgo);
+    const lookbackDays = EXTERNAL_APIS.AQI_HISTORICAL_LOOKBACK_DAYS;
+    const historyStart = new Date(today.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+    const startDate = toDateString(historyStart);
     const endDate = toDateString(today);
 
     const [currentAqi, historical] = await Promise.all([
-      fetchCurrentAqi(lat, lng, waqiKey),
-      fetchWithRetry<{
-        hourly?: { us_aqi?: (number | null)[] };
-      }>(
-        `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&start_date=${startDate}&end_date=${endDate}`,
-        undefined,
-        { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
+      fetchCurrentAqi(lat, lng, waqiKey, ctx),
+      probeSource(ctx, 'openmeteo_aqi_historical', () =>
+        fetchWithRetry<{
+          hourly?: { us_aqi?: (number | null)[] };
+        }>(
+          `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&start_date=${startDate}&end_date=${endDate}`,
+          undefined,
+          {
+            cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS,
+            timeoutMs: EXTERNAL_APIS.OPENMETEO_AQI_HISTORICAL_TIMEOUT_MS,
+          },
+        ),
       ),
     ]);
 

@@ -4,7 +4,11 @@
  */
 
 import { EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
-import type { TriggerCandidate } from '@/lib/adjudicator/types';
+import { mergeSourceHealth } from '@/lib/adjudicator/ledger';
+import type {
+  AdjudicatorInstrumentationContext,
+  TriggerCandidate,
+} from '@/lib/adjudicator/types';
 import { fetchWithRetry } from '@/lib/utils/retry';
 
 /** TomTom Flow Segment Data response (segment closest to point). */
@@ -94,16 +98,26 @@ async function fetchPointTraffic(
 export async function checkTrafficTriggers(
   zone: { lat: number; lng: number },
   tomtomKey: string | undefined,
+  ctx?: AdjudicatorInstrumentationContext,
 ): Promise<TriggerCandidate[]> {
   const { lat, lng } = zone;
   const candidates: TriggerCandidate[] = [];
 
   if (!tomtomKey?.trim()) return candidates;
 
+  const t0 = Date.now();
   const samplePoints = generateSamplePoints(lat, lng);
   const results = await Promise.all(
     samplePoints.map((p) => fetchPointTraffic(p.lat, p.lng, tomtomKey)),
   );
+  if (ctx) {
+    const observedAt = new Date().toISOString();
+    await mergeSourceHealth(ctx.supabase, 'tomtom_traffic', {
+      ok: true,
+      latencyMs: Date.now() - t0,
+      observedAt,
+    });
+  }
 
   const validResults = results.filter((r): r is PointResult => r !== null);
   if (validResults.length === 0) return candidates;

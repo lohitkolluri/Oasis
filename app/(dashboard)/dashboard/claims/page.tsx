@@ -70,10 +70,11 @@ export default async function ClaimsHistoryPage() {
 
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white">
-            Claims History
+            Payout history
           </h1>
           <p className="text-[13px] text-zinc-500 mt-0.5">
-            Parametric payouts from your policies
+            Automated income protection when external disruptions hit your zone — not health,
+            accident, or vehicle cover.
           </p>
         </div>
 
@@ -94,7 +95,7 @@ export default async function ClaimsHistoryPage() {
                 <p className="text-lg font-bold tabular-nums text-white">
                   {claimCount}
                 </p>
-                <p className="text-[11px] text-zinc-500">Claims</p>
+                <p className="text-[11px] text-zinc-500">Payout events</p>
               </div>
             </div>
             <div className="h-px w-full bg-white/10 sm:h-auto sm:w-px sm:min-h-[60px]" aria-hidden />

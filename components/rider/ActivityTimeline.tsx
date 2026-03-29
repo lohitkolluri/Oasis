@@ -60,7 +60,7 @@ function CompactStats({ totalPayouts, claimsPaid, hasActiveCoverage, riskLevel }
     {
       icon: FileCheck,
       value: String(claimsPaid),
-      label: 'Claims',
+      label: 'Payouts',
       style: statConfig.claims,
     },
     {

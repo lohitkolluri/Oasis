@@ -1,5 +1,11 @@
 /** Platform-wide constants: zones, triggers, fraud thresholds, rate limits, external API config */
 
+/**
+ * Product scope (docs/Usecase.pdf): loss of income from external disruptions only
+ * (e.g. weather, zone restrictions). Excludes health, life, accident, and vehicle repair.
+ * Pricing and policy periods are weekly only — no monthly/annual premium products.
+ */
+
 /** Default fallback zone (Bangalore) when rider has no coordinates */
 export const DEFAULT_ZONE = {
   lat: 12.9716,
@@ -23,6 +29,12 @@ export const PREMIUM = {
    */
   RESERVE_LOAD: 0.02,
 } as const;
+
+/**
+ * Bump when `TRIGGERS` thresholds or evaluation semantics change.
+ * Stored on each parametric_trigger_ledger row for governance and replay.
+ */
+export const PARAMETRIC_RULE_VERSION = '2026.03.29';
 
 /** Adjudicator trigger thresholds */
 export const TRIGGERS = {
@@ -114,4 +126,18 @@ export const EXTERNAL_APIS = {
   CACHE_AQI_TTL_MS: 60 * 60 * 1000,     // 1 hour
   CACHE_NEWS_TTL_MS: 15 * 60 * 1000,     // 15 min
   CACHE_TRAFFIC_TTL_MS: 15 * 60 * 1000,  // 15 min (TomTom flow segment)
+  /** NewsData.io Latest API: articles per request (`size`; default 5; free tier allows 1–10, paid up to 50). */
+  NEWS_DATA_LATEST_SIZE: 5,
+  /** Upper bound for `size` (NewsData docs: 50 on paid; free plans must keep NEWS_DATA_LATEST_SIZE ≤ 10). */
+  NEWS_DATA_LATEST_SIZE_MAX: 50,
+  /** Latest endpoint `timeframe` in hours (docs: 1–48). */
+  NEWS_DATA_LATEST_TIMEFRAME_HOURS: 24,
+  /** Abort single NewsData attempt if it hangs (avoids 5s+ “stuck” probes). */
+  NEWS_FETCH_TIMEOUT_MS: 14_000,
+  /** Space out the two NewsData calls per adjudicator run (429 on free tier). */
+  NEWS_BACKOFF_BETWEEN_CALLS_MS: 900,
+  /** Open-Meteo AQI historical series: shorter window = smaller payload, fewer timeouts (still ≫48h for baselines). */
+  AQI_HISTORICAL_LOOKBACK_DAYS: 14,
+  /** Historical AQI JSON can be large; cap wait per attempt. */
+  OPENMETEO_AQI_HISTORICAL_TIMEOUT_MS: 18_000,
 } as const;

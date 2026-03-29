@@ -40,7 +40,17 @@ async function checkRazorpay(): Promise<{ ok: boolean; error?: string }> {
 export const GET = withAdminAuth(async () => {
   const admin = createAdminClient();
 
-  const [dbCheck, razorpayCheck, lastRunRes, errorCountRes, recentLogsRes, lastRotationRes, logCountRes] = await Promise.all([
+  const [
+    dbCheck,
+    razorpayCheck,
+    lastRunRes,
+    errorCountRes,
+    recentLogsRes,
+    lastRotationRes,
+    logCountRes,
+    parametricSourcesRes,
+    parametricLedgerRes,
+  ] = await Promise.all([
     checkSupabase(admin),
     checkRazorpay(),
     admin
@@ -70,6 +80,19 @@ export const GET = withAdminAuth(async () => {
     admin
       .from("system_logs")
       .select("id", { count: "exact", head: true }),
+    admin
+      .from("parametric_source_health")
+      .select(
+        "source_id,last_success_at,last_error_at,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of",
+      )
+      .order("source_id", { ascending: true }),
+    admin
+      .from("parametric_trigger_ledger")
+      .select(
+        "id,created_at,source,outcome,rule_version,trigger_subtype,is_dry_run,claims_created",
+      )
+      .order("created_at", { ascending: false })
+      .limit(8),
   ]);
 
   const dbOk = dbCheck.ok;
@@ -79,6 +102,8 @@ export const GET = withAdminAuth(async () => {
   const recentLogs = recentLogsRes.data ?? [];
   const lastRotation = lastRotationRes.data;
   const totalLogCount = logCountRes.count ?? 0;
+  const parametricSources = parametricSourcesRes.error ? [] : (parametricSourcesRes.data ?? []);
+  const parametricLedgerPreview = parametricLedgerRes.error ? [] : (parametricLedgerRes.data ?? []);
 
   if (!dbOk) {
     return NextResponse.json(
@@ -148,5 +173,11 @@ export const GET = withAdminAuth(async () => {
     },
     apis,
     recentLogs,
+    parametric: {
+      sources: parametricSources,
+      recentLedger: parametricLedgerPreview,
+      ledgerError: parametricLedgerRes.error?.message ?? null,
+      sourcesError: parametricSourcesRes.error?.message ?? null,
+    },
   });
 });

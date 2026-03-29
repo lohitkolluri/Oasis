@@ -6,7 +6,7 @@ import { LayoutDashboard, FileCheck, Wallet, Banknote, UserRound } from "lucide-
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/dashboard/claims", label: "Claims", icon: FileCheck },
+  { href: "/dashboard/claims", label: "Payouts", icon: FileCheck },
   { href: "/dashboard/policy", label: "Policy", icon: Wallet },
   { href: "/dashboard/wallet", label: "Wallet", icon: Banknote },
   { href: "/dashboard/profile", label: "Profile", icon: UserRound },

@@ -8,10 +8,12 @@ import { checkNewsTriggers } from "@/lib/adjudicator/triggers/news";
 import { checkTrafficTriggers } from "@/lib/adjudicator/triggers/traffic";
 import { isDuplicateEvent, insertDisruptionEvent } from "@/lib/adjudicator/events";
 import { processClaimsForEvent } from "@/lib/adjudicator/claims";
+import { appendParametricLedgerEntry } from "@/lib/adjudicator/ledger";
 import { logRun } from "@/lib/adjudicator/payouts";
 import type {
   AdjudicatorResult,
   DemoTriggerOptions,
+  ParametricLedgerOutcome,
   TriggerCandidate,
   ProcessTriggerResult,
 } from "@/lib/adjudicator/types";
@@ -36,20 +38,56 @@ const BATCH_SIZE = 5;
 export async function processSingleTrigger(
   supabase: ReturnType<typeof createAdminClient>,
   candidate: TriggerCandidate,
-  options: { skipIdempotency?: boolean; restrictToProfileId?: string } = {},
+  options: {
+    skipIdempotency?: boolean;
+    restrictToProfileId?: string;
+    adjudicatorRunId?: string | null;
+  } = {},
 ): Promise<ProcessTriggerResult> {
-  const { skipIdempotency = false, restrictToProfileId } = options;
+  const { skipIdempotency = false, restrictToProfileId, adjudicatorRunId } = options;
+  const t0 = Date.now();
 
   if (!skipIdempotency && (await isDuplicateEvent(supabase, candidate))) {
+    await appendParametricLedgerEntry(supabase, {
+      adjudicatorRunId,
+      candidate,
+      outcome: "deferred",
+      errorMessage: "duplicate_event_within_window",
+      latencyMs: Date.now() - t0,
+    });
     return { claimsCreated: 0, payoutsInitiated: 0 };
   }
 
   const event = await insertDisruptionEvent(supabase, candidate);
-  if (!event) return { claimsCreated: 0, payoutsInitiated: 0 };
+  if (!event) {
+    await appendParametricLedgerEntry(supabase, {
+      adjudicatorRunId,
+      candidate,
+      outcome: "deferred",
+      errorMessage: "disruption_insert_failed",
+      latencyMs: Date.now() - t0,
+    });
+    return { claimsCreated: 0, payoutsInitiated: 0 };
+  }
 
-  return processClaimsForEvent(supabase, event.id, candidate, {
+  const result = await processClaimsForEvent(supabase, event.id, candidate, {
     ...(restrictToProfileId && { restrictToProfileId }),
   });
+
+  const outcome: ParametricLedgerOutcome =
+    result.claimsCreated > 0 || result.payoutsInitiated > 0 ? "pay" : "no_pay";
+
+  await appendParametricLedgerEntry(supabase, {
+    adjudicatorRunId,
+    candidate,
+    outcome,
+    disruptionEventId: event.id,
+    claimsCreated: result.claimsCreated,
+    payoutsInitiated: result.payoutsInitiated,
+    latencyMs: Date.now() - t0,
+  });
+
+  return result;
 }
 
 /**
@@ -69,6 +107,7 @@ export async function runAdjudicatorCore(
   const startMs = Date.now();
 
   logger.info("adjudicator run started", { runId, is_demo: !!demoTrigger });
+  const instCtx = { supabase };
   const tomorrowKey = process.env.TOMORROW_IO_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const newsDataKey = process.env.NEWSDATA_IO_API_KEY;
@@ -113,8 +152,8 @@ export async function runAdjudicatorCore(
       const results = await Promise.all(
         batch.map(async (z) => {
           const [weatherCandidates, trafficCandidates] = await Promise.all([
-            checkWeatherTriggers(z, tomorrowKey, waqiKey),
-            checkTrafficTriggers(z, tomtomKey),
+            checkWeatherTriggers(z, tomorrowKey, waqiKey, instCtx),
+            checkTrafficTriggers(z, tomtomKey, instCtx),
           ]);
           return [...weatherCandidates, ...trafficCandidates];
         }),
@@ -142,7 +181,12 @@ export async function runAdjudicatorCore(
     }
 
     if (newsDataKey && openRouterKey) {
-      const newsCandidates = await checkNewsTriggers(openRouterKey, newsDataKey, zones);
+      const newsCandidates = await checkNewsTriggers(
+        openRouterKey,
+        newsDataKey,
+        zones,
+        instCtx,
+      );
       allCandidates.push(...newsCandidates);
     }
   }
@@ -155,6 +199,7 @@ export async function runAdjudicatorCore(
   const triggerOptions = {
     skipIdempotency: !!demoTrigger,
     restrictToProfileId: demoTrigger?.riderId,
+    adjudicatorRunId: runId,
   };
   for (let i = 0; i < allCandidates.length; i += concurrency) {
     const batch = allCandidates.slice(i, i + concurrency);

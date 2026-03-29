@@ -332,12 +332,12 @@ export function PolicySubscribeForm({
                   </div>
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
                     <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
-                      ₹{quote.payout_per_claim_inr.toLocaleString('en-IN')}/claim
+                      ₹{quote.payout_per_claim_inr.toLocaleString('en-IN')}/payout
                     </span>
                     <span className="text-zinc-600">·</span>
                     <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
                       up to {quote.max_claims_per_week}{' '}
-                      {quote.max_claims_per_week === 1 ? 'claim' : 'claims'}
+                      {quote.max_claims_per_week === 1 ? 'payout' : 'payouts'}/week
                     </span>
                     <span className="text-zinc-600">·</span>
                     <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-400' : 'text-zinc-500'}`}>

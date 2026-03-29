@@ -6,6 +6,7 @@ import { processSingleTrigger, type TriggerCandidate } from '@/lib/adjudicator/c
 import { disruptionWebhookSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { TRIGGERS } from '@/lib/config/constants';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     const supabase = createAdminClient();
     const result = await processSingleTrigger(supabase, candidate, {
       skipIdempotency: false,
+      adjudicatorRunId: randomUUID(),
     });
     return NextResponse.json({
       ok: true,

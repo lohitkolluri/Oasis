@@ -81,7 +81,7 @@ function formatFullDate(dateStr: string) {
 
 interface ClaimsPreviewProps {
   claims: ClaimWithType[];
-  /** Section title (default: "Recent claims") */
+  /** Section title (default: "Recent payouts") */
   title?: string;
   /** Wallet-style list: icon, label, full date, amount (like expense list) */
   variant?: 'default' | 'wallet';
@@ -91,7 +91,7 @@ interface ClaimsPreviewProps {
 
 export function ClaimsPreview({
   claims,
-  title = 'Recent claims',
+  title = 'Recent payouts',
   variant = 'default',
   claimIdsNeedingVerification = [],
 }: ClaimsPreviewProps) {

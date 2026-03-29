@@ -13,10 +13,10 @@ const actions = [
   },
   {
     href: '/dashboard/claims',
-    label: 'Claims',
+    label: 'Payouts',
     icon: FileCheck,
     iconBg: 'bg-violet-500/12 text-violet-400 group-hover:bg-violet-500/20 group-hover:text-violet-300',
-    ariaLabel: 'View claims history',
+    ariaLabel: 'View income payout history',
   },
   {
     href: '/dashboard/policy',

@@ -36,9 +36,9 @@ export function KPIGrid({
     },
     {
       id: 'claims',
-      title: 'Claims Paid',
+      title: 'Payouts',
       value: claimsPaid,
-      label: 'Claims',
+      label: 'Income events',
       icon: FileCheck,
       accent: 'text-violet-400',
     },

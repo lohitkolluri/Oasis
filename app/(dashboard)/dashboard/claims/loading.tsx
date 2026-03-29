@@ -2,7 +2,7 @@ import { RiderSk } from '@/components/rider/RiderSkeleton';
 
 export default function ClaimsLoading() {
   return (
-    <div className="space-y-6" aria-busy="true" aria-label="Loading claims">
+    <div className="space-y-6" aria-busy="true" aria-label="Loading payout history">
       <RiderSk className="h-4 w-16 rounded-md" />
 
       <div>
