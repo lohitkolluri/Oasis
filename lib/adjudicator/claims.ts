@@ -2,7 +2,12 @@
  * Policy matching, fraud checks, claim creation and payouts for a single disruption event.
  */
 
-import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR, TRIGGERS } from '@/lib/config/constants';
+import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
+import { payoutForSeverity } from '@/lib/parametric-rules/payout-ladder';
+import {
+  payoutLadderFromContext,
+  triggersFromContext,
+} from '@/lib/adjudicator/rule-context';
 import {
   preloadFraudData,
   runAllFraudChecks,
@@ -36,8 +41,9 @@ export async function processClaimsForEvent(
   const geofence = candidate.geofence;
   const eventLat = geofence?.lat ?? DEFAULT_ZONE.lat;
   const eventLng = geofence?.lng ?? DEFAULT_ZONE.lng;
-  const radiusKm =
-    geofence?.radius_km ?? TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM;
+  const T = triggersFromContext();
+  const ladder = payoutLadderFromContext();
+  const radiusKm = geofence?.radius_km ?? T.DEFAULT_GEOFENCE_RADIUS_KM;
   const restrictToProfileId = options?.restrictToProfileId;
 
   // Policies are often created for "next week" (Mon–Sun). For normal runs we require today in [week_start, week_end].
@@ -120,10 +126,15 @@ export async function processClaimsForEvent(
       payout_per_claim_inr?: number;
       max_claims_per_week?: number;
     } | null;
-    const payoutAmount =
+    const basePayout =
       plan?.payout_per_claim_inr != null
         ? Number(plan.payout_per_claim_inr)
         : PAYOUT_FALLBACK_INR;
+    const payoutAmount = payoutForSeverity(
+      basePayout,
+      candidate.severity,
+      ladder,
+    );
     const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
     const profile = profileMap.get(policyRow.profile_id);

@@ -1,22 +1,22 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { KPICard } from '@/components/ui/KPICard';
 import { Card } from '@/components/ui/Card';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { PlanPricingTimelineRow, PlanTierKey } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingTimelineTable } from '@/components/admin/PlanPricingTimelineTable';
 import { PlanPricingForecastChartLazy } from '@/components/admin/PlanPricingForecastChartLazy';
-import { addDays, toDateString } from '@/lib/utils/date';
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
+import { getISTCurrentCoverageWeekMondayStart, getISTDateString } from '@/lib/datetime/ist';
+import { addDays } from '@/lib/utils/date';
+import { getPolicyWeekRange } from '@/lib/utils/policy-week';
 
 export const dynamic = 'force-dynamic';
 
 type PlanPackage = Record<string, any>;
 
-function isoWeekMonday(date: Date): string {
-  // Use a UTC-safe string workflow to avoid timezone shifts (e.g. IST midnight → previous UTC day).
-  const today = toDateString(date); // YYYY-MM-DD in UTC
-  const d = new Date(`${today}T12:00:00Z`);
-  const dow = d.getUTCDay(); // 0 Sun .. 6 Sat
-  const offset = (dow + 6) % 7; // days since Monday
-  return addDays(today, -offset);
+/** Monday YYYY-MM-DD (IST) for the policy week containing `date`. */
+function istPolicyWeekMondayYmd(date: Date): string {
+  return getISTDateString(getISTCurrentCoverageWeekMondayStart(date));
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -47,8 +47,9 @@ export default async function PlansPage() {
 
   const { data: policies } = await supabase
     .from('weekly_policies')
-    .select('plan_id, weekly_premium_inr')
-    .eq('is_active', true);
+    .select('id, plan_id, weekly_premium_inr')
+    .eq('is_active', true)
+    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]);
 
   const { data: claims } = await supabase
     .from('parametric_claims')
@@ -102,7 +103,9 @@ export default async function PlansPage() {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   const now = new Date();
-  const currentWeekStart = isoWeekMonday(now);
+  /** Same week key as `weekly-premium` cron (`getPolicyWeekRange()`). */
+  const forecastWeekStart = getPolicyWeekRange(now).start;
+  const currentWeekStart = istPolicyWeekMondayYmd(now);
   const sinceIso = addDays(currentWeekStart, -7 * 23);
 
   const [snapshotsRes, policiesPaidRes, recsRes] = await Promise.all([
@@ -115,16 +118,11 @@ export default async function PlansPage() {
       .from('weekly_policies')
       .select('week_start_date, plan_id, payment_status')
       .gte('week_start_date', sinceIso)
-      .in('payment_status', ['paid', 'demo']),
-    (async () => {
-      // Prefer DB-derived week_start_date for alignment; fallback to +7 days from current ISO week.
-      const baseWeekStart = isoWeekMonday(now);
-      const nextWeekStart = addDays(baseWeekStart, 7);
-      return supabase
-        .from('premium_recommendations')
-        .select('recommended_premium_inr')
-        .eq('week_start_date', nextWeekStart);
-    })(),
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
+    supabase
+      .from('premium_recommendations')
+      .select('recommended_premium_inr')
+      .eq('week_start_date', forecastWeekStart),
   ]);
 
   const dataErrors: Array<{ label: string; message: string }> = [];
@@ -147,10 +145,38 @@ export default async function PlansPage() {
     });
   }
 
+  type RecSource = 'target' | 'latest' | 'catalog';
+  let recSource: RecSource = 'target';
+  let usedWeekForRecs = forecastWeekStart;
+  let recRows = (recsRes.data ?? []) as Array<{ recommended_premium_inr: number }>;
+
+  if (recRows.length === 0 && !recsRes.error) {
+    const { data: maxRow, error: maxErr } = await supabase
+      .from('premium_recommendations')
+      .select('week_start_date')
+      .order('week_start_date', { ascending: false })
+      .limit(1);
+    if (!maxErr && maxRow?.[0]?.week_start_date) {
+      const lw = maxRow[0].week_start_date as string;
+      if (lw !== forecastWeekStart) {
+        const { data: latestRecs } = await supabase
+          .from('premium_recommendations')
+          .select('recommended_premium_inr')
+          .eq('week_start_date', lw);
+        recRows = (latestRecs ?? []) as Array<{ recommended_premium_inr: number }>;
+        if (recRows.length > 0) {
+          recSource = 'latest';
+          usedWeekForRecs = lw;
+        }
+      }
+    }
+  }
+
   const snapshots = (snapshotsRes.data ?? []) as Array<{
     week_start_date: string;
     plan_id: string;
     weekly_premium_inr: number;
+    source?: string | null;
   }>;
 
   const paidPolicies = (policiesPaidRes.data ?? []) as Array<{
@@ -184,7 +210,7 @@ export default async function PlansPage() {
       weekStarts.push(addDays(last, -7));
     }
   } else {
-    const base = isoWeekMonday(now);
+    const base = istPolicyWeekMondayYmd(now);
     for (let i = 0; i < 24; i++) weekStarts.push(addDays(base, -7 * i));
   }
 
@@ -211,11 +237,8 @@ export default async function PlansPage() {
     return { weekStartDate: w, tiers };
   });
 
-  // Forecast is driven by `premium_recommendations` generated for next week relative to current ISO week (Mon).
-  const baseWeekStart = isoWeekMonday(now);
-  const nextWeekStart = addDays(baseWeekStart, 7);
-  const recs = (recsRes.data ?? []) as Array<{ recommended_premium_inr: number }>;
-  const recValues = recs
+  // Forecast: premium_recommendations for enrollment week `forecastWeekStart` (cron-aligned), else latest DB week, else catalog.
+  const recValues = recRows
     .map((r) => Number(r.recommended_premium_inr))
     .filter((n) => Number.isFinite(n))
     .sort((a, b) => a - b);
@@ -237,6 +260,22 @@ export default async function PlansPage() {
       const p = tierOrder.length === 1 ? 0.6 : i / (tierOrder.length - 1);
       predictedByTier.set(t.key, clamp(percentile(recValues, p)));
     });
+  }
+
+  if (predictedByTier.size === 0 && tierOrder.length > 0) {
+    const clamp = (n: number) => Math.round(Math.max(1, Math.min(9999, n)));
+    for (const t of tierOrder.slice(0, 3)) {
+      const plan = plans.find((p) => String(p.id) === t.planId);
+      const v =
+        plan?.weekly_premium_inr ??
+        plan?.weekly_price_inr ??
+        plan?.price_inr ??
+        null;
+      if (v != null && Number.isFinite(Number(v))) {
+        predictedByTier.set(t.key, clamp(Number(v)));
+      }
+    }
+    if (predictedByTier.size > 0) recSource = 'catalog';
   }
 
   const forecastTiers = tierOrder.slice(0, 3).map((t, idx) => ({
@@ -278,7 +317,7 @@ export default async function PlansPage() {
       }
 
       for (let i = 0; i < FORECAST_WEEKS; i++) {
-        const wk = addDays(nextWeekStart, 7 * i);
+        const wk = addDays(forecastWeekStart, 7 * i);
         const fp: Record<string, any> = { weekStartDate: wk, isForecast: true };
         for (const t of forecastTiers) {
           fp[`${t.key}Actual`] = null;
@@ -290,20 +329,33 @@ export default async function PlansPage() {
   }
 
   const forecastCaption =
-    recValues.length > 0
-      ? `Based on premium recommendations (profiles: ${recValues.length})`
-      : `No forecast data for week starting ${nextWeekStart}`;
+    recSource === 'target' && recValues.length > 0
+      ? `Model week ${usedWeekForRecs} · ${recValues.length} profiles`
+      : recSource === 'latest' && recValues.length > 0
+        ? `Showing ${usedWeekForRecs} (${recValues.length} profiles); target ${forecastWeekStart}`
+        : recSource === 'catalog' && predictedByTier.size > 0
+          ? `Catalog prices · target week ${forecastWeekStart}`
+          : `No model rows · target ${forecastWeekStart}`;
+
+  const targetWeekModelSnapshots = snapshots.filter(
+    (s) => s.week_start_date === forecastWeekStart && s.source === 'model',
+  ).length;
+  const pricingDataEpoch = [
+    forecastWeekStart,
+    recSource,
+    usedWeekForRecs,
+    recValues.length,
+    targetWeekModelSnapshots,
+    snapshots.length,
+  ].join('|');
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Plans &amp; Pricing Performance
-        </h1>
-        <p className="text-sm text-[#666] mt-1">
-          Weekly pricing for Basic, Standard, and Premium cohorts.
-        </p>
-      </div>
+      <AdminPageTitle
+        title="Plans & Pricing Performance"
+        help="Plan tiers (Basic / Standard / Premium) are defined in plan_packages with weekly premium and per-claim payout caps. Charts compare modeled premiums, recommendations, and uptake. All customer-facing pricing is weekly — do not quote monthly or annual totals as products."
+        description="Weekly pricing for Basic, Standard, and Premium cohorts."
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <KPICard
@@ -361,12 +413,20 @@ export default async function PlansPage() {
       )}
 
       <PlanPricingForecastChartLazy
+        key={`forecast:${pricingDataEpoch}`}
         tiers={forecastTiers}
         points={points as any}
         caption={forecastCaption}
+        forecastGenerateWeekStart={
+          recSource !== 'target' || recValues.length === 0 ? forecastWeekStart : null
+        }
       />
 
-      <PlanPricingTimelineTable rows={timelineRows} tierOrder={tierOrder} />
+      <PlanPricingTimelineTable
+        key={`timeline:${pricingDataEpoch}`}
+        rows={timelineRows}
+        tierOrder={tierOrder}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         {plans.length === 0 ? (

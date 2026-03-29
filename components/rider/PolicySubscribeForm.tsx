@@ -285,7 +285,7 @@ export function PolicySubscribeForm({
       {hasPlans && (
         <div className="space-y-3">
           <h2 className="font-semibold text-zinc-200">Choose your plan</h2>
-          <div className="space-y-2.5">
+          <div className="space-y-3.5">
             {plans.map((plan) => {
               const isSelected = selectedPlan?.id === plan.id;
               const quote = quoteForPlan(plan, dynamicQuotesBySlug);
@@ -297,45 +297,50 @@ export function PolicySubscribeForm({
                   key={plan.id}
                   type="button"
                   onClick={() => setSelectedPlan(plan)}
-                  className={`relative w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.99] ${
+                  className={`relative w-full rounded-2xl border p-4 text-left transition-all duration-300 ${
                     isSelected
-                      ? 'border-uber-green bg-uber-green/10 ring-1 ring-uber-green/30'
-                      : 'border-zinc-700/80 bg-zinc-900/80 hover:border-zinc-600'
+                      ? 'border-uber-green/60 bg-gradient-to-br from-uber-green/15 to-uber-green/5 shadow-[0_0_15px_rgba(58,167,109,0.15)] ring-1 ring-uber-green/30 relative z-10 scale-[1.02]'
+                      : 'border-white/10 bg-[#0c0c0c] hover:border-white/20 hover:bg-white/[0.03] opacity-80 hover:opacity-100'
                   }`}
                 >
                   {isPopular && (
-                    <span className="absolute -top-2.5 right-4 rounded-full bg-uber-green px-2.5 py-0.5 text-[10px] font-bold text-black uppercase tracking-wider">
-                      Most popular
+                    <span className="absolute -top-2.5 right-4 flex items-center">
+                      <span className="relative z-10 rounded-full bg-uber-green px-2.5 py-0.5 text-[10px] font-bold text-black uppercase tracking-wider">
+                        Most popular
+                      </span>
+                      {isSelected && (
+                        <span className="absolute inset-0 rounded-full bg-uber-green/40 shadow-[0_0_10px_rgba(58,167,109,0.8)] animate-pulse-slow"></span>
+                      )}
                     </span>
                   )}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-[15px] text-zinc-100">{plan.name}</span>
+                        <span className={`font-bold text-[15px] ${isSelected ? 'text-white' : 'text-zinc-200'}`}>{plan.name}</span>
                         {isSelected && <Check className="h-4 w-4 text-uber-green shrink-0" />}
                       </div>
                       {plan.description && (
-                        <p className="text-[12px] text-zinc-400 leading-relaxed">{plan.description}</p>
+                        <p className={`text-[12px] leading-relaxed ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>{plan.description}</p>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xl font-bold tabular-nums text-white">
+                      <p className={`text-xl font-bold tabular-nums tracking-tight ${isSelected ? 'text-uber-green' : 'text-white'}`}>
                         ₹{premium.toLocaleString('en-IN')}
                       </p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">per week</p>
+                      <p className={`text-[11px] mt-0.5 ${isSelected ? 'text-uber-green/70' : 'text-zinc-500'}`}>per week</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
-                    <span className="text-[12px] text-zinc-400">
-                      ₹{quote.payout_per_claim_inr.toLocaleString('en-IN')}/claim
+                    <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                      ₹{quote.payout_per_claim_inr.toLocaleString('en-IN')}/payout
                     </span>
                     <span className="text-zinc-600">·</span>
-                    <span className="text-[12px] text-zinc-400">
+                    <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
                       up to {quote.max_claims_per_week}{' '}
-                      {quote.max_claims_per_week === 1 ? 'claim' : 'claims'}/week
+                      {quote.max_claims_per_week === 1 ? 'payout' : 'payouts'}/week
                     </span>
                     <span className="text-zinc-600">·</span>
-                    <span className="text-[12px] text-zinc-500">
+                    <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-400' : 'text-zinc-500'}`}>
                       ₹{dailyCost}/day
                     </span>
                   </div>
@@ -349,10 +354,10 @@ export function PolicySubscribeForm({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">This week</p>
-            <p className="mt-1 text-sm text-zinc-300 tabular-nums">
+            <p className="mt-1 text-sm text-zinc-300 tabular-nums font-medium">
               {formatDate(start)} – {formatDate(end)}
               {hasPlans && activePlan ? (
-                <span className="text-zinc-600"> · {activePlan.name}</span>
+                <span className="text-zinc-500"> · <span className="text-white">{activePlan.name}</span></span>
               ) : null}
             </p>
           </div>
@@ -408,7 +413,7 @@ export function PolicySubscribeForm({
 
         {message && (
           <p
-            className={`mt-3 text-sm ${
+            className={`mt-3 text-sm font-medium ${
               message.type === 'success' ? 'text-uber-green' : 'text-uber-red'
             }`}
           >

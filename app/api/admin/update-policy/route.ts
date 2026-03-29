@@ -3,15 +3,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { withAdminAuth } from "@/lib/utils/admin-guard";
 import { updatePolicySchema } from "@/lib/validations/schemas";
 import { parseWithSchema } from "@/lib/validations/parse";
+import { insertAdminAuditLog } from "@/lib/admin/audit-log";
+import { AUDIT } from "@/lib/admin/audit-actions";
 
 /** Admin-only: update policy (deactivate, change plan). */
-export const POST = withAdminAuth(async (_ctx, request) => {
+export const POST = withAdminAuth(async (ctx, request) => {
   const body = await request.json();
   const parsed = parseWithSchema(updatePolicySchema, body);
   if (!parsed.success) return parsed.response;
   const { policyId, isActive, planId } = parsed.data;
 
     const admin = createAdminClient();
+
+    const { data: before } = await admin
+      .from("weekly_policies")
+      .select("is_active, plan_id, weekly_premium_inr")
+      .eq("id", policyId)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
@@ -42,6 +51,18 @@ export const POST = withAdminAuth(async (_ctx, request) => {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await insertAdminAuditLog(admin, {
+      actorId: ctx.user.id,
+      actorEmail: ctx.user.email,
+      action: AUDIT.POLICY_UPDATE,
+      resourceType: "weekly_policies",
+      resourceId: policyId,
+      metadata: {
+        before: before ?? null,
+        patch: { isActive, planId },
+      },
+    });
 
     return NextResponse.json({ ok: true });
 });

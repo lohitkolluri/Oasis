@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { FraudList } from '@/components/admin/FraudList';
 import { KPICard } from '@/components/ui/KPICard';
 import { Card } from '@/components/ui/Card';
@@ -33,12 +34,11 @@ export default async function FraudPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Fraud Queue</h1>
-        <p className="text-sm text-[#666] mt-1">
-          Claims flagged by duplicate, rapid-claims, weather mismatch, or GPS verification
-        </p>
-      </div>
+      <AdminPageTitle
+        title="Fraud Queue"
+        help="Parametric claims that automated rules flagged (e.g. rapid repeats, GPS anomalies) or that already have an admin decision (approved/rejected). Approve or reject after review — product scope is loss of income from external disruptions, not injury or vehicle damage."
+        description="Claims flagged by duplicate, rapid-claims, weather mismatch, or GPS verification"
+      />
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

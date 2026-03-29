@@ -57,3 +57,11 @@ export interface ProcessTriggerResult {
 }
 
 export type SupabaseAdmin = SupabaseClient;
+
+/** Outcome of a single trigger adjudication row in the parametric ledger. */
+export type ParametricLedgerOutcome = 'pay' | 'no_pay' | 'deferred';
+
+/** Optional DB instrumentation passed into trigger collectors for source health. */
+export interface AdjudicatorInstrumentationContext {
+  supabase: SupabaseAdmin;
+}

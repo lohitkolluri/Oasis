@@ -25,34 +25,58 @@ const typeIcons: Record<string, React.ReactNode> = {
   social: <Megaphone style={{ width: 15, height: 15 }} />,
 };
 
-/** 3 columns: trigger · severity · when (when stays on one line) */
-const RADAR_GRID =
-  "grid grid-cols-[minmax(0,1fr)_minmax(6.75rem,7.25rem)_minmax(10.5rem,1fr)] gap-x-2";
+const typeIconBg: Record<string, string> = {
+  weather: "bg-sky-500/15 text-sky-400",
+  traffic: "bg-amber-500/15 text-amber-400",
+  social: "bg-red-500/15 text-red-400",
+};
 
-function SeverityBar({ score }: { score: number }) {
-  const pct = (score / 10) * 100;
-  const color =
-    score >= 7 ? "bg-uber-red" : score >= 4 ? "bg-uber-yellow" : "bg-uber-green";
+const typeBorderColor: Record<string, string> = {
+  weather: "border-l-sky-500/40",
+  traffic: "border-l-amber-500/40",
+  social: "border-l-red-500/40",
+};
+
+function SeverityBadge({ score }: { score: number }) {
+  const level =
+    score >= 7 ? "high" : score >= 4 ? "med" : "low";
+  const config = {
+    high: {
+      bg: "bg-uber-red/15",
+      text: "text-uber-red",
+      glow: "shadow-[0_0_8px_rgba(212,67,51,0.2)]",
+      label: "High",
+    },
+    med: {
+      bg: "bg-uber-yellow/15",
+      text: "text-uber-yellow",
+      glow: "shadow-[0_0_8px_rgba(255,192,67,0.15)]",
+      label: "Med",
+    },
+    low: {
+      bg: "bg-uber-green/15",
+      text: "text-uber-green",
+      glow: "",
+      label: "Low",
+    },
+  };
+  const c = config[level];
+
   return (
-    <div className="flex w-[7rem] shrink-0 items-center gap-2">
-      <div className="h-1.5 w-12 shrink-0 rounded-full bg-white/10 overflow-hidden">
-        <div
-          className={`h-full rounded-full ${color}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold tabular-nums ${c.bg} ${c.text} ${c.glow}`}
+    >
       <span
-        className={`min-w-[2.75rem] w-11 shrink-0 text-right text-[11px] font-bold tabular-nums whitespace-nowrap ${
-          score >= 7 ? "text-uber-red" : score >= 4 ? "text-uber-yellow" : "text-uber-green"
+        className={`inline-block w-1.5 h-1.5 rounded-full ${
+          score >= 7 ? "bg-uber-red" : score >= 4 ? "bg-uber-yellow" : "bg-uber-green"
         }`}
-      >
-        {score}/10
-      </span>
-    </div>
+      />
+      {score}/10
+    </span>
   );
 }
 
-/** DD/MM · 12-hour local time (no year in UI; DB still stores full `created_at`). */
+/** DD/MM · 12-hour local time */
 function formatWhen(iso: string): string {
   const d = new Date(iso);
   const day = String(d.getDate()).padStart(2, "0");
@@ -63,6 +87,12 @@ function formatWhen(iso: string): string {
     hour12: true,
   });
   return `${day}/${month} · ${time}`;
+}
+
+function isRecent(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return now.getTime() - d.getTime() < 30 * 60 * 1000; // 30 minutes
 }
 
 export function RiskRadar() {
@@ -116,6 +146,11 @@ export function RiskRadar() {
           </div>
           <p className="text-[12px] font-semibold text-zinc-200">Risk Radar</p>
         </div>
+        {events.length > 0 && (
+          <span className="text-[10px] font-medium text-zinc-500 tabular-nums">
+            {events.length} event{events.length !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       {events.length === 0 ? (
@@ -127,41 +162,52 @@ export function RiskRadar() {
           <p className="text-[11px] text-zinc-500 mt-0.5">No active disruptions in your area</p>
         </div>
       ) : (
-        <div className="px-3 pb-3 max-h-[280px] overflow-y-auto scrollbar-thin">
-          <div
-            className={`${RADAR_GRID} items-center px-2 py-1.5 mb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap`}
-          >
-            <span className="min-w-0 truncate">Trigger</span>
-            <span className="text-left">Severity</span>
-            <span className="text-right">When</span>
-          </div>
+        <div className="px-3 pb-3 max-h-[280px] overflow-y-auto scrollbar-thin space-y-1.5">
           <AnimatePresence mode="popLayout" initial={false}>
-            {events.map((e) => (
-              <motion.div
-                key={e.id}
-                layout
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`${RADAR_GRID} items-center rounded-xl bg-black/40 border border-white/10 px-2 py-2 mb-1.5 last:mb-0 active:bg-white/5 transition-colors`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-700/40 text-zinc-400 shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">
-                    {typeIcons[e.event_type] ?? <MapPin className="h-3.5 w-3.5" />}
+            {events.map((e) => {
+              const iconBg = typeIconBg[e.event_type] ?? "bg-zinc-700/40 text-zinc-400";
+              const borderColor = typeBorderColor[e.event_type] ?? "border-l-zinc-700/40";
+              const recent = isRecent(e.created_at);
+
+              return (
+                <motion.div
+                  key={e.id}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`flex items-center gap-3 rounded-xl bg-black/40 border border-white/10 border-l-2 ${borderColor} px-3 py-2.5 active:bg-white/5 transition-colors`}
+                >
+                  {/* Icon with event-type color */}
+                  <div className={`relative flex items-center justify-center w-8 h-8 rounded-lg shrink-0 [&>svg]:h-4 [&>svg]:w-4 ${iconBg}`}>
+                    {typeIcons[e.event_type] ?? <MapPin className="h-4 w-4" />}
+                    {/* Live pulse for recent events */}
+                    {recent && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5" aria-hidden>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-uber-red/40" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-uber-red border border-[#0c0c0c]" />
+                      </span>
+                    )}
                   </div>
-                  <span className="text-[12px] text-zinc-300 capitalize font-medium truncate">
-                    {typeLabels[e.event_type] ?? e.event_type}
-                  </span>
-                </div>
-                <div className="flex justify-start shrink-0">
-                  <SeverityBar score={e.severity_score} />
-                </div>
-                <p className="min-w-0 text-right text-[11px] tabular-nums text-zinc-300 truncate">
-                  {formatWhen(e.created_at)}
-                </p>
-              </motion.div>
-            ))}
+
+                  {/* Label + time */}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[12px] text-zinc-200 capitalize font-medium truncate block">
+                      {typeLabels[e.event_type] ?? e.event_type}
+                    </span>
+                    <span className="text-[10px] tabular-nums text-zinc-500 block mt-0.5">
+                      {formatWhen(e.created_at)}
+                    </span>
+                  </div>
+
+                  {/* Severity badge */}
+                  <div className="shrink-0">
+                    <SeverityBadge score={e.severity_score} />
+                  </div>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}

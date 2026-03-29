@@ -20,6 +20,8 @@ import { reviewClaimSchema } from "@/lib/validations/schemas";
 import { parseWithSchema } from "@/lib/validations/parse";
 import { simulatePayout } from "@/lib/adjudicator/payouts";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { insertAdminAuditLog } from "@/lib/admin/audit-log";
+import { AUDIT } from "@/lib/admin/audit-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +43,9 @@ export const POST = withAdminAuth(async (ctx, request) => {
   // Fetch claim + linked rider profile so we can manage payouts.
   const { data: claim, error: claimErr } = await admin
     .from("parametric_claims")
-    .select("id, policy_id, payout_amount_inr, status, is_flagged, flag_reason, admin_review_status")
+    .select(
+      "id, policy_id, payout_amount_inr, status, is_flagged, flag_reason, admin_review_status",
+    )
     .eq("id", claimId)
     .single();
 
@@ -168,6 +172,20 @@ export const POST = withAdminAuth(async (ctx, request) => {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await insertAdminAuditLog(admin, {
+    actorId: ctx.user.id,
+    actorEmail: ctx.user.email,
+    action: AUDIT.CLAIM_REVIEW,
+    resourceType: "parametric_claims",
+    resourceId: claimId,
+    metadata: {
+      action,
+      payout_change: payoutChange,
+      prior_status: claim.status,
+      prior_admin_review: claim.admin_review_status ?? null,
+    },
+  });
 
   try {
     await admin.from("system_logs").insert({

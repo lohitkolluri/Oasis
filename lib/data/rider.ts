@@ -1,5 +1,12 @@
 /** Server-only data helpers for rider dashboard and wallet. Use Supabase server client. */
 
+import {
+  addCalendarDaysIST,
+  getISTCurrentCoverageWeekMondayStart,
+  getISTDateString,
+  getISTWeekdayMon0,
+  istEndOfDay,
+} from '@/lib/datetime/ist';
 import type { ParametricClaim, RiderWallet, WeeklyPolicy } from "@/lib/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -142,19 +149,15 @@ export function deriveWalletStats(
     wallet?.this_week_earned_inr != null ? Number(wallet.this_week_earned_inr) : 0;
 
   const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() + mondayOffset);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
+  const weekStart = getISTCurrentCoverageWeekMondayStart(now);
+  const mondayYmd = getISTDateString(weekStart);
+  const weekEndYmd = addCalendarDaysIST(mondayYmd, 6);
+  const weekEnd = istEndOfDay(weekEndYmd);
   const weeklyDailyEarnings = [0, 0, 0, 0, 0, 0, 0];
   for (const c of paidClaims) {
     const d = new Date(c.created_at);
     if (d < weekStart || d > weekEnd) continue;
-    const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;
+    const dayIndex = getISTWeekdayMon0(d);
     weeklyDailyEarnings[dayIndex] += Number(c.payout_amount_inr);
   }
 

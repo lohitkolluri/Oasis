@@ -1,5 +1,6 @@
 'use client';
 
+import { AdminInlineHelp } from '@/components/admin/AdminPageTitle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -143,7 +144,16 @@ export function SystemHealth({ showRecentEvents = true }: SystemHealthProps) {
     <Card variant="default" padding="none">
       <CardHeader
         icon={<Activity className="h-4 w-4 text-[#7dd3fc]" />}
-        title="System Health"
+        title={
+          <>
+            System Health
+            <AdminInlineHelp
+              size="sm"
+              className="translate-y-px"
+              text="Live probes to external providers and a summary of the latest adjudicator run (candidates, claims, duration). Recent events may be shown when enabled — use Logs for full history."
+            />
+          </>
+        }
         description="API status, last run, and recent events"
         badge={
           <div className="flex items-center gap-2">

@@ -23,6 +23,25 @@ export const updateRoleSchema = z.object({
   role: z.enum(['rider', 'admin']),
 });
 
+const payoutLadderStepSchema = z.object({
+  severity_min: z.number().min(0).max(10),
+  severity_max: z.number().min(0).max(10),
+  multiplier: z.number().min(0).max(10),
+});
+
+export const createRuleSetSchema = z.object({
+  versionLabel: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[\w.\-]+$/, 'Use letters, numbers, dots, hyphens only'),
+  effectiveFrom: z.string().datetime().optional(),
+  triggers: z.record(z.string(), z.number()).optional(),
+  payoutLadder: z.array(payoutLadderStepSchema).optional(),
+  excludedSubtypes: z.array(z.string().min(1)).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
 const demoSubtypes = [
   'extreme_heat',
   'heavy_rain',
@@ -64,6 +83,7 @@ export const simulatePayoutSchema = z.object({
 
 export type CreateCheckoutInput = z.infer<typeof createCheckoutSchema>;
 export type UpdatePolicyInput = z.infer<typeof updatePolicySchema>;
+export type CreateRuleSetInput = z.infer<typeof createRuleSetSchema>;
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 export type DemoTriggerInput = z.infer<typeof demoTriggerSchema>;
 export type ReviewClaimInput = z.infer<typeof reviewClaimSchema>;

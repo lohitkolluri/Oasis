@@ -1,3 +1,4 @@
+import { AdminInlineHelp } from '@/components/admin/AdminPageTitle';
 import { AdminRiderActions } from '@/components/admin/AdminRiderActions';
 import { AdminRiderGovIdCard } from '@/components/admin/AdminRiderGovIdCard';
 import { ClaimReviewButtons } from '@/components/admin/ClaimReviewButtons';
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ZoneMapLazy } from '@/components/ui/ZoneMapLazy';
+import { isEarnedPremiumStatus } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reverseGeocode } from '@/lib/utils/geo';
 import {
@@ -49,7 +51,7 @@ export default async function AdminRiderDetailPage({
     supabase
       .from('weekly_policies')
       .select(
-        `id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, created_at, plan_packages(name, slug, payout_per_claim_inr)`,
+        `id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, payment_status, created_at, plan_packages(name, slug, payout_per_claim_inr)`,
       )
       .eq('profile_id', id)
       .order('week_start_date', { ascending: false })
@@ -113,7 +115,12 @@ export default async function AdminRiderDetailPage({
   const displayName = profile.full_name ?? 'Unnamed rider';
 
   const activePolicies = sortedPolicies.filter((p) => p.is_active);
-  const modeledPremium = activePolicies.reduce((s, p) => s + Number(p.weekly_premium_inr), 0);
+  const modeledPremium = activePolicies.reduce((s, p) => {
+    if (!isEarnedPremiumStatus((p as { payment_status?: string | null }).payment_status)) {
+      return s;
+    }
+    return s + Number(p.weekly_premium_inr);
+  }, 0);
   const paidClaims = claims.filter((c) => c.status === 'paid');
   const flaggedClaims = claims.filter((c) => c.is_flagged);
   const paidPayoutTotal = paidClaims.reduce((s, c) => s + Number(c.payout_amount_inr), 0);
@@ -163,6 +170,11 @@ export default async function AdminRiderDetailPage({
                 <h1 className="text-xl font-semibold text-white tracking-tight truncate">
                   {displayName}
                 </h1>
+                <AdminInlineHelp
+                  size="sm"
+                  className="shrink-0"
+                  text="Single rider 360°: profile, zone, weekly policies, parametric claims, payout status, government ID, and role. Claim review and fraud actions apply only to loss-of-income parametric coverage — not medical or vehicle claims."
+                />
                 {(profile as { role?: string }).role === 'admin' && (
                   <Badge className="rounded-full border-sky-400/25 bg-sky-400/10 text-sky-400 text-[10px] font-semibold">
                     Admin

@@ -21,10 +21,26 @@ export class ApiError extends Error {
   }
 }
 
-/** In production returns genericMessage; in dev returns error message or String(err). */
+/**
+ * Human-readable detail for logs and non-production API responses.
+ * Razorpay and other SDKs often reject with plain objects, not Error instances.
+ */
+export function formatErrorDetail(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null) {
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return '[Unserializable error]';
+    }
+  }
+  return String(err);
+}
+
+/** In production returns genericMessage; in dev returns a readable message or JSON for object errors. */
 export function sanitizeErrorMessage(err: unknown, genericMessage: string): string {
   if (process.env.NODE_ENV === 'production') return genericMessage;
-  return err instanceof Error ? err.message : String(err);
+  return formatErrorDetail(err);
 }
 
 export function errorResponse(
@@ -44,7 +60,7 @@ export function errorResponse(
   }
   logger.error('API error', {
     ...meta,
-    error: error instanceof Error ? error.message : String(error),
+    error: formatErrorDetail(error),
   });
   const clientMessage = sanitizeErrorMessage(error, fallbackMessage);
   return NextResponse.json({ error: clientMessage }, { status: 500 });

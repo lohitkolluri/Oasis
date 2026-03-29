@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { DemoTriggerPanel } from '@/components/admin/DemoTriggerPanel';
 import { Card } from '@/components/ui/Card';
 import {
@@ -57,15 +58,11 @@ export default async function AdminDemoPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Demo
-        </h1>
-        <p className="text-sm text-[#666] mt-1">
-          Trigger synthetic disruptions and manage demo runs for testing and
-          recordings
-        </p>
-      </div>
+      <AdminPageTitle
+        title="Demo"
+        help="Safe environment to simulate adjudicator runs and synthetic triggers for demos or QA. Picks a rider context and exercises the pipeline without touching production traffic semantics. Recent runs list shows candidates, claims created, and timing from system logs."
+        description="Trigger synthetic disruptions and manage demo runs for testing and recordings"
+      />
 
       <DemoTriggerPanel riders={riderList} />
 

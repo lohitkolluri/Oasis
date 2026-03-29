@@ -2,7 +2,7 @@
  * Disruption event persistence and duplicate detection.
  */
 
-import { TRIGGERS } from '@/lib/config/constants';
+import { triggersFromContext } from '@/lib/adjudicator/rule-context';
 import type {
   GeofenceCircle,
   SupabaseAdmin,
@@ -26,7 +26,7 @@ export async function isDuplicateEvent(
 
   if (!recentEvents || recentEvents.length === 0) return false;
 
-  const radiusKm = TRIGGERS.DUPLICATE_EVENT_RADIUS_KM;
+  const radiusKm = triggersFromContext().DUPLICATE_EVENT_RADIUS_KM;
 
   for (const existing of recentEvents) {
     const existingGf = existing.geofence_polygon as Partial<GeofenceCircle> | null | undefined;
@@ -54,6 +54,7 @@ export async function isDuplicateEvent(
 export async function insertDisruptionEvent(
   supabase: SupabaseAdmin,
   candidate: TriggerCandidate,
+  ruleSetId?: string | null,
 ): Promise<{ id: string } | null> {
   const { data: event, error } = await supabase
     .from('live_disruption_events')
@@ -65,6 +66,7 @@ export async function insertDisruptionEvent(
       verified_by_llm:
         candidate.type === 'social' || candidate.type === 'traffic',
       raw_api_data: candidate.raw,
+      rule_set_id: ruleSetId ?? null,
     })
     .select('id')
     .single();

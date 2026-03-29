@@ -1,5 +1,8 @@
 'use client';
 
+import { GeneratePremiumForecastButton } from '@/components/admin/GeneratePremiumForecastButton';
+import { cn } from '@/lib/utils';
+import { useCallback, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -61,20 +64,59 @@ interface PlanPricingForecastChartProps {
   tiers: ForecastTier[];
   points: PricingPoint[];
   caption?: string | null;
+  /** When set, show in-chart control to run weekly premium recommendations for this enrollment Monday */
+  forecastGenerateWeekStart?: string | null;
 }
 
 export function PlanPricingForecastChart({
   tiers,
   points,
   caption,
+  forecastGenerateWeekStart,
 }: PlanPricingForecastChartProps) {
+  const [forecastJobNote, setForecastJobNote] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const onForecastJobComplete = useCallback(
+    (p: { ok: boolean; message: string } | null) => setForecastJobNote(p),
+    [],
+  );
+
   if (!points || points.length === 0) {
     return (
-      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
-        <p className="text-sm font-semibold text-white">Next week forecast</p>
-        <p className="mt-2 text-[11px] text-[#555]">
-          No pricing history yet. Once snapshots exist, a forecast overlay will appear here.
-        </p>
+      <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5 min-w-0">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 min-w-0">
+            <div className="flex flex-col justify-center gap-1 min-w-0 pt-0.5">
+              <p className="text-sm font-semibold text-white leading-tight">Next week forecast</p>
+              <p className="text-[11px] text-[#555] leading-snug">
+                No pricing history yet. Once snapshots exist, a forecast overlay will appear here.
+              </p>
+            </div>
+            {forecastGenerateWeekStart ? (
+              <div className="shrink-0 ml-auto flex items-center">
+                <GeneratePremiumForecastButton
+                  targetWeekStart={forecastGenerateWeekStart}
+                  onJobComplete={onForecastJobComplete}
+                />
+              </div>
+            ) : null}
+          </div>
+          {forecastJobNote ? (
+            <p
+              role={forecastJobNote.ok ? 'status' : 'alert'}
+              className={cn(
+                'text-[10px] leading-snug rounded-md px-2.5 py-1.5 border',
+                forecastJobNote.ok
+                  ? 'text-zinc-400 border-white/[0.06] bg-white/[0.03]'
+                  : 'text-amber-200/90 border-amber-500/20 bg-amber-500/[0.07]',
+              )}
+            >
+              {forecastJobNote.message}
+            </p>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -85,18 +127,41 @@ export function PlanPricingForecastChart({
 
   return (
     <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5 min-w-0">
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <p className="text-sm font-semibold text-white">Next week forecast</p>
-          <p className="text-[11px] text-[#666] mt-1">
-            Solid = actual snapshots · Dashed = forecast
-          </p>
+      <div className="mb-4 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 min-w-0">
+          <div className="flex flex-col justify-center gap-1 min-w-0 pt-0.5">
+            <p className="text-sm font-semibold text-white leading-tight">Next week forecast</p>
+            <p className="text-[11px] text-[#666] leading-snug">
+              Solid = actual snapshots · Dashed = forecast
+            </p>
+          </div>
+          <div className="flex flex-row items-center gap-3 shrink-0 ml-auto">
+            {forecastGenerateWeekStart ? (
+              <GeneratePremiumForecastButton
+                targetWeekStart={forecastGenerateWeekStart}
+                onJobComplete={onForecastJobComplete}
+              />
+            ) : null}
+            {caption ? (
+              <span className="inline-flex items-center min-h-[2.125rem] text-[10px] px-2.5 rounded-full bg-white/5 border border-white/10 text-[#9ca3af] tabular-nums max-w-[min(100%,280px)] leading-snug text-right">
+                {caption}
+              </span>
+            ) : null}
+          </div>
         </div>
-        {caption && (
-          <span className="text-[10px] px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[#9ca3af] tabular-nums">
-            {caption}
-          </span>
-        )}
+        {forecastJobNote ? (
+          <p
+            role={forecastJobNote.ok ? 'status' : 'alert'}
+            className={cn(
+              'text-[10px] leading-snug rounded-md px-2.5 py-1.5 border',
+              forecastJobNote.ok
+                ? 'text-zinc-400 border-white/[0.06] bg-white/[0.03]'
+                : 'text-amber-200/90 border-amber-500/20 bg-amber-500/[0.07]',
+            )}
+          >
+            {forecastJobNote.message}
+          </p>
+        ) : null}
       </div>
 
       <div className="h-[clamp(260px,34vh,420px)] w-full min-w-0">

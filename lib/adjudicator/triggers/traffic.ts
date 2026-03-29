@@ -3,8 +3,13 @@
  * Uses TomTom Traffic Flow API (Flow Segment Data) for real-time congestion.
  */
 
-import { EXTERNAL_APIS, TRIGGERS } from '@/lib/config/constants';
-import type { TriggerCandidate } from '@/lib/adjudicator/types';
+import { EXTERNAL_APIS } from '@/lib/config/constants';
+import { mergeSourceHealth } from '@/lib/adjudicator/ledger';
+import { triggersFromContext } from '@/lib/adjudicator/rule-context';
+import type {
+  AdjudicatorInstrumentationContext,
+  TriggerCandidate,
+} from '@/lib/adjudicator/types';
 import { fetchWithRetry } from '@/lib/utils/retry';
 
 /** TomTom Flow Segment Data response (segment closest to point). */
@@ -26,9 +31,10 @@ interface TomTomFlowSegmentData {
 function generateSamplePoints(
   centerLat: number,
   centerLng: number,
-  radiusKm: number = TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+  radiusKm?: number,
 ): Array<{ lat: number; lng: number }> {
-  const offsetKm = radiusKm * 0.7;
+  const r = radiusKm ?? triggersFromContext().DEFAULT_GEOFENCE_RADIUS_KM;
+  const offsetKm = r * 0.7;
   const latOffset = offsetKm / 111.32;
   const lngOffset = offsetKm / (111.32 * Math.cos((centerLat * Math.PI) / 180));
 
@@ -55,6 +61,7 @@ async function fetchPointTraffic(
   lng: number,
   tomtomKey: string,
 ): Promise<PointResult | null> {
+  const T = triggersFromContext();
   try {
     const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key=${encodeURIComponent(tomtomKey)}&point=${lat},${lng}&unit=kmph`;
     const data = await fetchWithRetry<TomTomFlowSegmentData>(url, undefined, {
@@ -68,7 +75,7 @@ async function fetchPointTraffic(
     const roadClosure = seg.roadClosure === true;
     const confidence = Number(seg.confidence ?? 0);
 
-    if (!roadClosure && (freeFlowSpeed <= 0 || confidence < TRIGGERS.TRAFFIC_MIN_CONFIDENCE)) {
+    if (!roadClosure && (freeFlowSpeed <= 0 || confidence < T.TRAFFIC_MIN_CONFIDENCE)) {
       return null;
     }
 
@@ -79,7 +86,7 @@ async function fetchPointTraffic(
       roadClosure,
       confidence,
       ratio,
-      congested: roadClosure || ratio < TRIGGERS.TRAFFIC_CONGESTION_RATIO_THRESHOLD,
+      congested: roadClosure || ratio < T.TRAFFIC_CONGESTION_RATIO_THRESHOLD,
     };
   } catch {
     return null;
@@ -94,16 +101,27 @@ async function fetchPointTraffic(
 export async function checkTrafficTriggers(
   zone: { lat: number; lng: number },
   tomtomKey: string | undefined,
+  ctx?: AdjudicatorInstrumentationContext,
 ): Promise<TriggerCandidate[]> {
+  const T = triggersFromContext();
   const { lat, lng } = zone;
   const candidates: TriggerCandidate[] = [];
 
   if (!tomtomKey?.trim()) return candidates;
 
-  const samplePoints = generateSamplePoints(lat, lng);
+  const t0 = Date.now();
+  const samplePoints = generateSamplePoints(lat, lng, T.DEFAULT_GEOFENCE_RADIUS_KM);
   const results = await Promise.all(
     samplePoints.map((p) => fetchPointTraffic(p.lat, p.lng, tomtomKey)),
   );
+  if (ctx) {
+    const observedAt = new Date().toISOString();
+    await mergeSourceHealth(ctx.supabase, 'tomtom_traffic', {
+      ok: true,
+      latencyMs: Date.now() - t0,
+      observedAt,
+    });
+  }
 
   const validResults = results.filter((r): r is PointResult => r !== null);
   if (validResults.length === 0) return candidates;
@@ -125,7 +143,7 @@ export async function checkTrafficTriggers(
         type: 'circle',
         lat,
         lng,
-        radius_km: TRIGGERS.DEFAULT_GEOFENCE_RADIUS_KM,
+        radius_km: T.DEFAULT_GEOFENCE_RADIUS_KM,
       },
       raw: {
         trigger: 'traffic_gridlock',

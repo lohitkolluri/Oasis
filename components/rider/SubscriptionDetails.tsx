@@ -1,9 +1,14 @@
 'use client';
 
 import type { WeeklyPolicy } from '@/lib/types/database';
+import { formatShortDateIST } from '@/lib/datetime/ist';
+import {
+  getCoverageTimeRemainingParts,
+  getCoverageWeekProgressPercent,
+} from '@/lib/coverage-week';
 import { cn } from '@/lib/utils';
 import { Copy, CreditCard, Hash, RefreshCw, Smartphone, Wallet } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface SubscriptionDetailsProps {
   policy: WeeklyPolicy;
@@ -11,51 +16,8 @@ interface SubscriptionDetailsProps {
   autoRenewEnabled?: boolean;
 }
 
-/** Parse YYYY-MM-DD as local calendar date (avoids UTC midnight skew on DATE fields). */
-function parseLocalDate(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function coverageEndOfDay(weekEnd: string): Date {
-  const d = parseLocalDate(weekEnd);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
 function formatShortDate(d: string) {
-  return parseLocalDate(d).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/** Days remaining in the coverage week (inclusive of today until end date). */
-function getDaysRemaining(weekStart: string, weekEnd: string): number {
-  const start = parseLocalDate(weekStart);
-  const end = coverageEndOfDay(weekEnd);
-  const now = new Date();
-  if (now > end) return 0;
-  const totalDays =
-    Math.round((parseLocalDate(weekEnd).getTime() - parseLocalDate(weekStart).getTime()) / MS_PER_DAY) + 1;
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const elapsed = Math.floor((todayStart.getTime() - start.getTime()) / MS_PER_DAY);
-  const remaining = totalDays - elapsed;
-  return Math.max(0, Math.min(remaining, totalDays));
-}
-
-/** Progress 0–100: how much of the week has passed. */
-function getProgressPercent(weekStart: string, weekEnd: string): number {
-  const start = parseLocalDate(weekStart);
-  const end = coverageEndOfDay(weekEnd);
-  const now = new Date();
-  const total = end.getTime() - start.getTime();
-  const elapsed = now.getTime() - start.getTime();
-  if (total <= 0) return 100;
-  return Math.min(100, Math.max(0, (elapsed / total) * 100));
+  return formatShortDateIST(d);
 }
 
 function copyToClipboard(text: string, onCopied: () => void) {
@@ -89,8 +51,18 @@ export function SubscriptionDetails({
   const [copied, setCopied] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
-  const daysLeft = getDaysRemaining(policy.week_start_date, policy.week_end_date);
-  const progress = getProgressPercent(policy.week_start_date, policy.week_end_date);
+  const [timeLeft, setTimeLeft] = useState(() =>
+    getCoverageTimeRemainingParts(policy.week_end_date),
+  );
+  const progress = getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date);
+
+  useEffect(() => {
+    setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
+    const interval = setInterval(() => {
+      setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [policy.week_end_date]);
   const displayId = policy.id.slice(0, 8).toUpperCase();
   const methodType = policy.razorpay_payment_method ?? policy.stripe_payment_method_type;
   const methodLabel = paymentMethodLabel(methodType);
@@ -159,8 +131,8 @@ export function SubscriptionDetails({
         </p>
         <div className="flex items-center justify-between gap-2 mb-2">
           <p className="text-sm font-semibold text-white">Time remaining</p>
-          <span className="rounded-full bg-uber-green/20 px-2.5 py-1 text-[11px] font-semibold text-uber-green">
-            {daysLeft} day{daysLeft !== 1 ? 's' : ''} left
+          <span className="rounded-full bg-uber-green/20 px-2.5 py-1 text-[11px] font-semibold text-uber-green tabular-nums">
+            {timeLeft.days}d {timeLeft.hours}h
           </span>
         </div>
         <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">

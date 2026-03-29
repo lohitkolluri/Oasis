@@ -7,6 +7,8 @@ interface RetryOptions {
   baseDelayMs?: number;
   maxDelayMs?: number;
   cacheTtlMs?: number;
+  /** Per-attempt fetch timeout (aborts slow hung requests). */
+  timeoutMs?: number;
 }
 
 interface CacheEntry {
@@ -47,7 +49,17 @@ export async function fetchWithRetry<T = unknown>(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetch(url, init);
+      const timeoutMs = options?.timeoutMs;
+      let fetchInit = init;
+      if (timeoutMs != null && timeoutMs > 0) {
+        const t = AbortSignal.timeout(timeoutMs);
+        fetchInit =
+          init?.signal != null
+            ? { ...init, signal: AbortSignal.any([init.signal, t]) }
+            : { ...init, signal: t };
+      }
+
+      const res = await fetch(url, fetchInit);
 
       if (!res.ok && res.status !== 429 && res.status < 500) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);

@@ -1,3 +1,4 @@
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { SystemLogsTable } from '@/components/admin/SystemLogsTable';
 import { Card } from '@/components/ui/Card';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -24,14 +25,11 @@ export default async function SystemLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          System Health
-        </h1>
-        <p className="text-sm text-[#666] mt-1">
-          Detailed event history for adjudicator runs and platform activity.
-        </p>
-      </div>
+      <AdminPageTitle
+        title="System Logs"
+        help="Append-only system_logs tail: adjudicator runs, demo jobs, errors, and other platform events with metadata JSON. Complements the API health tab — use for deep debugging when probes are green but behavior looks wrong."
+        description="Detailed event history for adjudicator runs and platform activity."
+      />
 
       <Card variant="default" padding="none">
         <SystemLogsTable logs={recentLogs} />

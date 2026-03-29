@@ -67,7 +67,7 @@ export function RiderMiniDashboard() {
 
       <WeeklyEarningsChart dailyEarnings={demoEarnings} />
 
-      <ClaimsPreview claims={demoClaims} title="Recent claims" variant="wallet" claimIdsNeedingVerification={[]} />
+      <ClaimsPreview claims={demoClaims} title="Recent payouts" variant="wallet" claimIdsNeedingVerification={[]} />
     </motion.div>
   );
 }

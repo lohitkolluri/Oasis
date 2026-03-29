@@ -3,6 +3,7 @@
  * Admin-only. Premiums/loss ratio use the same 30d window as /api/admin/analytics.
  * Fraud "urgent" count = flagged claims still awaiting a decision (admin_review_status IS NULL).
  */
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
 import { NextResponse } from 'next/server';
@@ -27,7 +28,8 @@ export const GET = withAdminAuth(async (_ctx) => {
     adminSupabase
       .from('weekly_policies')
       .select('weekly_premium_inr')
-      .gte('week_start_date', since30dDay),
+      .gte('week_start_date', since30dDay)
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
     adminSupabase
       .from('parametric_claims')
       .select('payout_amount_inr')

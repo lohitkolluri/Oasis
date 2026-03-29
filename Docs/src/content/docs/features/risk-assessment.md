@@ -29,7 +29,7 @@ risk_adjustment = (risk_from_events + risk_from_forecast + risk_from_social)
 
 ## Seasonal Risk Multiplier
 
-India's weather follows strong seasonal patterns that directly affect delivery disruption frequency. The premium calculator applies a monthly multiplier:
+India's weather follows strong seasonal patterns that directly affect delivery disruption frequency. The premium calculator applies a **calendar-month seasonal multiplier** to the **weekly** premium (billing stays weekly per use case; this is not monthly pricing).
 
 | Months | Multiplier | Reason |
 |---|---|---|
