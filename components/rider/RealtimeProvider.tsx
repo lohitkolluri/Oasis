@@ -1,7 +1,7 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react';
 
 interface ClaimEvent {
   id: string;
@@ -51,7 +51,7 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
     claimStatusUpdates: new Map(),
   });
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const subscribeToClaimStatus = useCallback((claimId: string) => {
     setState((prev) => {
@@ -116,9 +116,10 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
     };
   }, [supabase, profileId, policyIds]);
 
-  return (
-    <RealtimeContext.Provider value={{ ...state, subscribeToClaimStatus }}>
-      {children}
-    </RealtimeContext.Provider>
+  const value = useMemo(
+    () => ({ ...state, subscribeToClaimStatus }),
+    [state, subscribeToClaimStatus],
   );
+
+  return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

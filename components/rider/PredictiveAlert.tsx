@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ShieldAlert } from "lucide-react";
+import { useMemo } from "react";
 
 export function PredictiveAlert() {
   const [alert, setAlert] = useState<string | null>(null);
-
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const twoHoursAgo = new Date();

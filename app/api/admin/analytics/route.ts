@@ -11,6 +11,7 @@ import { getISTMondayYmdForInstant, getISTDateString } from '@/lib/datetime/ist'
 import { getNextWeekPrediction } from '@/lib/ml/next-week-risk';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -22,40 +23,56 @@ export const GET = withAdminAuth(async (ctx, request) => {
     90,
   );
   const limit = Math.min(
-    parseInt(url.searchParams.get('limit') ?? '500', 10) || 500,
-    1000,
+    parseInt(url.searchParams.get('limit') ?? '1200', 10) || 1200,
+    2500,
   );
 
   const admin = createAdminClient();
+  const startedAt = Date.now();
   const sinceInstant = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
   const sinceDate = sinceInstant.toISOString();
   /** Match premium rows to the same calendar window as claims (IST policy dates). */
   const sinceWeekStartDay = getISTDateString(sinceInstant);
 
-  const [claimsRes, policiesRes, eventsRes] = await Promise.all([
+  const [claimsRes, policiesRes, eventsRes, metricsRes] = await Promise.all([
     admin
       .from('parametric_claims')
       .select(
         'payout_amount_inr, created_at, is_flagged, disruption_event_id',
       )
       .gte('created_at', sinceDate)
-      .order('created_at', { ascending: true }),
+      .order('created_at', { ascending: false })
+      .limit(limit),
     admin
       .from('weekly_policies')
       .select('weekly_premium_inr, week_start_date, created_at')
       .gte('week_start_date', sinceWeekStartDay)
       .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
-      .order('week_start_date', { ascending: true }),
+      .order('week_start_date', { ascending: false })
+      .limit(limit),
     admin
       .from('live_disruption_events')
       .select('event_type, severity_score, created_at')
       .gte('created_at', sinceDate)
-      .order('created_at', { ascending: true }),
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    admin.rpc('admin_window_metrics', {
+      p_since: sinceDate,
+      p_since_week: sinceWeekStartDay,
+      p_since24: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    }),
   ]);
 
-  const claims = claimsRes.data ?? [];
-  const policies = policiesRes.data ?? [];
-  const events = eventsRes.data ?? [];
+  const claims = [...(claimsRes.data ?? [])].reverse();
+  const policies = [...(policiesRes.data ?? [])].reverse();
+  const events = [...(eventsRes.data ?? [])].reverse();
+  const metricRow = (metricsRes.data?.[0] ?? null) as {
+    total_claims?: number;
+    total_payout?: number;
+    flagged_claims?: number;
+    total_events?: number;
+    total_premium?: number;
+  } | null;
 
   // ── Claims per day ────────────────────────────────────────────────────
   const claimsByDay = new Map<
@@ -141,34 +158,37 @@ export const GET = withAdminAuth(async (ctx, request) => {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // ── Summary stats ──────────────────────────────────────────────────────
-  const totalPayout = claims.reduce(
-    (s, c) => s + Number(c.payout_amount_inr),
-    0,
-  );
-  const totalPremium = policies.reduce(
-    (s, p) => s + Number(p.weekly_premium_inr),
-    0,
-  );
+  const totalPayout = Number(metricRow?.total_payout ?? claims.reduce((s, c) => s + Number(c.payout_amount_inr), 0));
+  const totalPremium = Number(metricRow?.total_premium ?? policies.reduce((s, p) => s + Number(p.weekly_premium_inr), 0));
 
   // ── Predictive analytics (next week) ──────────────────────────────────
   let prediction = null;
   try {
     prediction = await getNextWeekPrediction(admin);
   } catch (err) {
-    console.warn("Next-week prediction failed:", err);
+    logger.warn("Next-week prediction failed", { error: err instanceof Error ? err.message : String(err) });
   }
+
+  logger.info('Admin analytics generated', {
+    daysBack,
+    limit,
+    durationMs: Date.now() - startedAt,
+    sampledClaims: claims.length,
+    sampledPolicies: policies.length,
+    sampledEvents: events.length,
+  });
 
   return NextResponse.json({
     summary: {
-      totalClaims: claims.length,
+      totalClaims: Number(metricRow?.total_claims ?? claims.length),
       totalPayout,
       totalPremium,
       lossRatio:
         totalPremium > 0
           ? Math.round((totalPayout / totalPremium) * 100)
           : 0,
-      flaggedClaims: claims.filter((c) => c.is_flagged === true).length,
-      totalEvents: events.length,
+      flaggedClaims: Number(metricRow?.flagged_claims ?? claims.filter((c) => c.is_flagged === true).length),
+      totalEvents: Number(metricRow?.total_events ?? events.length),
     },
     claimsTimeline,
     premiumsTimeline,
@@ -180,6 +200,10 @@ export const GET = withAdminAuth(async (ctx, request) => {
     meta: {
       daysBack,
       limit,
+      durationMs: Date.now() - startedAt,
+      sampledClaims: claims.length,
+      sampledPolicies: policies.length,
+      sampledEvents: events.length,
     },
   });
 });

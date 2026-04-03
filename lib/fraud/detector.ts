@@ -10,6 +10,7 @@ export interface FraudCheckResult {
   isFlagged: boolean;
   reason?: string;
   checkName?: string;
+  facts?: Record<string, unknown>;
 }
 
 export async function checkDuplicateClaim(
@@ -54,6 +55,11 @@ export async function checkRapidClaims(
       isFlagged: true,
       reason: `Rapid claims: ${count} in ${FRAUD.RAPID_CLAIMS_WINDOW_HOURS}h (threshold ${FRAUD.RAPID_CLAIMS_THRESHOLD})`,
       checkName: 'rapid_claims',
+      facts: {
+        count: count ?? 0,
+        window_hours: FRAUD.RAPID_CLAIMS_WINDOW_HOURS,
+        threshold: FRAUD.RAPID_CLAIMS_THRESHOLD,
+      },
     };
   }
   return { isFlagged: false };
@@ -76,6 +82,7 @@ export function checkWeatherMismatch(
         isFlagged: true,
         reason: `Weather mismatch: extreme_heat but temp=${temp}°C`,
         checkName: 'weather_mismatch',
+        facts: { trigger, temperature_c: temp },
       };
     }
   }
@@ -91,6 +98,7 @@ export function checkWeatherMismatch(
         isFlagged: true,
         reason: `Weather mismatch: heavy_rain but precip=${precip} mm/h`,
         checkName: 'weather_mismatch',
+        facts: { trigger, precip_mm_h: precip },
       };
     }
   }
@@ -114,6 +122,7 @@ export function checkWeatherMismatch(
         isFlagged: true,
         reason: `Weather mismatch: severe_aqi claimed (threshold=${adaptiveThreshold}) but AQI=${currentAqi}`,
         checkName: 'weather_mismatch',
+        facts: { trigger, current_aqi: currentAqi, adaptive_threshold: adaptiveThreshold },
       };
     }
   }
@@ -175,18 +184,30 @@ export async function checkDeviceFingerprint(
 
   if (!events || events.length < 2) return { isFlagged: false };
 
-  const lats = (events as Array<{ geofence_polygon: unknown }>)
-    .map((e) => (e.geofence_polygon as { lat?: number })?.lat)
-    .filter((v): v is number => v != null);
+  const points = (events as Array<{ geofence_polygon: unknown }>)
+    .map((e) => {
+      const g = e.geofence_polygon as { lat?: number, lng?: number };
+      return { lat: g?.lat, lng: g?.lng };
+    })
+    .filter((p): p is { lat: number, lng: number } => p.lat != null && p.lng != null);
 
-  if (lats.length < 2) return { isFlagged: false };
+  if (points.length < 2) return { isFlagged: false };
 
-  const latDiff = Math.max(...lats) - Math.min(...lats);
-  if (latDiff > FRAUD.DEVICE_FINGERPRINT_MIN_DISTANCE_DEG) {
+  let maxDist = 0;
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      const dist = haversineKm(points[i]!.lat, points[i]!.lng, points[j]!.lat, points[j]!.lng);
+      if (dist > maxDist) maxDist = dist;
+    }
+  }
+
+  const thresholdKm = FRAUD.DEVICE_FINGERPRINT_MIN_DISTANCE_DEG * 111;
+  if (maxDist > thresholdKm) {
     return {
       isFlagged: true,
       reason: `Device fingerprint: same device in ${eventIds.length} distant zones within ${FRAUD.DEVICE_FINGERPRINT_WINDOW_HOURS}h`,
       checkName: 'device_fingerprint',
+      facts: { event_ids: eventIds, window_hours: FRAUD.DEVICE_FINGERPRINT_WINDOW_HOURS },
     };
   }
 
@@ -212,6 +233,11 @@ export async function checkClusterAnomaly(
       isFlagged: true,
       reason: `Cluster anomaly: ${count} claims in <${FRAUD.CLUSTER_ANOMALY_WINDOW_MIN} min for same event`,
       checkName: 'cluster_anomaly',
+      facts: {
+        count: count ?? 0,
+        window_minutes: FRAUD.CLUSTER_ANOMALY_WINDOW_MIN,
+        threshold: FRAUD.CLUSTER_ANOMALY_MIN_CLAIMS,
+      },
     };
   }
 
@@ -239,6 +265,7 @@ export async function checkHistoricalBaseline(
         isFlagged: true,
         reason: `Historical baseline: ${current} claims vs. ${avg.toFixed(1)} avg (${((current / avg) * 100).toFixed(0)}% above baseline)`,
         checkName: 'historical_baseline',
+        facts: { current_claims: current, rolling_avg_claims: avg, multiplier: FRAUD.HISTORICAL_BASELINE_MULTIPLIER },
       };
     }
   } catch {
@@ -302,6 +329,66 @@ export async function checkCrossProfileVelocity(
     }
   } catch {
     // Gracefully degrade
+  }
+
+  return { isFlagged: false };
+}
+
+/**
+ * Payout destination anomalies:
+ * - multiple profiles sharing the same `payment_routing_id`
+ * - unusually high payout volume against that destination in a short window
+ *
+ * This is parametric-specific abuse because payouts are automated and can be targeted
+ * via synthetic accounts sharing a payout destination.
+ */
+export async function checkPayoutDestinationAnomaly(
+  supabase: SupabaseClient,
+  profileId: string,
+): Promise<FraudCheckResult> {
+  try {
+    const { data: p } = await supabase
+      .from('profiles')
+      .select('payment_routing_id')
+      .eq('id', profileId)
+      .single();
+
+    const routingId = (p as { payment_routing_id?: string | null } | null)?.payment_routing_id ?? null;
+    if (!routingId) return { isFlagged: false };
+
+    const { data: peers } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('payment_routing_id', routingId)
+      .limit(25);
+
+    const peerIds = (peers ?? []).map((row) => (row as { id: string }).id).filter(Boolean);
+    const distinctProfiles = new Set(peerIds);
+
+    // If more than one profile shares a payout destination, treat as suspicious enough to hold.
+    if (distinctProfiles.size >= 2) {
+      // Also compute recent payout velocity for the destination for explainability.
+      const windowHours = 24;
+      const windowStart = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('payout_ledger')
+        .select('id', { count: 'exact', head: true })
+        .in('profile_id', [...distinctProfiles])
+        .gte('initiated_at', windowStart);
+
+      return {
+        isFlagged: true,
+        checkName: 'payout_destination_anomaly',
+        reason: 'Payout destination anomaly: multiple riders linked to the same payout destination',
+        facts: {
+          payment_routing_id: routingId,
+          linked_profiles: distinctProfiles.size,
+          payout_count_last_24h: count ?? 0,
+        },
+      };
+    }
+  } catch {
+    // Gracefully degrade (missing columns / RLS / table)
   }
 
   return { isFlagged: false };
@@ -451,6 +538,7 @@ export function checkGpsAccuracy(
       isFlagged: true,
       reason: `GPS accuracy too low: ${accuracy}m (max ${FRAUD.GPS_MAX_ACCURACY_METERS}m)`,
       checkName: 'gps_accuracy',
+      facts: { accuracy_m: accuracy, max_accuracy_m: FRAUD.GPS_MAX_ACCURACY_METERS },
     };
   }
   return { isFlagged: false };
@@ -493,6 +581,7 @@ export async function checkImpossibleTravel(
         isFlagged: true,
         reason: `Impossible travel: ${distKm.toFixed(1)}km in <${FRAUD.IMPOSSIBLE_TRAVEL_MINUTES}min`,
         checkName: 'impossible_travel',
+        facts: { distance_km: Number(distKm.toFixed(2)), threshold_km: FRAUD.IMPOSSIBLE_TRAVEL_KM },
       };
     }
   }

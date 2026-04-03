@@ -5,6 +5,8 @@ import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Users } from 'lucide-react';
 
+const MAX_RIDERS_ROWS = 500;
+
 export default async function AdminRidersPage() {
   const supabase = createAdminClient();
 
@@ -23,7 +25,8 @@ export default async function AdminRidersPage() {
       created_at
     `,
     )
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(MAX_RIDERS_ROWS);
 
   const { data: activePolicies } = await supabase
     .from('weekly_policies')

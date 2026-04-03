@@ -45,49 +45,21 @@ export default async function PlansPage() {
     plans = [];
   }
 
-  const { data: policies } = await supabase
-    .from('weekly_policies')
-    .select('id, plan_id, weekly_premium_inr')
-    .eq('is_active', true)
-    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]);
-
-  const { data: claims } = await supabase
-    .from('parametric_claims')
-    .select('policy_id, payout_amount_inr');
-
-  const policyRows =
-    (policies ?? []) as { plan_id: string | null; weekly_premium_inr: number }[];
-  const claimRows =
-    (claims ?? []) as { policy_id: string; payout_amount_inr: number }[];
-
+  const { data: planFinancialRows } = await supabase.rpc('admin_plan_financials');
   const premiumByPlan = new Map<string, { premium: number; policies: number }>();
-  for (const p of policyRows) {
-    if (!p.plan_id) continue;
-    const bucket = premiumByPlan.get(p.plan_id) ?? {
-      premium: 0,
-      policies: 0,
-    };
-    bucket.premium += Number(p.weekly_premium_inr);
-    bucket.policies += 1;
-    premiumByPlan.set(p.plan_id, bucket);
-  }
-
   const payoutsByPlan = new Map<string, number>();
-  if (policyRows.length > 0 && claimRows.length > 0) {
-    const planByPolicy = new Map<string, string>();
-    (policies ?? []).forEach((p: any) => {
-      if (p.id && p.plan_id) {
-        planByPolicy.set(p.id as string, p.plan_id as string);
-      }
+  for (const row of (planFinancialRows ?? []) as Array<{
+    plan_id: string;
+    active_policies: number;
+    modeled_premium_inr: number;
+    payouts_inr: number;
+  }>) {
+    if (!row.plan_id) continue;
+    premiumByPlan.set(row.plan_id, {
+      premium: Number(row.modeled_premium_inr ?? 0),
+      policies: Number(row.active_policies ?? 0),
     });
-    for (const c of claimRows) {
-      const planId = planByPolicy.get(c.policy_id);
-      if (!planId) continue;
-      payoutsByPlan.set(
-        planId,
-        (payoutsByPlan.get(planId) ?? 0) + Number(c.payout_amount_inr),
-      );
-    }
+    payoutsByPlan.set(row.plan_id, Number(row.payouts_inr ?? 0));
   }
 
   const tiers = plans.length > 0 ? plans.length : 3;

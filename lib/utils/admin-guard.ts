@@ -5,6 +5,7 @@
 
 import { RATE_LIMITS } from '@/lib/config/constants';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, rateLimitKey, sanitizeErrorMessage } from '@/lib/utils/api';
 import { isAdmin } from '@/lib/utils/auth';
 import { getOrCreateRequestId } from '@/lib/logger';
@@ -15,6 +16,7 @@ interface AdminContext {
   user: { id: string; email?: string | null };
   profile: { role?: string | null };
   supabase: Awaited<ReturnType<typeof createClient>>;
+  admin: Awaited<ReturnType<typeof createAdminClient>>;
 }
 
 /**
@@ -65,7 +67,8 @@ export function withAdminAuth(
     }
 
     try {
-      return await handler({ user, profile: profile ?? {}, supabase }, request);
+      const admin = createAdminClient();
+      return await handler({ user, profile: profile ?? {}, supabase, admin }, request);
     } catch (err) {
       const requestId = getOrCreateRequestId(request);
       logger.error('Admin handler error', {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Activity, MapPin, Cloud, Car, Megaphone } from "lucide-react";
@@ -99,7 +99,7 @@ export function RiskRadar() {
   const [events, setEvents] = useState<DisruptionEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetchEvents = async () => {

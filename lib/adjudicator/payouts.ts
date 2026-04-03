@@ -78,7 +78,7 @@ export async function logRun(
   try {
     const { error } = await supabase.from('system_logs').insert({
       event_type: result.is_demo ? 'adjudicator_demo' : 'adjudicator_run',
-      severity: result.error ? 'error' : result.payout_failures ?? result.log_failures ? 'warning' : 'info',
+      severity: result.error ? 'error' : (result.payout_failures || result.log_failures) ? 'warning' : 'info',
       metadata: {
         run_id: runId,
         candidates_found: result.candidates_found,

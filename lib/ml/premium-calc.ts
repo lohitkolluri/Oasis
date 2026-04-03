@@ -10,6 +10,17 @@ import { fetchWithRetry } from '@/lib/utils/retry';
 import { getOpenRouterApiKey, getTomorrowApiKey } from '@/lib/config/env';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+type ZoneGeofence = {
+  lat?: number;
+  lng?: number;
+  radius_km?: number;
+};
+
+export type DisruptionEventForZoneRisk = {
+  event_type?: string | null;
+  geofence_polygon?: ZoneGeofence | null;
+};
+
 /**
  * Month-based seasonal risk multiplier isolating systematic Indian weather volatility.
  * Aligned against historical empirical metrics for major metropolitan areas.
@@ -206,32 +217,11 @@ export async function getSocialRiskFactor(
 
   const { data } = await supabase
     .from('live_disruption_events')
-    .select('id, geofence_polygon')
+    .select('event_type, geofence_polygon')
     .eq('event_type', 'social')
     .gte('created_at', since.toISOString());
 
-  const events = data ?? [];
-  if (events.length === 0) return 0;
-
-  const lat = zoneLatitude ?? DEFAULT_ZONE.lat;
-  const lng = zoneLongitude ?? DEFAULT_ZONE.lng;
-
-  let zoneMatchCount = 0;
-  for (const ev of events) {
-    const gf = ev?.geofence_polygon as
-      | { lat?: number; lng?: number; radius_km?: number }
-      | undefined;
-    if (!gf?.lat || !gf?.lng) {
-      zoneMatchCount++;
-      continue;
-    }
-    if (isWithinCircle(lat, lng, gf.lat, gf.lng, gf.radius_km ?? 10)) {
-      zoneMatchCount++;
-    }
-  }
-
-  // Normalize: 5+ social events in 4 weeks = factor of 1.0
-  return Math.min(1, zoneMatchCount / 5);
+  return getSocialRiskFactorFromEvents(data ?? [], zoneLatitude, zoneLongitude);
 }
 
 /**
@@ -247,30 +237,93 @@ export async function getHistoricalEventCount(
 
   const { data } = await supabase
     .from('live_disruption_events')
-    .select('id, geofence_polygon')
+    .select('event_type, geofence_polygon')
     .gte('created_at', since.toISOString());
 
-  const events = data ?? [];
+  return getHistoricalEventCountFromEvents(data ?? [], zoneLatitude, zoneLongitude);
+}
 
-  // M4 fix: when zone is null, use default zone instead of arbitrary division
+function countZoneMatchedEvents(
+  events: DisruptionEventForZoneRisk[],
+  zoneLatitude?: number | null,
+  zoneLongitude?: number | null,
+  eventType?: string,
+): number {
+  if (events.length === 0) return 0;
+
   const lat = zoneLatitude ?? DEFAULT_ZONE.lat;
   const lng = zoneLongitude ?? DEFAULT_ZONE.lng;
 
   let zoneMatchCount = 0;
-  for (const ev of events) {
-    const gf = ev?.geofence_polygon as
-      | { type?: string; lat?: number; lng?: number; radius_km?: number }
-      | undefined;
-    if (!gf?.lat || !gf?.lng) {
-      // No geofence = citywide event, counts for everyone
+  for (const event of events) {
+    if (eventType && event.event_type !== eventType) continue;
+    const geofence = (event.geofence_polygon ?? undefined) as ZoneGeofence | undefined;
+    if (!geofence?.lat || !geofence?.lng) {
+      // No geofence implies citywide relevance.
       zoneMatchCount++;
       continue;
     }
-    if (isWithinCircle(lat, lng, gf.lat, gf.lng, gf.radius_km ?? 10)) {
+    if (isWithinCircle(lat, lng, geofence.lat, geofence.lng, geofence.radius_km ?? 10)) {
       zoneMatchCount++;
     }
   }
   return zoneMatchCount;
+}
+
+export function getHistoricalEventCountFromEvents(
+  events: DisruptionEventForZoneRisk[],
+  zoneLatitude?: number | null,
+  zoneLongitude?: number | null,
+): number {
+  return countZoneMatchedEvents(events, zoneLatitude, zoneLongitude);
+}
+
+export interface HistoricalEventBreakdown {
+  total: number;
+  heat: number;
+  rain: number;
+  traffic: number;
+  social: number;
+}
+
+export function getHistoricalEventBreakdown(
+  events: DisruptionEventForZoneRisk[],
+  zoneLatitude?: number | null,
+  zoneLongitude?: number | null,
+): HistoricalEventBreakdown {
+  return {
+    total: countZoneMatchedEvents(events, zoneLatitude, zoneLongitude),
+    heat: countZoneMatchedEvents(events, zoneLatitude, zoneLongitude, 'extreme_heat'),
+    rain: countZoneMatchedEvents(events, zoneLatitude, zoneLongitude, 'heavy_rain'),
+    traffic: countZoneMatchedEvents(events, zoneLatitude, zoneLongitude, 'traffic'),
+    social: countZoneMatchedEvents(events, zoneLatitude, zoneLongitude, 'social'),
+  };
+}
+
+export async function getHistoricalEventBreakdownFromDb(
+  supabase: SupabaseClient,
+  zoneLatitude?: number | null,
+  zoneLongitude?: number | null,
+): Promise<HistoricalEventBreakdown> {
+  const since = new Date();
+  since.setDate(since.getDate() - PREMIUM.WEEKS_LOOKBACK * 7);
+
+  const { data } = await supabase
+    .from('live_disruption_events')
+    .select('event_type, geofence_polygon')
+    .gte('created_at', since.toISOString());
+
+  return getHistoricalEventBreakdown(data ?? [], zoneLatitude, zoneLongitude);
+}
+
+export function getSocialRiskFactorFromEvents(
+  events: DisruptionEventForZoneRisk[],
+  zoneLatitude?: number | null,
+  zoneLongitude?: number | null,
+): number {
+  const socialCount = countZoneMatchedEvents(events, zoneLatitude, zoneLongitude, 'social');
+  // Normalize: 5+ social events in 4 weeks = factor of 1.0
+  return Math.min(1, socialCount / 5);
 }
 
 /**
@@ -282,7 +335,6 @@ export async function getForecastRiskFactor(
   lat: number,
   lng: number,
 ): Promise<number> {
-  const key = process.env.TOMORROW_IO_API_KEY;
   const apiKey = getTomorrowApiKey();
   let weatherRisk = 0;
 
@@ -521,7 +573,7 @@ export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngin
   
   // During a Black Swan, we limit exposure to 1 max claim across tiers, 
   // which allows us to offer the massively subsidized 1.5x PayoutFloor safely.
-  const basicClaims = isBlackSwan ? 1 : 1;
+  const basicClaims = 1;
   const standardClaims = isBlackSwan ? 1 : 2;
   const premiumClaims = isBlackSwan ? 1 : 3;
 

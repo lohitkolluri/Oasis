@@ -3,97 +3,57 @@
  * Admin-only. Premiums/loss ratio use the same 30d window as /api/admin/analytics.
  * Fraud "urgent" count = flagged claims still awaiting a decision (admin_review_status IS NULL).
  */
-import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export const GET = withAdminAuth(async (_ctx) => {
   const adminSupabase = createAdminClient();
+  const startedAt = Date.now();
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const since30dDay = since30d.slice(0, 10);
 
-  const [
-    policies30dRes,
-    claims30dRes,
-    fraudPendingRes,
-    recentClaimsRes,
-    eventsRes,
-    reportsRes,
-  ] = await Promise.all([
-    adminSupabase
-      .from('weekly_policies')
-      .select('weekly_premium_inr')
-      .gte('week_start_date', since30dDay)
-      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
-    adminSupabase
-      .from('parametric_claims')
-      .select('payout_amount_inr')
-      .gte('created_at', since30d),
-    adminSupabase
-      .from('parametric_claims')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_flagged', true)
-      .is('admin_review_status', null),
-    adminSupabase
-      .from('parametric_claims')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', since24h),
-    adminSupabase
-      .from('live_disruption_events')
-      .select('event_type, severity_score')
-      .gte('created_at', since24h)
-      .order('created_at', { ascending: false })
-      .limit(50),
-    (async () => {
-      try {
-        return await adminSupabase
-          .from('rider_delivery_reports')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', since24h);
-      } catch {
-        return { data: null, count: 0 };
-      }
-    })(),
-  ]);
+  const metricsRes = await adminSupabase.rpc('admin_window_metrics', {
+    p_since: since30d,
+    p_since_week: since30dDay,
+    p_since24: since24h,
+  });
 
-  const policies30d = policies30dRes.data ?? [];
-  const claims30d = claims30dRes.data ?? [];
-  const fraudPending = fraudPendingRes.count ?? 0;
-  const events = eventsRes.data ?? [];
-  const severeEvents = events.filter(
-    (e: { severity_score: number }) => Number(e.severity_score) >= 8,
-  );
-  const reportsLast24h = reportsRes.count ?? 0;
-  const claimsLast24h = recentClaimsRes.count ?? 0;
+  const metrics = (metricsRes.data?.[0] ?? null) as {
+    total_premium?: number;
+    total_payout?: number;
+    fraud_pending?: number;
+    severe_events_24h?: number;
+    reports_24h?: number;
+    claims_24h?: number;
+    top_trigger?: string;
+    top_trigger_count?: number;
+  } | null;
 
-  const totalPremiums30d = policies30d.reduce(
-    (s: number, p: { weekly_premium_inr: unknown }) => s + Number(p.weekly_premium_inr),
-    0,
-  );
-  const totalPayouts30d = claims30d.reduce(
-    (s: number, c: { payout_amount_inr: unknown }) => s + Number(c.payout_amount_inr),
-    0,
-  );
+  const totalPremiums30d = Number(metrics?.total_premium ?? 0);
+  const totalPayouts30d = Number(metrics?.total_payout ?? 0);
+  const fraudPending = Number(metrics?.fraud_pending ?? 0);
+  const severeEventsCount = Number(metrics?.severe_events_24h ?? 0);
+  const reportsLast24h = Number(metrics?.reports_24h ?? 0);
+  const claimsLast24h = Number(metrics?.claims_24h ?? 0);
+
   const lossRatio =
     totalPremiums30d > 0
       ? ((totalPayouts30d / totalPremiums30d) * 100).toFixed(1)
       : '0';
 
-  const topTriggerEntry = Object.entries(
-    events.reduce<Record<string, number>>((acc, event: { event_type: string }) => {
-      const key = event.event_type || 'unknown';
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {}),
-  ).sort((a, b) => b[1] - a[1])[0];
+  const topTriggerEntry =
+    metrics?.top_trigger && metrics.top_trigger !== 'none'
+      ? [metrics.top_trigger, Number(metrics?.top_trigger_count ?? 0)]
+      : undefined;
 
   const headline =
-    fraudPending > 0 || reportsLast24h > 0 || severeEvents.length > 0
+    fraudPending > 0 || reportsLast24h > 0 || severeEventsCount > 0
       ? 'Action needed'
       : 'Platform stable';
 
@@ -108,9 +68,9 @@ export const GET = withAdminAuth(async (_ctx) => {
       `${reportsLast24h} rider self-report${reportsLast24h === 1 ? '' : 's'} came in over the last 24h`,
     );
   }
-  if (severeEvents.length > 0) {
+  if (severeEventsCount > 0) {
     summaryParts.push(
-      `${severeEvents.length} severe trigger${severeEvents.length === 1 ? '' : 's'} fired today`,
+      `${severeEventsCount} severe trigger${severeEventsCount === 1 ? '' : 's'} fired today`,
     );
   }
   if (summaryParts.length === 0) {
@@ -139,7 +99,7 @@ export const GET = withAdminAuth(async (_ctx) => {
     watchlist.push('Premiums, claims, and trigger activity are within a normal operating range.');
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     headline,
     summary: `${summaryParts.join('. ')}.`,
     priorities: [
@@ -168,13 +128,13 @@ export const GET = withAdminAuth(async (_ctx) => {
       {
         id: 'triggers',
         label: 'Severe Triggers',
-        value: String(severeEvents.length),
+        value: String(severeEventsCount),
         note:
-          severeEvents.length > 0
+          severeEventsCount > 0
             ? 'High-severity disruption events detected today'
             : 'No severe disruptions detected today',
         href: '/admin/triggers',
-        tone: severeEvents.length > 0 ? 'violet' : 'cyan',
+        tone: severeEventsCount > 0 ? 'violet' : 'cyan',
       },
       {
         id: 'claims',
@@ -186,5 +146,17 @@ export const GET = withAdminAuth(async (_ctx) => {
       },
     ],
     watchlist,
+    meta: {
+      durationMs: Date.now() - startedAt,
+    },
   });
+
+  logger.info('Admin insights generated', {
+    durationMs: Date.now() - startedAt,
+    fraudPending,
+    reportsLast24h,
+    severeEventsCount,
+  });
+
+  return response;
 });

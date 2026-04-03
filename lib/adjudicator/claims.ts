@@ -13,6 +13,7 @@ import {
   runAllFraudChecks,
   runExtendedFraudChecks,
 } from '@/lib/fraud/detector';
+import { createAutomatedHold } from '@/lib/fraud/holds';
 import { isWithinCircle } from '@/lib/utils/geo';
 import type {
   ProcessTriggerResult,
@@ -154,14 +155,33 @@ export async function processClaimsForEvent(
 
     if (profile?.phone && paidPhones.has(profile.phone)) continue;
 
-    const { isFlagged } = await runAllFraudChecks(
+    const preClaimCheck = await runAllFraudChecks(
       supabase,
       policyRow.id,
       eventId,
       candidate.type === 'weather' ? candidate.raw : undefined,
       preloadedFraud,
     );
-    if (isFlagged) continue;
+    if (preClaimCheck.isFlagged) {
+      await createAutomatedHold({
+        supabase,
+        stage: 'pre_claim',
+        profileId: policyRow.profile_id,
+        policyId: policyRow.id,
+        disruptionEventId: eventId,
+        reason:
+          preClaimCheck.reason ??
+          'Automated hold: claim creation blocked by abuse signals',
+        checkName: preClaimCheck.checkName ?? 'pre_claim_abuse',
+        facts: {
+          policy_id: policyRow.id,
+          disruption_event_id: eventId,
+          subtype: candidate.subtype ?? null,
+          ...(preClaimCheck.facts ? { check_facts: preClaimCheck.facts } : {}),
+        },
+      });
+      continue;
+    }
 
     const policy = {
       id: policyRow.id,
@@ -181,11 +201,25 @@ export async function processClaimsForEvent(
       isDemo,
     });
 
-    if (created?.skippedReason) {
+    if (!created) {
+      await supabase.from('system_logs').insert({
+        event_type: 'claim_insert_failed',
+        severity: 'error',
+        metadata: {
+          policy_id: policyRow.id,
+          profile_id: policyRow.profile_id,
+          event_id: eventId,
+          payout_amount_inr: payoutAmount,
+        },
+      });
       continue;
     }
 
-    if (created?.claim) {
+    if (created.skippedReason) {
+      continue;
+    }
+
+    if (created.claim) {
       claimsCreated++;
       if (profile?.phone) paidPhones.add(profile.phone);
       await runExtendedFraudChecks(
@@ -238,7 +272,18 @@ export async function processClaimsForEvent(
   }
 
   if (pendingNotifications.length > 0) {
-    await supabase.from('rider_notifications').insert(pendingNotifications).then(() => {}, () => {});
+    const { error: notifErr } = await supabase.from('rider_notifications').insert(pendingNotifications);
+    if (notifErr) {
+      await supabase.from('system_logs').insert({
+        event_type: 'notification_insert_failed',
+        severity: 'warning',
+        metadata: {
+          event_id: eventId,
+          count: pendingNotifications.length,
+          error: notifErr.message,
+        },
+      }).then(() => {}, () => {});
+    }
   }
 
   return {

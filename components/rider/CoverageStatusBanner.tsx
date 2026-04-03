@@ -20,15 +20,22 @@ function formatShortDate(d: string) {
 }
 
 export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerProps) {
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number } | null>(() =>
-    policy ? getCoverageTimeRemainingParts(policy.week_end_date) : null,
-  );
+  const [hydrated, setHydrated] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number } | null>(null);
+  const [progress, setProgress] = useState<number>(0);
 
   useEffect(() => {
     if (!policy) return;
+    setHydrated(true);
     setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
+    setProgress(
+      getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date),
+    );
     const interval = setInterval(() => {
       setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
+      setProgress(
+        getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date),
+      );
     }, 60000);
     return () => clearInterval(interval);
   }, [policy]);
@@ -66,11 +73,8 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
     );
   }
 
-  const progress = getCoverageWeekProgressPercent(
-    policy.week_start_date,
-    policy.week_end_date,
-  );
-  const remaining = timeLeft ?? getCoverageTimeRemainingParts(policy.week_end_date);
+  const remaining =
+    timeLeft ?? (hydrated ? getCoverageTimeRemainingParts(policy.week_end_date) : { days: 0, hours: 0 });
   const totalHoursLeft = remaining.days * 24 + remaining.hours;
   const isExpiringSoon = totalHoursLeft > 0 && totalHoursLeft <= 48;
 
@@ -175,15 +179,16 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
           <div
             className="h-full rounded-full transition-all duration-700 ease-out progress-fill"
             style={{
-              width: `${progress}%`,
-              background: isExpiringSoon
+              width: `${(hydrated ? progress : 0).toFixed(6)}%`,
+              backgroundColor: isExpiringSoon ? undefined : '#3AA76D',
+              backgroundImage: isExpiringSoon
                 ? 'linear-gradient(90deg, #3AA76D 0%, #FFC043 100%)'
-                : '#3AA76D',
+                : undefined,
             }}
           />
         </div>
         <span className="absolute right-0 -top-4 text-[10px] tabular-nums text-zinc-500 font-medium">
-          {Math.round(progress)}%
+          {Math.round(hydrated ? progress : 0)}%
         </span>
       </div>
     </div>

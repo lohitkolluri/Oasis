@@ -1,27 +1,19 @@
 -- ============================================================
 -- Seed Demo Data for Oasis Parametric Insurance Platform
 --
--- Demo-ready data for loss ratio, analytics, and full flows:
---   - 5 riders across Indian metros (current + previous + two-weeks-ago policies)
---   - Admin analytics: premiums = sum of weekly_policies where week_start_date is in the dashboard window;
---     claims = parametric_claims in that window. After seed, headline loss ratio is ~45–50% (green); current-week ~70%.
---   - Fraud queue: 3 flagged, all reviewed (no pending — admin insights stay green)
---   - Disruption events (all trigger subtypes), claim verifications, payouts
---   - Notifications, premium recommendations, payment transactions, self-reports
+-- Product scope (must match app rulebook):
+--   Loss-of-income only when external disruptions (weather, zone restrictions,
+--   traffic halts) block Q-commerce work — not health, accident, or vehicle repair.
+--   Premiums are weekly on IST Monday–Sunday weeks (see lib/datetime/ist.ts).
 --
--- How to run:
---   Supabase Dashboard → SQL Editor → paste this file → Run
+-- Contents: five demo riders, three IST weeks of policies, disruption events,
+-- claims (including fraud-review samples), verifications, payouts, notifications.
 --
--- Real riders (your own signups) are NOT in this file — they keep random UUIDs.
--- To align geofence JSON + Razorpay refs with the demo shape, run after edits:
---   scripts/sync-non-seed-rider-accounts.sql
+-- Run: Supabase Dashboard → SQL Editor → paste → Run
+-- Optional: scripts/sync-non-seed-rider-accounts.sql after edits
 --
--- Demo logins (email / password):
---   rahul.demo@oasis.app  / Demo@1234  (Bangalore, Standard)
---   priya.demo@oasis.app  / Demo@1234  (Mumbai, Premium)
---   amit.demo@oasis.app   / Demo@1234  (Delhi, Basic)
---   sneha.demo@oasis.app  / Demo@1234  (Hyderabad, Standard)
---   vijay.demo@oasis.app  / Demo@1234  (Chennai, Premium)
+-- Logins (password Demo@1234): rahul.demo@oasis.app … vijay.demo@oasis.app;
+--   admin.demo@oasis.app (admin console)
 -- ============================================================
 
 DO $$
@@ -73,13 +65,13 @@ DECLARE
   cl2 UUID := 'c2020202-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   cl3 UUID := 'c3030303-cccc-4ccc-8ccc-cccccccccccc';
   cl4 UUID := 'c4040404-dddd-4ddd-8ddd-dddddddddddd';
-  cl_flag UUID := 'c5050505-eeee-4eee-8eee-eeeeeeeeeeee'; -- fraud: rapid triggers (pending review)
-  cl_fraud_gps UUID := 'c6060606-1111-4111-8111-111111111111'; -- fraud: GPS / zone mismatch (pending review)
+  cl_flag UUID := 'c5050505-eeee-4eee-8eee-eeeeeeeeeeee'; -- fraud: rapid triggers → admin rejected
+  cl_fraud_gps UUID := 'c6060606-1111-4111-8111-111111111111'; -- fraud: GPS / zone mismatch → admin rejected
   cl_pw1 UUID := 'd1010101-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   cl_pw2 UUID := 'd2020202-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-  cl_rejected UUID := 'd3030303-cccc-4ccc-8ccc-cccccccccccc'; -- fraud: device fingerprint (reviewed → rejected)
-  cl_r4_paid UUID := 'c7070707-aaaa-4aaa-8aaa-aaaaaaaaaaaa'; -- Sneha: paid (wallet was empty)
-  cl_r5_paid UUID := 'c8080808-bbbb-4bbb-8bbb-bbbbbbbbbbbb'; -- Vijay: paid (wallet was empty)
+  cl_rejected UUID := 'd3030303-cccc-4ccc-8ccc-cccccccccccc'; -- fraud: device fingerprint → admin rejected
+  cl_r4_paid UUID := 'c7070707-aaaa-4aaa-8aaa-aaaaaaaaaaaa'; -- r4 Sneha: separate paid claim (heavy rain)
+  cl_r5_paid UUID := 'c8080808-bbbb-4bbb-8bbb-bbbbbbbbbbbb'; -- r5 Vijay: separate paid claim (heavy rain)
 
   -- Claim verification UUIDs (schema has no unique on claim_id/profile_id)
   cv1 UUID := 'aa111111-0000-4000-8000-000000000001';
@@ -102,24 +94,35 @@ DECLARE
   plan_standard UUID;
   plan_premium  UUID;
 
-  -- Dynamic dates
-  ws  DATE := date_trunc('week', NOW())::DATE;
+  -- Dynamic dates (ws set in BEGIN using IST)
+  ws  DATE;
   we  DATE;
   pw_start DATE;
   pw_end   DATE;
   tw_start DATE;
   tw_end   DATE;
 
+  -- Midnight IST at each week_start_date (ws_ist / pw_ist / tw_ist — not date::timestamptz = UTC midnight)
+  ws_ist  TIMESTAMPTZ;
+  pw_ist  TIMESTAMPTZ;
+  tw_ist  TIMESTAMPTZ;
+
   hashed_pw TEXT;
 BEGIN
+  -- IST policy week (Mon–Sun): matches app helpers in lib/datetime/ist.ts
+  ws := (date_trunc('week', (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp))::date;
   we := ws + 6;
   pw_start := ws - 7;
   pw_end := ws - 1;
   tw_start := ws - 14;
   tw_end := ws - 8;
+  ws_ist := (ws::timestamp AT TIME ZONE 'Asia/Kolkata');
+  pw_ist := (pw_start::timestamp AT TIME ZONE 'Asia/Kolkata');
+  tw_ist := (tw_start::timestamp AT TIME ZONE 'Asia/Kolkata');
   hashed_pw := crypt('Demo@1234', gen_salt('bf'));
 
   -- ─── Clean up previous demo data (safe re-run) ───────────
+  DELETE FROM automated_holds        WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM claim_verifications    WHERE id IN (cv1, cv2, cv3, cv_pw1, cv_pw2, cv4, cv5);
   DELETE FROM rider_notifications    WHERE profile_id IN (r1, r2, r3, r4, r5);
   DELETE FROM payout_ledger          WHERE profile_id IN (r1, r2, r3, r4, r5);
@@ -137,13 +140,20 @@ BEGIN
   DELETE FROM profiles               WHERE id IN (r1, r2, r3, r4, r5);
   DELETE FROM profiles               WHERE id IN (admin1);
 
-  -- ─── Ensure plan packages exist ───────────────────────────
+  -- ─── Ensure plan packages exist (weekly loss-of-income caps; parametric triggers only) ──
   INSERT INTO plan_packages (slug, name, description, weekly_premium_inr, payout_per_claim_inr, max_claims_per_week, sort_order)
   VALUES
-    ('basic',    'Basic',    'Covers fuel & food costs on disrupted days — your minimum safety net',    49,  300,  1, 1),
-    ('standard', 'Standard', 'Replaces ~70% of a lost day''s income — the most popular plan',          99,  700,  2, 2),
-    ('premium',  'Premium',  'Full income replacement + expenses for high-risk zones',                 199, 1500, 3, 3)
-  ON CONFLICT (slug) DO NOTHING;
+    ('basic',    'Basic',    'Weekly cover for lost delivery income when your zone is disrupted — capped parametric payouts per week.',    49,  300,  1, 1),
+    ('standard', 'Standard', 'Higher per-claim replacement for income lost to weather, closures, or gridlock — best fit for most riders.',  99,  700,  2, 2),
+    ('premium',  'Premium',  'Maximum weekly protection for high-disruption zones; income replacement only (not medical or vehicle damage).', 199, 1500, 3, 3)
+  ON CONFLICT (slug) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    weekly_premium_inr = EXCLUDED.weekly_premium_inr,
+    payout_per_claim_inr = EXCLUDED.payout_per_claim_inr,
+    max_claims_per_week = EXCLUDED.max_claims_per_week,
+    sort_order = EXCLUDED.sort_order,
+    updated_at = NOW();
 
   SELECT id INTO plan_basic    FROM plan_packages WHERE slug = 'basic';
   SELECT id INTO plan_standard FROM plan_packages WHERE slug = 'standard';
@@ -206,11 +216,11 @@ BEGIN
      NOW() - interval '2 days'),
     (ev_rain_m, 'weather', 'heavy_rain', 9.0,
      '{"type":"circle","lat":19.1136,"lng":72.8697,"radius_km":15}',
-     false, '{"trigger":"heavy_rain","source":"open_meteo","precipitationIntensity":12.5,"humidity":95}',
+     false, '{"trigger":"heavy_rain","source":"tomorrow_io","precip_mm":12.5,"humidity":95}',
      NOW() - interval '1 day'),
     (ev_aqi, 'weather', 'severe_aqi', 7.5,
      '{"type":"circle","lat":28.6315,"lng":77.2167,"radius_km":20}',
-     false, '{"trigger":"severe_aqi","source":"waqi","current_aqi":312,"adaptive_threshold":201}',
+     false, '{"trigger":"severe_aqi","source":"waqi_ground_station","aqi":312,"adaptive_threshold":201}',
      NOW() - interval '3 days'),
     (ev_traffic, 'traffic', 'traffic_gridlock', 8.0,
      '{"type":"circle","lat":12.9352,"lng":77.6245,"radius_km":15}',
@@ -218,11 +228,11 @@ BEGIN
      NOW() - interval '5 hours'),
     (ev_curfew, 'social', 'zone_curfew', 9.0,
      '{"type":"circle","lat":17.4483,"lng":78.3915,"radius_km":20}',
-     true, '{"trigger":"zone_curfew","source":"newsdata_llm","articles":[{"title":"Telangana bandh: shops shut in Hyderabad"}]}',
+     true, '{"trigger":"zone_curfew","source":"newsdata_openrouter","articles":[{"title":"Telangana bandh: shops shut in Hyderabad"}]}',
      NOW() - interval '4 days'),
     (ev_rain_c, 'weather', 'heavy_rain', 8.0,
      '{"type":"circle","lat":13.0418,"lng":80.2341,"radius_km":15}',
-     false, '{"trigger":"heavy_rain","source":"open_meteo","precipitationIntensity":8.3,"humidity":92}',
+     false, '{"trigger":"heavy_rain","source":"tomorrow_io","precip_mm":8.3,"humidity":92}',
      NOW() - interval '3 hours'),
     (ev_heat2, 'weather', 'extreme_heat', 7.0,
      '{"type":"circle","lat":28.6315,"lng":77.2167,"radius_km":15}',
@@ -230,19 +240,19 @@ BEGIN
      NOW() - interval '9 days'),
     (ev_rain_pw, 'weather', 'heavy_rain', 8.5,
      '{"type":"circle","lat":19.1136,"lng":72.8697,"radius_km":15}',
-     false, '{"trigger":"heavy_rain","source":"open_meteo","precipitationIntensity":10.2}',
-     pw_start::timestamptz + interval '4 days'),
+     false, '{"trigger":"heavy_rain","source":"tomorrow_io","precip_mm":10.2}',
+     pw_ist + interval '4 days'),
     (ev_aqi_pw, 'weather', 'severe_aqi', 7.0,
      '{"type":"circle","lat":28.6315,"lng":77.2167,"radius_km":20}',
-     false, '{"trigger":"severe_aqi","source":"waqi","current_aqi":288}',
-     pw_start::timestamptz + interval '2 days'),
+     false, '{"trigger":"severe_aqi","source":"waqi_ground_station","aqi":288}',
+     pw_ist + interval '2 days'),
     (ev_restrict, 'social', 'local_restriction', 8.2,
      '{"type":"circle","lat":12.9352,"lng":77.6245,"radius_km":12}',
-     true, '{"trigger":"local_restriction","source":"newsdata_llm","summary":"Local restriction announced in zone"}',
+     true, '{"trigger":"local_restriction","source":"newsdata_openrouter","summary":"Local restriction announced in zone"}',
      NOW() - interval '12 hours'),
     (ev_live1, 'weather', 'heavy_rain', 7.8,
      '{"type":"circle","lat":12.97,"lng":77.59,"radius_km":10}',
-     false, '{"trigger":"heavy_rain","source":"open_meteo","precipitationIntensity":6.2,"demo":"last24h"}',
+     false, '{"trigger":"heavy_rain","source":"tomorrow_io","precip_mm":6.2,"demo":"last24h"}',
      NOW() - interval '5 hours'),
     (ev_live2, 'traffic', 'traffic_gridlock', 7.5,
      '{"type":"circle","lat":19.11,"lng":72.87,"radius_km":8}',
@@ -254,29 +264,29 @@ BEGIN
      NOW() - interval '2 hours'),
     (ev_hyd, 'weather', 'heavy_rain', 7.8,
      '{"type":"circle","lat":17.4483,"lng":78.3915,"radius_km":12}',
-     false, '{"trigger":"heavy_rain","source":"open_meteo","seed":"wallet_demo_r4"}',
+     false, '{"trigger":"heavy_rain","source":"tomorrow_io","precip_mm":7.1,"seed":"wallet_demo_r4"}',
      NOW() - interval '8 hours')
   ON CONFLICT (id) DO NOTHING;
 
-  -- ─── Weekly Policies: current week + previous week ───────
-  -- Current week: 5 riders, total premium 645. Target loss ratio ~70% → payouts ~452.
+  -- ─── Weekly Policies: current + previous + two weeks ago ─
+  -- Current IST week: five riders, total weekly premium ₹645 (paid).
   INSERT INTO weekly_policies (id, profile_id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, payment_status, created_at)
   VALUES
-    (pol1, r1, plan_standard, ws, we,  99, true,  'paid', ws::timestamptz),
-    (pol2, r2, plan_premium,  ws, we, 199, true,  'paid', ws::timestamptz),
-    (pol3, r3, plan_basic,    ws, we,  49, true,  'paid', ws::timestamptz),
-    (pol4, r4, plan_standard, ws, we,  99, true,  'paid', ws::timestamptz),
-    (pol5, r5, plan_premium,  ws, we, 199, true,  'paid', ws::timestamptz),
-    (pol_pw1, r1, plan_standard, pw_start, pw_end,  99, false, 'paid', pw_start::timestamptz),
-    (pol_pw2, r2, plan_premium,  pw_start, pw_end, 199, false, 'paid', pw_start::timestamptz),
-    (pol_pw3, r3, plan_basic,    pw_start, pw_end,  49, false, 'paid', pw_start::timestamptz),
-    (pol_pw4, r4, plan_standard, pw_start, pw_end,  99, false, 'paid', pw_start::timestamptz),
-    (pol_pw5, r5, plan_premium,  pw_start, pw_end, 199, false, 'paid', pw_start::timestamptz),
-    (pol_tw1, r1, plan_basic,    tw_start, tw_end,  52, false, 'paid', tw_start::timestamptz),
-    (pol_tw2, r2, plan_standard, tw_start, tw_end, 105, false, 'paid', tw_start::timestamptz),
-    (pol_tw3, r3, plan_basic,    tw_start, tw_end,  52, false, 'paid', tw_start::timestamptz),
-    (pol_tw4, r4, plan_standard, tw_start, tw_end, 105, false, 'paid', tw_start::timestamptz),
-    (pol_tw5, r5, plan_premium,  tw_start, tw_end, 210, false, 'paid', tw_start::timestamptz)
+    (pol1, r1, plan_standard, ws, we,  99, true,  'paid', ws_ist),
+    (pol2, r2, plan_premium,  ws, we, 199, true,  'paid', ws_ist),
+    (pol3, r3, plan_basic,    ws, we,  49, true,  'paid', ws_ist),
+    (pol4, r4, plan_standard, ws, we,  99, true,  'paid', ws_ist),
+    (pol5, r5, plan_premium,  ws, we, 199, true,  'paid', ws_ist),
+    (pol_pw1, r1, plan_standard, pw_start, pw_end,  99, false, 'paid', pw_ist),
+    (pol_pw2, r2, plan_premium,  pw_start, pw_end, 199, false, 'paid', pw_ist),
+    (pol_pw3, r3, plan_basic,    pw_start, pw_end,  49, false, 'paid', pw_ist),
+    (pol_pw4, r4, plan_standard, pw_start, pw_end,  99, false, 'paid', pw_ist),
+    (pol_pw5, r5, plan_premium,  pw_start, pw_end, 199, false, 'paid', pw_ist),
+    (pol_tw1, r1, plan_basic,    tw_start, tw_end,  52, false, 'paid', tw_ist),
+    (pol_tw2, r2, plan_standard, tw_start, tw_end, 105, false, 'paid', tw_ist),
+    (pol_tw3, r3, plan_basic,    tw_start, tw_end,  52, false, 'paid', tw_ist),
+    (pol_tw4, r4, plan_standard, tw_start, tw_end, 105, false, 'paid', tw_ist),
+    (pol_tw5, r5, plan_premium,  tw_start, tw_end, 210, false, 'paid', tw_ist)
   ON CONFLICT (id) DO NOTHING;
 
   -- ─── Plan pricing snapshots (last 3 weeks) ────────────────
@@ -297,8 +307,8 @@ BEGIN
     source = EXCLUDED.source;
 
   -- ─── Parametric Claims ───────────────────────────────────
-  -- Paid + normal pending + fraud-queue examples: 2 flagged pending + 1 flagged reviewed.
-  -- Previous week: 2 paid. Loss ratio ~65–72%% vs premiums.
+  -- Paid samples + cl4 (pending location verify) + three flagged (UPDATE sets admin_review_status rejected).
+  -- Payout amounts respect plan caps (Basic ₹300 / Standard ₹700 / Premium ₹1500 per claim).
   INSERT INTO parametric_claims (id, policy_id, disruption_event_id, payout_amount_inr, status, is_flagged, flag_reason, gateway_transaction_id, created_at)
   VALUES
     (cl1, pol1, ev_traffic, 200, 'paid', false, NULL,
@@ -322,10 +332,10 @@ BEGIN
      NOW() - interval '2 hours'),
     (cl_pw1, pol_pw2, ev_rain_pw, 250, 'paid', false, NULL,
      'oasis_verify_pw_' || extract(epoch from NOW())::bigint || '_1',
-     pw_start::timestamptz + interval '5 days'),
+     pw_ist + interval '5 days'),
     (cl_pw2, pol_pw3, ev_aqi_pw, 169, 'paid', false, NULL,
      'oasis_verify_pw_' || extract(epoch from NOW())::bigint || '_2',
-     pw_start::timestamptz + interval '3 days'),
+     pw_ist + interval '3 days'),
     (cl_rejected, pol5, ev_restrict, 0, 'triggered', true,
      'Device fingerprint mismatch: claim submitted from unrecognized handset vs last verified device',
      NULL,
@@ -352,8 +362,8 @@ BEGIN
     (cv1, cl1, r1, 12.9360, 77.6250, NOW() - interval '4 hours 50 minutes', 'inside_geofence', true, NOW() - interval '4 hours 50 minutes'),
     (cv2, cl2, r2, 19.1140, 72.8700, NOW() - interval '21 hours', 'inside_geofence', true, NOW() - interval '21 hours'),
     (cv3, cl3, r3, 28.6320, 77.2170, NOW() - interval '45 hours', 'inside_geofence', true, NOW() - interval '45 hours'),
-    (cv_pw1, cl_pw1, r2, 19.1140, 72.8700, pw_start::timestamptz + interval '5 days 1 hour', 'inside_geofence', true, pw_start::timestamptz + interval '5 days 1 hour'),
-    (cv_pw2, cl_pw2, r3, 28.6320, 77.2170, pw_start::timestamptz + interval '3 days 2 hours', 'inside_geofence', true, pw_start::timestamptz + interval '3 days 2 hours'),
+    (cv_pw1, cl_pw1, r2, 19.1140, 72.8700, pw_ist + interval '5 days 1 hour', 'inside_geofence', true, pw_ist + interval '5 days 1 hour'),
+    (cv_pw2, cl_pw2, r3, 28.6320, 77.2170, pw_ist + interval '3 days 2 hours', 'inside_geofence', true, pw_ist + interval '3 days 2 hours'),
     (cv4, cl_r4_paid, r4, 17.4490, 78.3920, NOW() - interval '1 hour 55 minutes', 'inside_geofence', true, NOW() - interval '1 hour 55 minutes'),
     (cv5, cl_r5_paid, r5, 13.0420, 80.2340, NOW() - interval '1 hour 25 minutes', 'inside_geofence', true, NOW() - interval '1 hour 25 minutes')
   ON CONFLICT (id) DO NOTHING;
@@ -364,11 +374,10 @@ BEGIN
     (cl1, r1, 200, 'upi_instant', 'completed', 'UPI/OAS/' || to_char(NOW(), 'YYYYMMDD') || '/R1001', NOW() - interval '4 hours 48 minutes', NOW() - interval '4 hours 47 minutes', '{"source":"auto_adjudicator"}'),
     (cl2, r2, 152, 'upi_instant', 'completed', 'UPI/OAS/' || to_char(NOW(), 'YYYYMMDD') || '/R2001', NOW() - interval '20 hours 55 minutes', NOW() - interval '20 hours 54 minutes', '{"source":"auto_adjudicator"}'),
     (cl3, r3, 100, 'upi_instant', 'completed', 'UPI/OAS/' || to_char(NOW(), 'YYYYMMDD') || '/R3001', NOW() - interval '44 hours 55 minutes', NOW() - interval '44 hours 54 minutes', '{"source":"auto_adjudicator"}'),
-    (cl_pw1, r2, 250, 'upi_instant', 'completed', 'UPI/OAS/PW/R2001', pw_start::timestamptz + interval '5 days', pw_start::timestamptz + interval '5 days 30 minutes', '{"source":"auto_adjudicator"}'),
-    (cl_pw2, r3, 169, 'upi_instant', 'completed', 'UPI/OAS/PW/R3001', pw_start::timestamptz + interval '3 days 1 hour', pw_start::timestamptz + interval '3 days 2 hours', '{"source":"auto_adjudicator"}'),
+    (cl_pw1, r2, 250, 'upi_instant', 'completed', 'UPI/OAS/PW/R2001', pw_ist + interval '5 days', pw_ist + interval '5 days 30 minutes', '{"source":"auto_adjudicator"}'),
+    (cl_pw2, r3, 169, 'upi_instant', 'completed', 'UPI/OAS/PW/R3001', pw_ist + interval '3 days 1 hour', pw_ist + interval '3 days 2 hours', '{"source":"auto_adjudicator"}'),
     (cl_r4_paid, r4, 150, 'upi_instant', 'completed', 'UPI/OAS/' || to_char(NOW(), 'YYYYMMDD') || '/R4001', NOW() - interval '1 hour 50 minutes', NOW() - interval '1 hour 49 minutes', '{"source":"auto_adjudicator"}'),
-    (cl_r5_paid, r5, 150, 'upi_instant', 'completed', 'UPI/OAS/' || to_char(NOW(), 'YYYYMMDD') || '/R5001', NOW() - interval '1 hour 20 minutes', NOW() - interval '1 hour 19 minutes', '{"source":"auto_adjudicator"}')
-  ON CONFLICT DO NOTHING;
+    (cl_r5_paid, r5, 150, 'upi_instant', 'completed', 'UPI/OAS/' || to_char(NOW(), 'YYYYMMDD') || '/R5001', NOW() - interval '1 hour 20 minutes', NOW() - interval '1 hour 19 minutes', '{"source":"auto_adjudicator"}');
 
   -- ─── Premium Recommendations (next week) ─────────────────
   INSERT INTO premium_recommendations (id, profile_id, week_start_date, recommended_premium_inr, historical_event_count, forecast_risk_factor, created_at)
@@ -386,11 +395,11 @@ BEGIN
     (r1, 'Claim paid — ₹200 credited', 'Traffic gridlock in your zone. Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl1, 'amount_inr', 200, 'subtype', 'traffic_gridlock'), NOW() - interval '4 hours 47 minutes'),
     (r2, 'Claim paid — ₹152 credited', 'Heavy rain in your zone. Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl2, 'amount_inr', 152, 'subtype', 'heavy_rain'), NOW() - interval '20 hours 54 minutes'),
     (r3, 'Claim paid — ₹100 credited', 'Extreme heat in your zone. Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl3, 'amount_inr', 100, 'subtype', 'extreme_heat'), NOW() - interval '44 hours 54 minutes'),
-    (r4, 'Claim created — verify location', 'Zone curfew in your zone. Verify your location within 48h to receive payout.', 'payout', jsonb_build_object('claim_id', cl4, 'amount_inr', 700, 'subtype', 'zone_curfew'), NOW() - interval '10 hours'),
+    (r4, 'Claim created — verify location', 'Bandh / curfew affecting your zone. Verify inside your insured geofence within 48h to qualify for up to ₹700 (Standard cap).', 'payout', jsonb_build_object('claim_id', cl4, 'amount_inr', 700, 'subtype', 'zone_curfew'), NOW() - interval '10 hours'),
     (r2, 'Claim held for review', 'Unusual activity detected on your account. Our team is reviewing before payout.', 'payout', jsonb_build_object('claim_id', cl_flag, 'amount_inr', 0, 'subtype', 'fraud_hold'), NOW() - interval '50 minutes'),
     (r3, 'Location check required', 'We could not verify your GPS inside the insured zone. Open the app to resubmit.', 'payout', jsonb_build_object('claim_id', cl_fraud_gps, 'amount_inr', 0, 'subtype', 'gps_mismatch'), NOW() - interval '1 hour 55 minutes'),
-    (r2, 'Claim paid — ₹250 credited', 'Heavy rain (last week). Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl_pw1, 'amount_inr', 250), pw_start::timestamptz + interval '5 days'),
-    (r3, 'Claim paid — ₹169 credited', 'Severe AQI (last week). Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl_pw2, 'amount_inr', 169), pw_start::timestamptz + interval '3 days 2 hours'),
+    (r2, 'Claim paid — ₹250 credited', 'Heavy rain (last week). Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl_pw1, 'amount_inr', 250), pw_ist + interval '5 days'),
+    (r3, 'Claim paid — ₹169 credited', 'Severe AQI (last week). Payout credited to your wallet.', 'payout', jsonb_build_object('claim_id', cl_pw2, 'amount_inr', 169), pw_ist + interval '3 days 2 hours'),
     (r1, 'Welcome to Oasis!', 'Your income protection is active. We''ll auto-detect disruptions and pay you instantly.', 'system', '{}', NOW() - interval '30 days'),
     (r2, 'Welcome to Oasis!', 'Your income protection is active. We''ll auto-detect disruptions and pay you instantly.', 'system', '{}', NOW() - interval '28 days'),
     (r3, 'Welcome to Oasis!', 'Your income protection is active. We''ll auto-detect disruptions and pay you instantly.', 'system', '{}', NOW() - interval '25 days'),
@@ -413,16 +422,16 @@ BEGIN
   -- ─── Payment Transactions (Razorpay-shaped IDs for admin Payment Logs) ─
   INSERT INTO payment_transactions (id, profile_id, weekly_policy_id, amount_inr, status, razorpay_order_id, razorpay_payment_id, razorpay_payment_method, paid_at, created_at)
   VALUES
-    (gen_random_uuid(), r1, pol1,  99, 'paid', 'order_DemoR1Ws' || substring(md5('r1'||ws::text) from 1 for 8), 'pay_DemoR1Ws' || substring(md5('r1p'||ws::text) from 1 for 8), 'upi', ws::timestamptz + interval '1 hour', ws::timestamptz + interval '1 hour'),
-    (gen_random_uuid(), r2, pol2, 199, 'paid', 'order_DemoR2Ws' || substring(md5('r2'||ws::text) from 1 for 8), 'pay_DemoR2Ws' || substring(md5('r2p'||ws::text) from 1 for 8), 'card', ws::timestamptz + interval '2 hours', ws::timestamptz + interval '2 hours'),
-    (gen_random_uuid(), r3, pol3,  49, 'paid', 'order_DemoR3Ws' || substring(md5('r3'||ws::text) from 1 for 8), 'pay_DemoR3Ws' || substring(md5('r3p'||ws::text) from 1 for 8), 'upi', ws::timestamptz + interval '3 hours', ws::timestamptz + interval '3 hours'),
-    (gen_random_uuid(), r4, pol4,  99, 'paid', 'order_DemoR4Ws' || substring(md5('r4'||ws::text) from 1 for 8), 'pay_DemoR4Ws' || substring(md5('r4p'||ws::text) from 1 for 8), 'upi', ws::timestamptz + interval '4 hours', ws::timestamptz + interval '4 hours'),
-    (gen_random_uuid(), r5, pol5, 199, 'paid', 'order_DemoR5Ws' || substring(md5('r5'||ws::text) from 1 for 8), 'pay_DemoR5Ws' || substring(md5('r5p'||ws::text) from 1 for 8), 'card', ws::timestamptz + interval '5 hours', ws::timestamptz + interval '5 hours'),
-    (gen_random_uuid(), r1, pol_pw1,  99, 'paid', 'order_DemoR1Pw', 'pay_DemoR1Pw', 'upi', pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day'),
-    (gen_random_uuid(), r2, pol_pw2, 199, 'paid', 'order_DemoR2Pw', 'pay_DemoR2Pw', 'upi', pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day'),
-    (gen_random_uuid(), r3, pol_pw3,  49, 'paid', 'order_DemoR3Pw', 'pay_DemoR3Pw', 'card', pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day'),
-    (gen_random_uuid(), r4, pol_pw4,  99, 'paid', 'order_DemoR4Pw', 'pay_DemoR4Pw', 'upi', pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day'),
-    (gen_random_uuid(), r5, pol_pw5, 199, 'paid', 'order_DemoR5Pw', 'pay_DemoR5Pw', 'card', pw_start::timestamptz + interval '1 day', pw_start::timestamptz + interval '1 day')
+    (gen_random_uuid(), r1, pol1,  99, 'paid', 'order_DemoR1Ws' || substring(md5('r1'||ws::text) from 1 for 8), 'pay_DemoR1Ws' || substring(md5('r1p'||ws::text) from 1 for 8), 'upi', ws_ist + interval '1 hour', ws_ist + interval '1 hour'),
+    (gen_random_uuid(), r2, pol2, 199, 'paid', 'order_DemoR2Ws' || substring(md5('r2'||ws::text) from 1 for 8), 'pay_DemoR2Ws' || substring(md5('r2p'||ws::text) from 1 for 8), 'card', ws_ist + interval '2 hours', ws_ist + interval '2 hours'),
+    (gen_random_uuid(), r3, pol3,  49, 'paid', 'order_DemoR3Ws' || substring(md5('r3'||ws::text) from 1 for 8), 'pay_DemoR3Ws' || substring(md5('r3p'||ws::text) from 1 for 8), 'upi', ws_ist + interval '3 hours', ws_ist + interval '3 hours'),
+    (gen_random_uuid(), r4, pol4,  99, 'paid', 'order_DemoR4Ws' || substring(md5('r4'||ws::text) from 1 for 8), 'pay_DemoR4Ws' || substring(md5('r4p'||ws::text) from 1 for 8), 'upi', ws_ist + interval '4 hours', ws_ist + interval '4 hours'),
+    (gen_random_uuid(), r5, pol5, 199, 'paid', 'order_DemoR5Ws' || substring(md5('r5'||ws::text) from 1 for 8), 'pay_DemoR5Ws' || substring(md5('r5p'||ws::text) from 1 for 8), 'card', ws_ist + interval '5 hours', ws_ist + interval '5 hours'),
+    (gen_random_uuid(), r1, pol_pw1,  99, 'paid', 'order_DemoR1Pw', 'pay_DemoR1Pw', 'upi', pw_ist + interval '1 day', pw_ist + interval '1 day'),
+    (gen_random_uuid(), r2, pol_pw2, 199, 'paid', 'order_DemoR2Pw', 'pay_DemoR2Pw', 'upi', pw_ist + interval '1 day', pw_ist + interval '1 day'),
+    (gen_random_uuid(), r3, pol_pw3,  49, 'paid', 'order_DemoR3Pw', 'pay_DemoR3Pw', 'card', pw_ist + interval '1 day', pw_ist + interval '1 day'),
+    (gen_random_uuid(), r4, pol_pw4,  99, 'paid', 'order_DemoR4Pw', 'pay_DemoR4Pw', 'upi', pw_ist + interval '1 day', pw_ist + interval '1 day'),
+    (gen_random_uuid(), r5, pol_pw5, 199, 'paid', 'order_DemoR5Pw', 'pay_DemoR5Pw', 'card', pw_ist + interval '1 day', pw_ist + interval '1 day')
   ON CONFLICT DO NOTHING;
 
   UPDATE weekly_policies wp
@@ -474,9 +483,9 @@ BEGIN
     ('trigger_ingest', 'info', jsonb_build_object('source', 'tomorrow_io', 'events_created', 3, 'seed', true), NOW() - interval '4 hours');
 
   RAISE NOTICE '✅ Demo data seeded successfully!';
-  RAISE NOTICE '   Current week: premium ₹645, paid claims ₹452 → loss ratio ~70%%';
-  RAISE NOTICE '   Fraud queue: 3 flagged (all reviewed) — see /admin/fraud';
-  RAISE NOTICE '   5 riders | 12 disruption events (incl. last-24h density) | Razorpay refs on policies';
-  RAISE NOTICE '   Login: rahul.demo@oasis.app / Demo@1234';
+  RAISE NOTICE '   IST week % to % | current-week premium ₹645 | demo paid payouts (recent): ₹752 (₹200+₹152+₹100+₹150+₹150) + prior-week paid ₹419 in history', ws, we;
+  RAISE NOTICE '   Fraud samples: 3 flagged with admin_review_status = rejected (clears pending queue for insights)';
+  RAISE NOTICE '   5 riders | 14 disruption events (incl. last-24h density) | Razorpay refs on policies';
+  RAISE NOTICE '   Rider login: rahul.demo@oasis.app / Demo@1234 | Admin: admin.demo@oasis.app / Demo@1234';
 
 END $$;

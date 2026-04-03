@@ -2,10 +2,11 @@
  * Post-claim verification: GPS + delivery declaration + optional proof.
  * POST /api/claims/verify-location
  *
- * Fixes applied:
- *  - Uses shared isWithinCircle from lib/utils/geo (was duplicated)
- *  - Rejects verifications submitted more than 24 hours after claim creation
- *  - Only accepts requests from mobile user-agents for precise location
+ * Flow: GPS accuracy → impossible travel → geofence check → extended fraud →
+ *       re-read claim flag → destination anomaly → atomic payout.
+ *
+ * Extended fraud checks run BEFORE the payout decision so that cluster,
+ * baseline, and device-fingerprint signals can block disbursement.
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -18,7 +19,9 @@ import {
   runExtendedFraudChecks,
   checkGpsAccuracy,
   checkImpossibleTravel,
+  checkPayoutDestinationAnomaly,
 } from "@/lib/fraud/detector";
+import { createAutomatedHold } from "@/lib/fraud/holds";
 
 export const dynamic = "force-dynamic";
 
@@ -213,7 +216,8 @@ export async function POST(request: Request) {
       .eq("id", claimId);
   }
 
-  // Run post-verification extended fraud checks (cluster, baseline, device, cross-profile)
+  // Run extended fraud checks BEFORE payout decision so cluster/baseline/device
+  // signals can block disbursement. The checks may set is_flagged on the claim.
   if (inside && claim?.disruption_event_id) {
     await runExtendedFraudChecks(
       admin,
@@ -224,18 +228,93 @@ export async function POST(request: Request) {
     );
   }
 
-  // Payout only after location verification (inside_geofence); prevents scam
+  // Re-read the claim after extended checks — they may have set is_flagged = true.
+  const { data: freshClaim } = await admin
+    .from("parametric_claims")
+    .select("id, status, is_flagged, flag_reason, payout_amount_inr")
+    .eq("id", claimId)
+    .single();
+
+  const claimFlagged = freshClaim?.is_flagged === true;
+
   let payoutInitiated = false;
-  if (inside && claim?.status === "pending_verification" && policy?.profile_id) {
-    const amountInr = claim.payout_amount_inr != null ? Number(claim.payout_amount_inr) : PAYOUT_FALLBACK_INR;
+  if (inside && freshClaim?.status === "pending_verification" && policy?.profile_id) {
+    // Block payout when extended fraud flagged the claim
+    if (claimFlagged) {
+      await createAutomatedHold({
+        supabase: admin,
+        stage: "pre_payout",
+        profileId: user.id,
+        claimId,
+        policyId: claim.policy_id,
+        disruptionEventId: claim.disruption_event_id,
+        reason: freshClaim.flag_reason ?? "Extended fraud checks flagged this claim",
+        checkName: "extended_fraud_hold",
+        facts: { flag_reason: freshClaim.flag_reason },
+      });
+
+      return NextResponse.json({
+        verified: true,
+        status,
+        payout_initiated: false,
+        held: true,
+        hold_reason: freshClaim.flag_reason ?? "Held for review",
+        message: `Verification received. Payout on hold: ${freshClaim.flag_reason ?? "manual review required"}.`,
+      });
+    }
+
+    const amountInr = freshClaim.payout_amount_inr != null ? Number(freshClaim.payout_amount_inr) : PAYOUT_FALLBACK_INR;
     const txId = `oasis_verify_${Date.now()}_${claimId.slice(0, 8)}_${Math.random().toString(36).slice(2, 8)}`;
-    const payoutOk = await simulatePayout(admin, claimId, policy.profile_id, amountInr);
-    if (payoutOk) {
+
+    const destinationCheck = await checkPayoutDestinationAnomaly(admin, user.id);
+    if (destinationCheck.isFlagged) {
       await admin
         .from("parametric_claims")
-        .update({ status: "paid", gateway_transaction_id: txId })
+        .update({
+          is_flagged: true,
+          flag_reason: destinationCheck.reason ?? "Payout held for manual review",
+        })
         .eq("id", claimId);
-      payoutInitiated = true;
+
+      await createAutomatedHold({
+        supabase: admin,
+        stage: "pre_payout",
+        profileId: user.id,
+        claimId,
+        policyId: claim.policy_id,
+        disruptionEventId: claim.disruption_event_id,
+        reason: destinationCheck.reason ?? "Payout held for manual review",
+        checkName: destinationCheck.checkName ?? "payout_destination_anomaly",
+        facts: destinationCheck.facts,
+      });
+
+      return NextResponse.json({
+        verified: true,
+        status,
+        payout_initiated: false,
+        held: true,
+        hold_reason: destinationCheck.reason ?? "Payout held for manual review",
+        message: `Verification received. Payout on hold: ${destinationCheck.reason ?? "manual review required"}.`,
+      });
+    }
+
+    const { data: updatedRows, error: updateErr } = await admin
+      .from("parametric_claims")
+      .update({ status: "paid", gateway_transaction_id: txId })
+      .eq("id", claimId)
+      .eq("status", "pending_verification")
+      .select("id");
+
+    if (!updateErr && updatedRows && updatedRows.length > 0) {
+      const payoutOk = await simulatePayout(admin, claimId, policy.profile_id, amountInr);
+      if (payoutOk) {
+        payoutInitiated = true;
+      } else {
+        await admin
+          .from("parametric_claims")
+          .update({ status: "pending_verification", gateway_transaction_id: null })
+          .eq("id", claimId);
+      }
     }
   }
 

@@ -56,6 +56,7 @@ export function getWebhookSecret(): string | null {
 const RAZORPAY_TEST_KEY_PREFIX = 'rzp_test_';
 
 function assertRazorpayTestKeyId(keyId: string): void {
+  if (process.env.NODE_ENV === 'production') return;
   if (!keyId.startsWith(RAZORPAY_TEST_KEY_PREFIX)) {
     throw new Error(
       'Only Razorpay test keys are allowed: set NEXT_PUBLIC_RAZORPAY_KEY_ID to a value starting with rzp_test_ (Dashboard → Test mode).',

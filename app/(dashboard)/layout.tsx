@@ -21,11 +21,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, platform, full_name, role')
+    .select('id, platform, full_name, role, government_id_verified, face_verified')
     .eq('id', user.id)
     .single();
 
-  if (!profile?.platform) {
+  if (!profile?.platform || !profile.government_id_verified || !profile.face_verified) {
     redirect('/onboarding');
   }
 

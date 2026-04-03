@@ -3,7 +3,7 @@
 import { toast } from 'react-toastify';
 import { createClient } from '@/lib/supabase/client';
 import { isMobileForGps } from '@/lib/utils/device';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 interface RealtimeNotificationsProps {
   profileId: string;
@@ -68,7 +68,7 @@ async function tryAutoVerifyLocation(claimId: string): Promise<boolean> {
  * see the manual verify prompt when they next open the app.
  */
 export function RealtimeNotifications({ profileId }: RealtimeNotificationsProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const channel = supabase

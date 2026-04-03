@@ -16,6 +16,17 @@ interface CacheEntry {
   expiresAt: number;
 }
 
+function parseRetryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const asSeconds = Number(header);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return asSeconds * 1000;
+  }
+  const asDate = Date.parse(header);
+  if (Number.isNaN(asDate)) return null;
+  return Math.max(0, asDate - Date.now());
+}
+
 const cache = new Map<string, CacheEntry>();
 
 if (typeof setInterval !== 'undefined') {
@@ -61,13 +72,24 @@ export async function fetchWithRetry<T = unknown>(
 
       const res = await fetch(url, fetchInit);
 
-      if (!res.ok && res.status !== 429 && res.status < 500) {
+      if (res.status === 429) {
+        if (attempt >= maxAttempts) {
+          throw new Error(`HTTP 429: ${res.statusText}`);
+        }
+        const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
+        const delay = Math.min(
+          Math.max(retryAfterMs ?? 0, baseDelay * Math.pow(2, attempt - 1)),
+          maxDelay,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 250));
+        continue;
+      }
+
+      if (!res.ok && res.status < 500) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
       const data = (await res.json()) as T;
 

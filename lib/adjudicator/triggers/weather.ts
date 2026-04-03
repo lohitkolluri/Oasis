@@ -188,10 +188,35 @@ export async function checkWeatherTriggers(
   }
 
   if (heatSustained3h) {
+    // Tiered severity inspired by real-world parametric heat insurance programs
+    // (e.g. SEWA/Swiss Re/ICICI Lombard in Gujarat): longer sustained heat → higher payout.
+    // Tier 1 (severity 7): threshold met for HEAT_SUSTAINED_HOURS (default 3h)
+    // Tier 2 (severity 9): threshold met for 2x sustained hours (prolonged heatwave)
+    const hourlyTemps: number[] = [];
+    if (heatRawData && typeof heatRawData === 'object') {
+      const hourly = (heatRawData as Record<string, unknown>).hourly as
+        | { temperature_2m?: (number | null)[] }
+        | undefined;
+      if (hourly?.temperature_2m) {
+        for (const v of hourly.temperature_2m) {
+          if (v != null && typeof v === 'number') hourlyTemps.push(v);
+        }
+      }
+    }
+
+    let consecutiveHot = 0;
+    for (let i = hourlyTemps.length - 1; i >= 0; i--) {
+      if (hourlyTemps[i] >= T.HEAT_THRESHOLD_C) consecutiveHot++;
+      else break;
+    }
+
+    const prolongedHeat = consecutiveHot >= T.HEAT_SUSTAINED_HOURS * 2;
+    const severity = prolongedHeat ? 9 : 7;
+
     candidates.push({
       type: 'weather',
       subtype: 'extreme_heat',
-      severity: 8,
+      severity,
       geofence: {
         type: 'circle',
         lat,
@@ -201,6 +226,8 @@ export async function checkWeatherTriggers(
       raw: {
         ...heatRawData,
         trigger: 'extreme_heat',
+        consecutive_hot_hours: consecutiveHot,
+        prolonged: prolongedHeat,
         source:
           typeof heatRawData.source === 'string'
             ? heatRawData.source

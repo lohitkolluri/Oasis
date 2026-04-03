@@ -3,6 +3,7 @@ import { RATE_LIMITS } from '@/lib/config/constants';
 import { runWeeklyPremiumRecommendations } from '@/lib/pricing/run-weekly-premium-recommendations';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, errorResponse } from '@/lib/utils/api';
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export const maxDuration = 120;
  * @returns A breakdown denoting successfully processed rider profiles and deduplicated geofenced zones
  */
 export async function GET(request: Request) {
+  const startedAt = Date.now();
   const cronSecret = getCronSecret();
   if (isCronSecretRequired() && !cronSecret) {
     return NextResponse.json(
@@ -41,6 +43,12 @@ export async function GET(request: Request) {
   try {
     const admin = createAdminClient();
     const result = await runWeeklyPremiumRecommendations(admin);
+    logger.info('Weekly premium cron completed', {
+      durationMs: Date.now() - startedAt,
+      processed: result.processed,
+      zonesDeduped: result.zonesDeduped,
+      weekStartDate: result.week_start_date,
+    });
     return NextResponse.json(result);
   } catch (err) {
     return errorResponse(err, 'Weekly premium cron failed');

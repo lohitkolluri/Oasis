@@ -94,36 +94,64 @@ export function AnalyticsCharts() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/analytics')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) throw new Error(d.error);
-        setData(d);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+    const controller = new AbortController();
+    let active = true;
 
-  useEffect(() => {
-    fetch('/api/admin/system-health')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.apis) {
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [analyticsResp, healthResp] = await Promise.all([
+          fetch('/api/admin/analytics', { signal: controller.signal, cache: 'no-store' }),
+          fetch('/api/admin/system-health', { signal: controller.signal, cache: 'no-store' }),
+        ]);
+
+        if (!active) return;
+
+        const analyticsJson = await analyticsResp.json();
+        if (!active) return;
+
+        if (!analyticsResp.ok) {
+          throw new Error(
+            analyticsJson?.error ?? `Analytics request failed (${analyticsResp.status})`,
+          );
+        }
+        if (analyticsJson.error) throw new Error(analyticsJson.error);
+        setData(analyticsJson);
+
+        const healthJson = await healthResp.json().catch(() => null);
+        if (!active) return;
+
+        if (healthJson?.apis) {
           setHealth({
-            apis: d.apis,
-            status: d.status ?? 'unknown',
-            lastAdjudicatorRun: d.lastAdjudicatorRun
+            apis: healthJson.apis,
+            status: healthJson.status ?? 'unknown',
+            lastAdjudicatorRun: healthJson.lastAdjudicatorRun
               ? {
-                  at: d.lastAdjudicatorRun.at,
-                  claimsCreated: d.lastAdjudicatorRun.claimsCreated ?? 0,
-                  durationMs: d.lastAdjudicatorRun.durationMs ?? 0,
+                  at: healthJson.lastAdjudicatorRun.at,
+                  claimsCreated: healthJson.lastAdjudicatorRun.claimsCreated ?? 0,
+                  durationMs: healthJson.lastAdjudicatorRun.durationMs ?? 0,
                 }
               : null,
-            errors24h: d.errors24h ?? 0,
+            errors24h: healthJson.errors24h ?? 0,
           });
+        } else {
+          setHealth(null);
         }
-      })
-      .catch(() => setHealth(null));
+      } catch (e) {
+        if (!active) return;
+        if ((e as Error).name === 'AbortError') return;
+        setError((e as Error).message || 'Failed to load analytics');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
 
   if (loading) {

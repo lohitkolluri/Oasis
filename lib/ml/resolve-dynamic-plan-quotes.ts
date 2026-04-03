@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { PREMIUM } from '@/lib/config/constants';
+import { PREMIUM, DEFAULT_ZONE } from '@/lib/config/constants';
 import {
   calculateDynamicPremium,
   getForecastRiskFactor,
-  getHistoricalEventCount,
+  getHistoricalEventBreakdownFromDb,
   getSocialRiskFactor,
 } from '@/lib/ml/premium-calc';
 
@@ -82,15 +82,15 @@ export async function computeDynamicPlanQuotesForProfile(
   const zoneLat = profile?.zone_latitude ?? null;
   const zoneLng = profile?.zone_longitude ?? null;
 
-  const [{ data: rec }, eventCount, forecastRisk, socialRisk] = await Promise.all([
+  const [{ data: rec }, eventBreakdown, forecastRisk, socialRisk] = await Promise.all([
     supabase
       .from('premium_recommendations')
       .select('recommended_premium_inr')
       .eq('profile_id', profileId)
       .eq('week_start_date', weekStartDate)
       .maybeSingle(),
-    getHistoricalEventCount(supabase, zoneLat, zoneLng),
-    getForecastRiskFactor(supabase, zoneLat ?? 12.97, zoneLng ?? 77.59),
+    getHistoricalEventBreakdownFromDb(supabase, zoneLat, zoneLng),
+    getForecastRiskFactor(supabase, zoneLat ?? DEFAULT_ZONE.lat, zoneLng ?? DEFAULT_ZONE.lng),
     getSocialRiskFactor(supabase, zoneLat, zoneLng),
   ]);
 
@@ -98,10 +98,10 @@ export async function computeDynamicPlanQuotesForProfile(
 
   const engineOutput = calculateDynamicPremium({
     zoneRiskFactors: {
-      heatEvents: 0,
-      rainEvents: eventCount,
-      trafficEvents: 0,
-      socialEvents: 0,
+      heatEvents: eventBreakdown.heat,
+      rainEvents: eventBreakdown.rain,
+      trafficEvents: eventBreakdown.traffic,
+      socialEvents: eventBreakdown.social,
     },
     forecastRisk,
     platform: typeof profile?.platform === 'string' ? profile.platform : undefined,

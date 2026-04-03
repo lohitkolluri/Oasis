@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+
+const GEO_RATE_LIMIT = new Map<string, { count: number; windowStart: number }>();
+const GEO_RATE_WINDOW_MS = 60_000;
+const GEO_RATE_MAX = 30;
 
 type GeoResult = {
   name: string;
@@ -10,29 +15,50 @@ type GeoResult = {
   country?: string;
 };
 
-function pickAddressName(addr: any): { name: string; admin1?: string; country?: string } {
+function str(v: unknown): string {
+  return v != null && v !== '' ? String(v) : '';
+}
+
+function pickAddressName(addr: Record<string, unknown>): { name: string; admin1?: string; country?: string } {
   const city =
-    addr?.city ||
-    addr?.town ||
-    addr?.village ||
-    addr?.city_district ||
-    addr?.suburb ||
-    addr?.county ||
-    addr?.state_district;
-  const suburb = addr?.suburb || addr?.neighbourhood || addr?.quarter;
-  const state = addr?.state;
-  const country = addr?.country;
+    str(addr?.city) ||
+    str(addr?.town) ||
+    str(addr?.village) ||
+    str(addr?.city_district) ||
+    str(addr?.suburb) ||
+    str(addr?.county) ||
+    str(addr?.state_district);
+  const suburb = str(addr?.suburb) || str(addr?.neighbourhood) || str(addr?.quarter);
+  const state = str(addr?.state);
+  const country = str(addr?.country);
 
   const primary = suburb && city ? `${suburb}, ${city}` : city || suburb || '';
-  const admin1 = state || addr?.state_district || addr?.county;
+  const admin1 = state || str(addr?.state_district) || str(addr?.county);
   return {
-    name: primary || '',
-    admin1: admin1 ? String(admin1) : undefined,
-    country: country ? String(country) : undefined,
+    name: primary,
+    admin1: admin1 || undefined,
+    country: country || undefined,
   };
 }
 
 export async function GET(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const now = Date.now();
+  const bucket = GEO_RATE_LIMIT.get(user.id);
+  if (bucket && now - bucket.windowStart < GEO_RATE_WINDOW_MS) {
+    if (bucket.count >= GEO_RATE_MAX) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    }
+    bucket.count++;
+  } else {
+    GEO_RATE_LIMIT.set(user.id, { count: 1, windowStart: now });
+  }
+
   const url = new URL(req.url);
   const q = (url.searchParams.get('q') ?? '').trim();
   const limit = Math.min(8, Math.max(1, Number(url.searchParams.get('limit') ?? 5)));
@@ -122,13 +148,13 @@ export async function GET(req: Request) {
     });
 
     if (res.ok) {
-      const data = (await res.json()) as Array<any>;
+      const data = (await res.json()) as Array<Record<string, unknown>>;
       const results: GeoResult[] = (data ?? [])
         .map((r) => {
           const lat = Number(r?.lat);
           const lon = Number(r?.lon);
           if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-          const picked = pickAddressName(r?.address);
+          const picked = pickAddressName((r?.address ?? {}) as Record<string, unknown>);
           const name =
             picked.name ||
             String(r?.display_name ?? '').split(',').slice(0, 2).join(',').trim();
@@ -159,10 +185,10 @@ export async function GET(req: Request) {
 
     const res = await fetch(openMeteoUrl.toString(), { cache: 'no-store' });
     if (!res.ok) return NextResponse.json({ results: [] satisfies GeoResult[] });
-    const geo = (await res.json()) as { results?: Array<any> };
+    const geo = (await res.json()) as { results?: Array<Record<string, unknown>> };
 
     const results: GeoResult[] = (geo.results ?? [])
-      .map((r) => ({
+      .map((r: Record<string, unknown>) => ({
         name: String(r?.name ?? ''),
         latitude: Number(r?.latitude),
         longitude: Number(r?.longitude),

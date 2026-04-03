@@ -38,7 +38,7 @@ export const POST = withAdminAuth(async (ctx, request) => {
   const { claimId, action } = parsed.data;
 
   // Use service-role Supabase client to bypass RLS for admin operations.
-  const admin = createAdminClient();
+  const admin = ctx.admin;
 
   // Fetch claim + linked rider profile so we can manage payouts.
   const { data: claim, error: claimErr } = await admin

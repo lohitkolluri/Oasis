@@ -2,8 +2,8 @@ import { DEFAULT_ZONE, PREMIUM } from '@/lib/config/constants';
 import {
   calculateDynamicPremium,
   getForecastRiskFactor,
-  getHistoricalEventCount,
-  getSocialRiskFactor,
+  getHistoricalEventCountFromEvents,
+  getSocialRiskFactorFromEvents,
 } from '@/lib/ml/premium-calc';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { clusterKey } from '@/lib/utils/geo';
@@ -40,6 +40,8 @@ export async function runWeeklyPremiumRecommendations(
     };
   }
 
+  const profileIds = profiles.map((p) => p.id);
+
   const zoneCache = new Map<
     string,
     { historicalEvents: number; forecastRisk: number; socialRisk: number }
@@ -51,6 +53,57 @@ export async function runWeeklyPremiumRecommendations(
   const fourWeeksAgo = new Date();
   fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const fourWeeksAgoStr = fourWeeksAgo.toISOString();
+
+  const historicalSince = new Date();
+  historicalSince.setDate(historicalSince.getDate() - PREMIUM.WEEKS_LOOKBACK * 7);
+
+  const [policiesRes, disruptionEventsRes] = await Promise.all([
+    admin.from('weekly_policies').select('id, profile_id').in('profile_id', profileIds),
+    admin
+      .from('live_disruption_events')
+      .select('event_type, geofence_polygon')
+      .gte('created_at', historicalSince.toISOString()),
+  ]);
+
+  const policyRows = (policiesRes.data ?? []) as Array<{ id: string; profile_id: string }>;
+  const disruptionEvents = (disruptionEventsRes.data ?? []) as Array<{
+    event_type: string | null;
+    geofence_polygon: { lat?: number; lng?: number; radius_km?: number } | null;
+  }>;
+
+  const policyToProfile = new Map<string, string>();
+  const policyIds: string[] = [];
+  for (const row of policyRows) {
+    if (!row?.id || !row?.profile_id) continue;
+    policyToProfile.set(row.id, row.profile_id);
+    policyIds.push(row.id);
+  }
+
+  const claimCountByProfile = new Map<string, number>();
+  if (policyIds.length > 0) {
+    const BATCH_POLICY_IDS = 200;
+    for (let i = 0; i < policyIds.length; i += BATCH_POLICY_IDS) {
+      const policyBatch = policyIds.slice(i, i + BATCH_POLICY_IDS);
+      const { data: claimRows } = await admin
+        .from('parametric_claims')
+        .select('policy_id')
+        .gte('created_at', fourWeeksAgoStr)
+        .in('policy_id', policyBatch);
+
+      for (const claim of (claimRows ?? []) as Array<{ policy_id: string }>) {
+        const profileId = policyToProfile.get(claim.policy_id);
+        if (!profileId) continue;
+        claimCountByProfile.set(profileId, (claimCountByProfile.get(profileId) ?? 0) + 1);
+      }
+    }
+  }
+
+  const recommendationUpserts: Array<{
+    profile_id: string;
+    week_start_date: string;
+    recommended_premium_inr: number;
+    risk_factors: Record<string, unknown>;
+  }> = [];
 
   for (let i = 0; i < profiles.length; i += BATCH_SIZE) {
     const batch = profiles.slice(i, i + BATCH_SIZE);
@@ -64,19 +117,15 @@ export async function runWeeklyPremiumRecommendations(
         let cached = zoneCache.get(key);
         if (!cached) {
           const [historicalEvents, forecastRisk, socialRisk] = await Promise.all([
-            getHistoricalEventCount(admin, lat, lng),
+            Promise.resolve(getHistoricalEventCountFromEvents(disruptionEvents, lat, lng)),
             getForecastRiskFactor(admin, lat, lng),
-            getSocialRiskFactor(admin, lat, lng),
+            Promise.resolve(getSocialRiskFactorFromEvents(disruptionEvents, lat, lng)),
           ]);
           cached = { historicalEvents, forecastRisk, socialRisk };
           zoneCache.set(key, cached);
         }
 
-        const { count: claimCount4w } = await admin
-          .from('parametric_claims')
-          .select('id', { count: 'exact', head: true })
-          .eq('policy_id', profile.id)
-          .gte('created_at', fourWeeksAgoStr);
+        const claimCount4w = claimCountByProfile.get(profile.id) ?? 0;
 
         const engineOutput = calculateDynamicPremium({
           zoneRiskFactors: {
@@ -88,34 +137,41 @@ export async function runWeeklyPremiumRecommendations(
           forecastRisk: cached.forecastRisk,
           platform: profile.platform ?? undefined,
           socialStrikeFrequency: cached.socialRisk,
-          riderClaimFrequency: Math.min(1.0, (claimCount4w ?? 0) / 4),
+          riderClaimFrequency: Math.min(1.0, claimCount4w / 4),
         });
         const premium = engineOutput.final_premium;
         const reasoning = engineOutput.explanation;
         const source = 'model';
 
-        await admin.from('premium_recommendations').upsert(
-          {
-            profile_id: profile.id,
-            week_start_date: premiumWeekStartDate,
-            recommended_premium_inr: premium,
-            risk_factors: {
-              historical_events: cached.historicalEvents,
-              forecast_risk: cached.forecastRisk,
-              social_risk: cached.socialRisk,
-              claim_count_4w: claimCount4w ?? 0,
-              reasoning,
-              source,
-              zone_lat: lat,
-              zone_lng: lng,
-            },
+        recommendationUpserts.push({
+          profile_id: profile.id,
+          week_start_date: premiumWeekStartDate,
+          recommended_premium_inr: premium,
+          risk_factors: {
+            historical_events: cached.historicalEvents,
+            forecast_risk: cached.forecastRisk,
+            social_risk: cached.socialRisk,
+            claim_count_4w: claimCount4w,
+            reasoning,
+            source,
+            zone_lat: lat,
+            zone_lng: lng,
           },
-          { onConflict: 'profile_id,week_start_date' },
-        );
+        });
 
         processed++;
       }),
     );
+  }
+
+  if (recommendationUpserts.length > 0) {
+    const UPSERT_BATCH_SIZE = 200;
+    for (let i = 0; i < recommendationUpserts.length; i += UPSERT_BATCH_SIZE) {
+      const batch = recommendationUpserts.slice(i, i + UPSERT_BATCH_SIZE);
+      await admin.from('premium_recommendations').upsert(batch, {
+        onConflict: 'profile_id,week_start_date',
+      });
+    }
   }
 
   if (computedWeekStartDate) {

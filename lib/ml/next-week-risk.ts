@@ -23,6 +23,8 @@ export interface NextWeekPrediction {
   zonesChecked?: number;
 }
 
+const FORECAST_ZONE_CONCURRENCY = 4;
+
 export async function getNextWeekPrediction(
   supabase: SupabaseClient,
   zoneLat?: number | null,
@@ -46,8 +48,10 @@ export async function getNextWeekPrediction(
       const allTriggers = new Set<string>();
       let totalAqiHighHours = 0;
 
-      const results = await Promise.allSettled(
-        uniqueZones.map((z) => checkZoneForecast(z.lat, z.lng, tomorrowKey)),
+      const results = await allSettledWithConcurrency(
+        uniqueZones,
+        FORECAST_ZONE_CONCURRENCY,
+        (z) => checkZoneForecast(z.lat, z.lng, tomorrowKey),
       );
 
       for (const result of results) {
@@ -140,6 +144,35 @@ export async function getNextWeekPrediction(
     source: 'historical',
     details: `Based on ${all.length} claims over the last 21 days`,
   };
+}
+
+async function allSettledWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+): Promise<Array<PromiseSettledResult<R>>> {
+  if (items.length === 0) return [];
+  const results: Array<PromiseSettledResult<R>> = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runWorker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const current = nextIndex++;
+      try {
+        const value = await worker(items[current]!);
+        results[current] = { status: 'fulfilled', value };
+      } catch (reason) {
+        results[current] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    () => runWorker(),
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 async function checkZoneForecast(

@@ -27,7 +27,7 @@ import { effectiveStartCaption, formatEffectiveStartLine } from '@/lib/parametri
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Activity, BookOpen, Gavel, History, Layers, Search, Shield } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export type GovernanceRuleRow = {
   id: string;
@@ -59,6 +59,7 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
   const [audits, setAudits] = useState(initialAudits);
   const [loading, setLoading] = useState(false);
   const [auditSearch, setAuditSearch] = useState('');
+  const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     const supabase = createClient();
@@ -85,6 +86,13 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
     }
   }, []);
 
+  const scheduleRefresh = useCallback(() => {
+    if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
+    refreshDebounceRef.current = setTimeout(() => {
+      void refresh();
+    }, 400);
+  }, [refresh]);
+
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -93,22 +101,28 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'parametric_rule_sets' },
         () => {
-          void refresh();
+          scheduleRefresh();
         },
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'admin_audit_log' },
-        () => {
-          void refresh();
+        (payload) => {
+          const row = payload.new as GovernanceAuditRow;
+          if (row?.id) {
+            setAudits((prev) => [row, ...prev].slice(0, 200));
+          } else {
+            scheduleRefresh();
+          }
         },
       )
       .subscribe();
 
     return () => {
+      if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [scheduleRefresh]);
 
   const current = rules.find((r) => r.effective_until == null);
   const anchorHint = current ? effectiveStartCaption(current.effective_from) : null;
