@@ -15,11 +15,15 @@ oasis/
 │   │   ├── admin/              # Admin-only endpoints
 │   │   ├── auth/               # Supabase signout
 │   │   ├── claims/             # Location verification
-│   │   ├── cron/               # Vercel cron jobs
-│   │   ├── payments/           # Razorpay create-checkout, verify, webhook
+│   │   ├── cron/               # Vercel cron jobs (adjudicator, weekly-premium, …)
+│   │   ├── geo/                # Geocoding / turf helpers
+│   │   ├── health/             # Uptime heartbeat
+│   │   ├── onboarding/         # KYC + face verification
+│   │   ├── payments/           # Razorpay checkout, verify, webhook, subscriptions
 │   │   ├── platform/           # Platform status
 │   │   ├── rider/              # Rider insight + delivery reports
-│   │   └── routing/            # OSRM proxy
+│   │   ├── routing/            # OSRM proxy
+│   │   └── webhooks/           # Inbound provider webhooks (e.g. disruption)
 │   ├── globals.css
 │   ├── layout.tsx              # Root layout (fonts, Toaster)
 │   ├── manifest.ts             # PWA manifest
@@ -28,48 +32,55 @@ oasis/
 ├── components/                 # React UI components
 │   ├── admin/                  # Admin dashboard widgets
 │   ├── auth/                   # Auth page backgrounds
+│   ├── landing/                # Marketing / landing sections
 │   ├── pwa/                    # Install prompt, add-to-home
 │   ├── rider/                  # Rider dashboard cards
 │   └── ui/                     # Shared design system primitives
 │
+├── hooks/                      # Shared React hooks (e.g. use-mobile)
+├── design-system/              # Design tokens / MASTER reference (oasis)
 ├── lib/                        # Business logic (no React)
-│   ├── adjudicator/
-│   │   └── run.ts              # Parametric adjudicator engine (675 lines)
+│   ├── adjudicator/            # Parametric engine: run.ts, core, zones, triggers, …
 │   ├── fraud/
-│   │   └── detector.ts         # 11-check fraud detection
+│   │   └── detector.ts         # Multi-check fraud detection
 │   ├── ml/
 │   │   ├── next-week-risk.ts   # Predictive claims forecast
 │   │   └── premium-calc.ts     # Dynamic weekly premium (₹49–₹199)
+│   ├── payments/               # Razorpay helpers, crypto verification
 │   ├── routing/
 │   │   └── osrm.ts             # OSRM routing client
 │   ├── supabase/
 │   │   ├── admin.ts            # Service-role Supabase client
 │   │   ├── client.ts           # Browser Supabase client
-│   │   ├── middleware.ts      # Session refresh helper
+│   │   ├── middleware.ts       # Session refresh helper
 │   │   └── server.ts           # Server-side Supabase client
 │   ├── types/
 │   │   ├── css.d.ts            # CSS module ambient declaration
-│   │   ├── database.ts         # Shared TypeScript interfaces
+│   │   └── database.ts         # Shared TypeScript interfaces
 │   └── utils/
 │       ├── auth.ts             # isAdmin() + getAdminEmails()
 │       └── geo.ts              # Turf.js geospatial utilities
 │
 ├── supabase/
 │   ├── functions/
-│   │   └── enterprise-adjudicator/   # Deno Edge Function (alternative)
+│   │   └── enterprise-adjudicator/   # Deno Edge Function (optional path)
 │   └── migrations/             # SQL migrations (timestamp order)
 │
-├── Docs/                       # This Starlight docs site
+├── docs/                       # Starlight docs site (+ openapi.yaml)
 │
 ├── scripts/
-│   ├── setup-storage.ts        # One-time Supabase storage bucket setup
-│   └── seed-demo-data.sql      # Idempotent demo data seed (5 riders, events, claims)
+│   ├── configure-env.ts        # Interactive .env.local (also: make configure)
+│   ├── setup-storage.ts        # Supabase storage bucket setup
+│   └── seed-demo-data.sql      # Idempotent demo seed
 │
-├── public/                     # Static assets (PWA icons)
+├── e2e/                        # Playwright specs
+├── public/                     # Static assets (PWA icons, logo)
 ├── middleware.ts               # Next.js edge middleware (session refresh)
+├── Makefile                    # setup, dev, docs, test, db-migrate, …
 ├── next.config.ts              # Next.js config (PWA, standalone output)
 ├── tailwind.config.ts
 ├── tsconfig.json
+├── vitest.config.ts
 └── (Vercel config via dashboard)  # Region + scheduled jobs configured in Vercel UI
 ```
 
@@ -110,7 +121,7 @@ All REST endpoints. Each subdirectory maps to an API concern:
 
 ### `lib/`
 
-Pure business logic. Nothing in `lib/` imports React or Next.js framework code - only Node.js built-ins and third-party libraries.
+Business logic and shared server utilities. **`lib/` does not import React.** Some files use Next.js server primitives (`next/headers`, `next/server`) for cookies, `NextResponse`, and Supabase SSR helpers.
 
 | Module | Responsibility |
 |---|---|

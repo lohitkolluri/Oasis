@@ -15,7 +15,7 @@ Oasis is deployed on **Vercel** in the Mumbai region (`bom1`) for low-latency se
 1. Go to [vercel.com/new](https://vercel.com/new)
 2. Import your GitHub repository
 3. Framework preset: **Next.js** (auto-detected)
-4. Build command: `npm run build`
+4. Build command: `bun run build` or `npm run build` (both invoke `next build`)
 5. Output directory: `.next` (auto-detected)
 
 ### 2. Set Environment Variables (copy from `.env.local.example`)

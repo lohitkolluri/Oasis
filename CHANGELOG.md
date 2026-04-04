@@ -1,124 +1,153 @@
 # Changelog
 
-All notable changes to **Oasis** are recorded here. The product is a weekly parametric loss-of-income protection experience for India quick-commerce delivery partners (external disruptions only: no health, life, accident, or vehicle-repair coverage).
+Notable changes to **Oasis** are documented in this file.
 
-This file follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Release lines are tied to `package.json` until Git tags exist.
+Oasis is weekly parametric **loss-of-income** protection for India quick-commerce delivery partners (external disruptions only: not health, life, accident, or vehicle repair).
 
-## Scope and accuracy
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Version numbers match `package.json` until release tags are published.
 
-- **Source of truth:** Default-branch commit history (`git log`), newest first below.
-- **Commit count:** 88 commits from `633478d` through `1871a88`.
-- **Date span:** 2026-03-04 through 2026-03-30 (dates shown use Git’s **`%ad`** with `--date=short`, i.e. **author date** in `YYYY-MM-DD`).
-- **Subject lines:** Reproduced **verbatim** from `git log --pretty=%s` to avoid editorial drift. Emoji and `:shortcode:` tokens are preserved as authored.
-- **Known ambiguity:** `31a7178` has no textual subject beyond a single emoji in Git; it is listed exactly as stored. Two different commits use “initial commit” wording (`633478d` on 2026-03-04 and `7e7a6cf` on 2026-03-14); both are retained as separate events in history.
-- **Merge commits:** Three pull-request merges appear as authored merge commits (`094014f`, `7a243a5`, `1871a88`).
+---
 
 ## [Unreleased]
 
-- **Documentation:** README overhaul—hero and CTAs, nested table of contents, themed Mermaid architecture diagram, Phase 1/2 demo video links, accurate project layout, expanded rider/admin walkthroughs, env and Makefile references.
-- **Tooling:** Makefile defaults to Bun, `docs` target uses `docs/`, adds `test` / `test-e2e`, keeps `configure` and full `setup` flow.
+### Changed
 
-## [0.1.0] — 2026-03-30
+- README: structure, hero, nested TOC, architecture Mermaid diagram, demo video links, project layout, rider/admin walkthroughs, env and Makefile tables.
+- Makefile: Bun-first targets, `docs/` path, `test` and `test-e2e` targets, `configure` / `setup` flow.
 
-Version label matches `package.json` (`0.1.0`). No Git tag was present when this log was assembled; treat this section as the cumulative history for that marketing/version line.
+---
 
-### Commit history (complete, newest first)
+## [0.1.0] - 2026-03-30
+
+First consolidated snapshot for the `0.1.0` line in `package.json` (initial development through late March 2026).
+
+### Added
+
+- Rider experience: PWA-oriented app, onboarding, zone selection, KYC (government ID and face verification), weekly plans, dashboard, claims, wallet, profile.
+- Admin experience: rider and policy management, analytics, payments, fraud review, triggers and ingestion health, governance and versioned parametric rules, financial and reserves views, system health and demo tooling.
+- Parametric engine: scheduled adjudication, multi-source signals (weather, AQI, news via NewsData.io, optional traffic), geofencing, append-only trigger ledger.
+- Pricing: dynamic weekly premium engine, renewal-oriented flows, and cron alignment for weekly billing windows.
+- Backend: Next.js App Router API routes, Supabase (Postgres, Auth, Realtime, Storage), middleware session handling.
+- Documentation: Astro Starlight docs site, deployment guides, OpenAPI-oriented API documentation.
+- Quality: Vitest unit tests and Playwright E2E harness.
+
+### Changed
+
+- Landing, policy copy, and rider/admin UI iterated across multiple passes (dashboard polish, IST-aligned coverage display, marketing text).
+
+### Fixed
+
+- Build and type issues (e.g. TS config boundaries, Suspense/useSearchParams, geofence typings, checkout URL handling).
+- Claim and payout consistency, PWA session persistence, OpenRouter client hardening, onboarding and demo data fixes.
+
+### Security
+
+- Next.js upgraded to address CVE-2025-66478 (see advisory for your installed line).
+- Stricter payout and location-verification posture in hardened flows.
+
+<details>
+<summary><strong>Archive: commit log (2026-03-04 to 2026-03-30)</strong></summary>
+
+Same short hashes and dates as `git log`; descriptions are rewritten for consistent, professional wording (no emojis). Use `git show <hash>` for the exact original message and diff.
 
 - **2026-03-30** (`1871a88`) Merge pull request #3 from lohitkolluri/Origin
-- **2026-03-30** (`df04338`) ✨ Admin reserves cohorts, plans forecast job, and premium cron alignment
-- **2026-03-29** (`4e793e5`) :sparkles: feat: versioned parametric rules, governance console, and admin audit trail
-- **2026-03-29** (`0aa2512`) ✨ Add parametric trigger ledger, ingestion health, trust console, and NewsData.io client
-- **2026-03-29** (`1efca5e`) ✨ rider profile, loading & admin polish
-- **2026-03-29** (`7b7201e`) 🎨 Polish dashboard + IST coverage dates
+- **2026-03-30** (`df04338`) Add admin reserves cohorts, plan pricing forecast job, and weekly premium cron alignment
+- **2026-03-29** (`4e793e5`) Add versioned parametric rules, governance console, and admin audit trail
+- **2026-03-29** (`0aa2512`) Add parametric trigger ledger, ingestion health UI, trust console, and NewsData.io client
+- **2026-03-29** (`1efca5e`) Add rider profile route, loading states, and admin polish
+- **2026-03-29** (`7b7201e`) Polish dashboard and show IST-aligned coverage dates
 - **2026-03-28** (`7a243a5`) Merge pull request #2 from lohitkolluri/Origin
-- **2026-03-28** (`0e71b02`) ✨ Dynamic premiums, renewals, and rider UI polish
-- **2026-03-28** (`7bbc0f5`) 💄 Polish marketing copy and policy-facing text
-- **2026-03-22** (`09be84c`) 📚 Razorpay demo payments docs + README
+- **2026-03-28** (`0e71b02`) Add dynamic premiums and renewals; polish rider UI
+- **2026-03-28** (`7bbc0f5`) Polish marketing and policy-facing copy
+- **2026-03-22** (`09be84c`) Document Razorpay demo payments and update README
 - **2026-03-22** (`094014f`) Merge pull request #1 from lohitkolluri/dev
-- **2026-03-22** (`d4ae8b9`) 🎨 Landing polish, admin fraud, Stripe migration & docs
-- **2026-03-22** (`31a7178`) ✨
-- **2026-03-22** (`91ca90b`) 📝 docs: UPI in Stripe Checkout
-- **2026-03-22** (`467f51d`) 🙈 Untrack .cursor
-- **2026-03-22** (`f684b8f`) 🐛 Stripe payment types
-- **2026-03-22** (`f4c5d96`) 📝 README Stripe UPI
-- **2026-03-22** (`2a7eba8`) 💳 Stripe UPI
-- **2026-03-21** (`c286a08`) 📝 update demo login docs and learning index
-- **2026-03-21** (`4f2d250`) ✅ add unit tests and cleanup
-- **2026-03-21** (`55b7eb4`) 📝 cite README claims with grounded sources
-- **2026-03-20** (`c5d6dc4`) 📝 enhance README UI and update llms.txt
-- **2026-03-20** (`8a323c6`) ✅ Expand unit and E2E test coverage
-- **2026-03-20** (`9baba68`) ✅ Add sample unit and E2E testing setup
-- **2026-03-20** (`a582e38`) 📝 docs: update premium engine documentation
-- **2026-03-20** (`411e8f4`) ✨ feat: dynamic actuarial premium engine
-- **2026-03-20** (`4923b27`) 📝 docs: update schemas, sync structure & ui fixes
-- **2026-03-20** (`ee7c17b`) 💄 polish landing ui
-- **2026-03-19** (`696d11b`) 📝 docs: sync dev setup and tooling
-- **2026-03-19** (`321431b`) 📝 docs: refine README for phase one
-- **2026-03-19** (`5fa656b`) 🛠️ fix: align pricing forecast and polish onboarding
-- **2026-03-18** (`76fb152`) ✨ feat: add weekly plan pricing timeline and forecast
-- **2026-03-18** (`d539f72`) 💄 polish: rider directory filters and pagination
-- **2026-03-18** (`e521576`) ⚡️ perf: optimize rider bundles and signup redirects
-- **2026-03-18** (`10e2fd1`) 🛠️ fix: improve onboarding KYC and demo data
-- **2026-03-17** (`77cd0a5`) 💄 polish: center KPI tiles and rename earnings
-- **2026-03-17** (`4703386`) 🛠️ fix: auth redirects, landing polish, and PWA prompts
-- **2026-03-17** (`2ef43c1`) 💄 polish UI consistency + admin UX
-- **2026-03-14** (`9e195bc`) Rider dashboard & claims: dedupe recent claims, shadcn Card, tabular claims list
-- **2026-03-14** (`728ad36`) Admin dashboard: shadcn UI, tree nav, rider detail, gov ID decrypt, copyable IDs
-- **2026-03-14** (`7e7a6cf`) feat: initial commit
-- **2026-03-14** (`151ab51`) 💄 rider toasts: react-toastify, opaque, z-index above modals; fix OpenRouter header ByteString
-- **2026-03-14** (`84f8725`) 💄 improve toast for mobile (safe area, width, hide timestamp)
-- **2026-03-14** (`fae2290`) 🛠️ fix: harden openrouter client attribution
-- **2026-03-14** (`d0fe648`) 🧹 chore: tighten deps and openrouter client
-- **2026-03-13** (`21dae14`) chore: update continual learning state
-- **2026-03-13** (`3ce78b1`) 📬 feat: queue self-report verification via pgmq
-- **2026-03-13** (`59be986`) 🧠 fix: clarify self-report AI errors
-- **2026-03-13** (`3647e65`) 🩺 fix: improve identity verification UX
-- **2026-03-13** (`82cce39`) ✨ feat: centralize claims engine and adjudicator core
-- **2026-03-13** (`d2169a8`) ✨ refactor: simplify admin dashboard for productivity
-- **2026-03-13** (`51623d0`) 💰 feat: stripe payments admin reconciliation view
-- **2026-03-13** (`97c7850`) ✨ feat: realtime payouts, admin live feed, and log rotation
-- **2026-03-13** (`0e4128c`) 📝 docs: simplify and polish Oasis docs
-- **2026-03-12** (`b5f2f28`) 🛡️ feat: stricter self-report AI and plan-aligned fraud caps
-- **2026-03-12** (`879fc13`) 🩹 fix: stale payout fallbacks, hardcoded coords, greedy LLM regex, silent catch blocks
-- **2026-03-12** (`c7d46d7`) 🐛 fix: report delivery falls back to corroboration when LLM is unavailable
-- **2026-03-12** (`04db5e2`) ✨ feat: parametric insurance system overhaul + comprehensive docs sync
-- **2026-03-11** (`9bd612c`) 📝 docs: fix mermaid intro diagram and bun lock
-- **2026-03-11** (`7ac921c`) 🐛 fix: disable d2 integration on vercel builds
-- **2026-03-11** (`c53e36c`) 📝 docs: migrate diagrams to mermaid
-- **2026-03-09** (`84406b2`) ✨ fix claim verification and payout status consistency
-- **2026-03-09** (`fcebae4`) ✨ fix PWA app icon contrast on iOS
-- **2026-03-09** (`eb935e3`) 🔒 fix payout auth and align verification-first claims flow
-- **2026-03-09** (`a091791`) ✨ feat: harden admin operations insights and rider disruption review
-- **2026-03-09** (`2fe1e5a`) :bug: fix PWA session persistence and logout on close
-- **2026-03-09** (`c2b22ef`) ✨ feat: auto location verify on claim + UI polish
-- **2026-03-09** (`c35a158`) 🔒 Security: no payouts without location verification
-- **2026-03-08** (`c798480`) 🔒 security: upgrade Next.js to 15.0.7 (CVE-2025-66478 patch)
-- **2026-03-08** (`c797fba`) 🐛 fix: build — exclude Docs from tsconfig, GeofenceCircle type, Suspense for useSearchParams
-- **2026-03-08** (`15b2a50`) 🐛 fix: brace mismatch in create-checkout baseUrl try/catch
-- **2026-03-08** (`51bdc9a`) ✨ feat: rider app improvements, permissions & report delivery
-- **2026-03-06** (`d6aca2d`) :memo: docs: revamp documentation UX with interactive OpenAPI, D2 graphs, and premium UI
-- **2026-03-06** (`05755ce`) docs: add Root Directory tip for Next.js detection error
-- **2026-03-06** (`4c7da8d`) fix: add docs vercel.json, document Root Directory for Next.js detection
-- **2026-03-06** (`dd4859c`) docs: update deployment for Vercel Hobby cron limits
-- **2026-03-06** (`bccf343`) docs: migrate to Astro Starlight, fix titles, add flowcharts and icons
-- **2026-03-06** (`8fac74e`) 📝 docs: update README and Docusaurus for onboarding, face verification, Stripe
-- **2026-03-06** (`b626bb3`) feat: Stripe Checkout, face verification, onboarding flow
-- **2026-03-05** (`4fae6b4`) ✨ Add role-based admin access, payment tracking, and UI revamp
-- **2026-03-04** (`c47569b`) ✨ Admin analytics, AQI engine, docs, and system health
-- **2026-03-04** (`4a0f037`) Implement missing requirements: traffic trigger, geofence payout, fraud checks, predictive analytics
-- **2026-03-04** (`0b0336b`) Replace Ambee with Open-Meteo AQI, admin run adjudicator, payment demo mode, docs update
-- **2026-03-04** (`adad992`) 💄 OASIS auth background, rider app design polish, Card component
-- **2026-03-04** (`03479f3`) ✨ PWA support, Button component, policy docs, DiceBear avatars, admin nav
-- **2026-03-04** (`1d2fd81`) 🎉 Oasis parametric insurance platform - full implementation
-- **2026-03-04** (`3f8310c`) 📝 Add Cursorrules and Hackathon Docs
-- **2026-03-04** (`633478d`) Initial commit
+- **2026-03-22** (`d4ae8b9`) Polish landing and admin fraud surfaces; migrate payments toward Stripe; update docs
+- **2026-03-22** (`31a7178`) Minor change (original commit message was empty aside from decoration)
+- **2026-03-22** (`91ca90b`) Document UPI support in Stripe Checkout
+- **2026-03-22** (`f684b8f`) Fix Stripe payment type configuration
+- **2026-03-22** (`f4c5d96`) Update README for Stripe UPI
+- **2026-03-22** (`2a7eba8`) Enable Stripe UPI payments
+- **2026-03-21** (`c286a08`) Update demo login documentation and learning index
+- **2026-03-21** (`4f2d250`) Add unit tests and related cleanup
+- **2026-03-21** (`55b7eb4`) Add sourced citations for README claims
+- **2026-03-20** (`c5d6dc4`) Improve README presentation and update `llms.txt`
+- **2026-03-20** (`8a323c6`) Expand unit and end-to-end test coverage
+- **2026-03-20** (`9baba68`) Add baseline unit and end-to-end test setup
+- **2026-03-20** (`a582e38`) Update premium engine documentation
+- **2026-03-20** (`411e8f4`) Add dynamic actuarial premium engine
+- **2026-03-20** (`4923b27`) Update schemas, sync structure documentation, and apply UI fixes
+- **2026-03-20** (`ee7c17b`) Polish landing page UI
+- **2026-03-19** (`696d11b`) Sync development setup and tooling documentation
+- **2026-03-19** (`321431b`) Refine README for phase one
+- **2026-03-19** (`5fa656b`) Align pricing forecast behavior and polish onboarding
+- **2026-03-18** (`76fb152`) Add weekly plan pricing timeline and forecast UI
+- **2026-03-18** (`d539f72`) Polish rider directory filters and pagination
+- **2026-03-18** (`e521576`) Improve performance of rider bundles and signup redirects
+- **2026-03-18** (`10e2fd1`) Improve onboarding KYC and demo data
+- **2026-03-17** (`77cd0a5`) Center KPI tiles and rename earnings labels
+- **2026-03-17** (`4703386`) Fix auth redirects; polish landing and PWA install prompts
+- **2026-03-17** (`2ef43c1`) Improve UI consistency and admin experience
+- **2026-03-14** (`9e195bc`) Rider dashboard and claims: deduplicate recent claims, adopt shadcn Card, tabular claims list
+- **2026-03-14** (`728ad36`) Admin dashboard: shadcn UI, tree navigation, rider detail, government ID decryption, copyable identifiers
+- **2026-03-14** (`7e7a6cf`) Initial application commit
+- **2026-03-14** (`151ab51`) Rider toasts: react-toastify styling, stacking, and OpenRouter header ByteString fix
+- **2026-03-14** (`84f8725`) Improve toast layout on mobile (safe area, width, hide timestamp)
+- **2026-03-14** (`fae2290`) Harden OpenRouter client attribution headers
+- **2026-03-14** (`d0fe648`) Tighten dependencies and OpenRouter client configuration
+- **2026-03-13** (`21dae14`) Update continual learning state (agent metadata)
+- **2026-03-13** (`3ce78b1`) Queue self-report verification using PGMQ
+- **2026-03-13** (`59be986`) Clarify self-report AI error handling
+- **2026-03-13** (`3647e65`) Improve identity verification user experience
+- **2026-03-13** (`82cce39`) Centralize claims engine and adjudicator core
+- **2026-03-13** (`d2169a8`) Refactor admin dashboard for faster workflows
+- **2026-03-13** (`51623d0`) Add Stripe payments admin reconciliation view
+- **2026-03-13** (`97c7850`) Add realtime payouts, admin live feed, and log rotation
+- **2026-03-13** (`0e4128c`) Simplify and polish Oasis documentation
+- **2026-03-12** (`b5f2f28`) Tighten self-report AI validation and plan-aligned fraud caps
+- **2026-03-12** (`879fc13`) Fix stale payout fallbacks, hardcoded coordinates, greedy LLM regex, and silent catch blocks
+- **2026-03-12** (`c7d46d7`) Fall back to corroboration when report-delivery LLM is unavailable
+- **2026-03-12** (`04db5e2`) Parametric insurance system overhaul and documentation sync
+- **2026-03-11** (`9bd612c`) Fix Mermaid intro diagram and Bun lockfile documentation
+- **2026-03-11** (`7ac921c`) Disable D2 integration on Vercel builds
+- **2026-03-11** (`c53e36c`) Migrate diagrams from D2 to Mermaid
+- **2026-03-09** (`84406b2`) Fix claim verification and payout status consistency
+- **2026-03-09** (`fcebae4`) Fix PWA app icon contrast on iOS
+- **2026-03-09** (`eb935e3`) Fix payout authorization and align verification-first claims flow
+- **2026-03-09** (`a091791`) Harden admin operations insights and rider disruption review
+- **2026-03-09** (`2fe1e5a`) Fix PWA session persistence and logout-on-close behavior
+- **2026-03-09** (`c2b22ef`) Add automatic location verification on claim and related UI polish
+- **2026-03-09** (`c35a158`) Security: block payouts without location verification
+- **2026-03-08** (`c798480`) Security: upgrade Next.js to 15.0.7 (CVE-2025-66478)
+- **2026-03-08** (`c797fba`) Fix build: exclude Docs from TypeScript config, GeofenceCircle typing, Suspense for useSearchParams
+- **2026-03-08** (`15b2a50`) Fix brace mismatch in create-checkout base URL try/catch
+- **2026-03-08** (`51bdc9a`) Rider app improvements, permissions, and delivery report flow
+- **2026-03-06** (`d6aca2d`) Documentation UX: interactive OpenAPI, D2 graphs, and layout refresh
+- **2026-03-06** (`05755ce`) Document Vercel root directory tip for Next.js detection
+- **2026-03-06** (`4c7da8d`) Add docs `vercel.json` and document root directory for Next.js
+- **2026-03-06** (`dd4859c`) Update deployment docs for Vercel Hobby cron limits
+- **2026-03-06** (`bccf343`) Migrate documentation to Astro Starlight; fix titles; add flowcharts and icons
+- **2026-03-06** (`8fac74e`) Update README and Docusaurus for onboarding, face verification, and Stripe
+- **2026-03-06** (`b626bb3`) Add Stripe Checkout, face verification, and onboarding flow
+- **2026-03-05** (`4fae6b4`) Add role-based admin access, payment tracking, and UI revamp
+- **2026-03-04** (`c47569b`) Add admin analytics, AQI engine, documentation, and system health
+- **2026-03-04** (`4a0f037`) Add traffic trigger, geofence payout, fraud checks, and predictive analytics
+- **2026-03-04** (`0b0336b`) Replace Ambee with Open-Meteo AQI; add admin adjudicator trigger; payment demo mode; docs
+- **2026-03-04** (`adad992`) Polish auth background, rider app design, and Card component
+- **2026-03-04** (`03479f3`) Add PWA support, Button component, policy docs, DiceBear avatars, and admin navigation
+- **2026-03-04** (`1d2fd81`) Oasis parametric insurance platform: full initial implementation
+- **2026-03-04** (`3f8310c`) Add Cursor rules and hackathon documentation
+- **2026-03-04** (`633478d`) Repository initial commit
 
-### Maintenance
+</details>
 
-To refresh this list from Git (newest first, same shape):
+---
+
+## Maintainer notes
+
+Regenerate a one-line log (newest first):
 
 ```bash
 git log --pretty=format:'- **%ad** (`%h`) %s' --date=short
 ```
 
-Repository: [github.com/lohitkolluri/Oasis](https://github.com/lohitkolluri/Oasis).
+**Repository:** [github.com/lohitkolluri/Oasis](https://github.com/lohitkolluri/Oasis)

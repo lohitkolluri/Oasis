@@ -17,10 +17,14 @@ description: Local setup, env vars, migrations
 ## 1. Clone & Install
 
 ```bash
-git clone https://github.com/lohitkolluri/oasis.git
-cd oasis
+git clone https://github.com/lohitkolluri/Oasis.git
+cd Oasis
 bun install
 ```
+
+### Makefile (optional)
+
+From the repo root, **`make setup`** runs install, interactive env configuration (`make configure` → `scripts/configure-env.ts`), DB migrate, and storage setup. Use **`make dev`** for the app and **`make docs`** for the Starlight site (`docs/`, port 4321).
 
 ---
 
@@ -138,7 +142,7 @@ bun run db:migrate
 # or: make db-migrate
 ```
 
-If you use the **Supabase plugin** in Cursor, ensure the project is connected; then you can run migrations from the plugin UI or run `yarn db:migrate` in the terminal after linking once via CLI.
+If you use the **Supabase plugin** in Cursor, ensure the project is connected; then you can run migrations from the plugin UI or run `bun run db:migrate` (or `make db-migrate`) in the terminal after linking once via CLI.
 
 ### Seeding Demo Data
 
@@ -206,11 +210,14 @@ The app starts on [http://localhost:3000](http://localhost:3000) with Turbopack.
 
 | Script           | Command                 | Description                                                     |
 | ---------------- | ----------------------- | --------------------------------------------------------------- |
-| Dev server       | `bun dev`               | Next.js + Turbopack                                             |
+| Dev server       | `bun dev` or `make dev` | Next.js + Turbopack                                             |
 | Production build | `bun run build`         | Full Next.js build with type check                              |
 | Lint             | `bun run lint`          | ESLint with Next.js ruleset                                     |
-| DB migrate       | `bun run db:migrate`    | Supabase CLI push                                               |
+| Unit tests       | `bun run test`          | Vitest (`make test`)                                            |
+| E2E tests        | `bun run test:e2e`      | Playwright (`make test-e2e`)                                    |
+| DB migrate       | `bun run db:migrate`    | Supabase CLI push (`make db-migrate`)                           |
 | Storage setup    | `bun run setup-storage` | Create `rider-reports`, `government-ids`, `face-photos` buckets |
+| Env wizard       | `make configure`        | Interactive `.env.local` via `scripts/configure-env.ts`         |
 
 ---
 
@@ -234,7 +241,7 @@ app/          → pages and API routes (Next.js App Router)
 components/   → React UI components
 lib/          → business logic (no React)
 supabase/     → SQL migrations + Deno edge function
-Docs/         → this Starlight docs site
+docs/         → this Starlight docs site (+ openapi.yaml)
 ```
 
 See [Folder Structure](/folder-structure/) for a complete breakdown.
