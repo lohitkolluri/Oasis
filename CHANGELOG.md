@@ -15,7 +15,8 @@ This file follows the spirit of [Keep a Changelog](https://keepachangelog.com/en
 
 ## [Unreleased]
 
-Entries belong here once they land on the default branch (or when you cut a tagged release). As of documentation time, anything **after** `1871a88`, plus any **local uncommitted** changes, is not listed below.
+- **Documentation:** README overhaul—hero and CTAs, nested table of contents, themed Mermaid architecture diagram, Phase 1/2 demo video links, accurate project layout, expanded rider/admin walkthroughs, env and Makefile references.
+- **Tooling:** Makefile defaults to Bun, `docs` target uses `docs/`, adds `test` / `test-e2e`, keeps `configure` and full `setup` flow.
 
 ## [0.1.0] — 2026-03-30
 

@@ -1,54 +1,65 @@
-.PHONY: help configure install setup dev webhook-tunnel-help db-migrate setup-storage build lint docs
+.PHONY: help configure install setup dev webhook-tunnel-help db-migrate setup-storage build lint docs test test-e2e
 
-# Default target
 help:
 	@echo "Oasis - Makefile targets"
 	@echo ""
-	@echo "  configure       Interactive .env.local setup (prompts for each variable)"
-	@echo "  install        yarn install"
 	@echo "  setup          Full setup: install, configure, db-migrate, setup-storage"
+	@echo "  install        bun install"
+	@echo "  configure      Interactive .env.local setup (prompts for each variable)"
 	@echo ""
 	@echo "  dev            Start Next.js dev server (localhost:3000)"
-	@echo "  webhook-tunnel-help  How to expose localhost for Razorpay webhooks (Pinggy, etc.)"
-	@echo ""
-	@echo "  db-migrate     Apply Supabase migrations"
-	@echo "  setup-storage  Create storage buckets (rider-reports, government-ids, face-photos)"
-	@echo ""
 	@echo "  build          Production build"
 	@echo "  lint           ESLint"
 	@echo ""
-	@echo "  docs           Start docs site (Docs/)"
+	@echo "  test           Run unit tests (Vitest)"
+	@echo "  test-e2e       Run end-to-end tests (Playwright)"
 	@echo ""
-	@echo "  Payments: use Test mode keys. Client verify works on localhost; webhooks need a public HTTPS URL — run: make webhook-tunnel-help"
+	@echo "  db-migrate     Apply Supabase migrations"
+	@echo "  setup-storage  Create storage buckets"
+	@echo "  docs           Start docs site (localhost:4321)"
+	@echo ""
+	@echo "  webhook-tunnel-help  How to expose localhost for Razorpay webhooks"
 
 configure:
-	tsx scripts/configure-env.ts
+	npx tsx scripts/configure-env.ts
 
 install:
-	yarn install
+	bun install
 
 setup: install configure db-migrate setup-storage
-	@echo "Setup complete. Run 'make dev'. For Razorpay webhook testing see 'make webhook-tunnel-help'."
+	@echo ""
+	@echo "Setup complete. Run 'make dev' to start the app."
+	@echo "For Razorpay webhook testing run 'make webhook-tunnel-help'."
 
 dev:
-	yarn dev
-
-webhook-tunnel-help:
-	@echo "Razorpay cannot POST to http://localhost. Use a public HTTPS URL for /api/payments/webhook."
-	@echo "Example (Pinggy):  ssh -p 443 -R0:localhost:3000 a.pinggy.io"
-	@echo "Then in Razorpay Dashboard (Test mode) set webhook URL to:  https://<tunnel-host>/api/payments/webhook"
-
-db-migrate:
-	yarn db:migrate
-
-setup-storage:
-	yarn setup-storage
+	bun dev
 
 build:
-	yarn build
+	bun run build
 
 lint:
-	yarn lint
+	bun run lint
+
+test:
+	bun run test
+
+test-e2e:
+	bun run test:e2e
+
+db-migrate:
+	bun run db:migrate
+
+setup-storage:
+	bun run setup-storage
 
 docs:
-	cd Docs && npm run dev
+	cd docs && bun install && bun dev
+
+webhook-tunnel-help:
+	@echo "Razorpay cannot POST to http://localhost."
+	@echo "Use a tunnel to get a public HTTPS URL for /api/payments/webhook."
+	@echo ""
+	@echo "  Example (Pinggy):  ssh -p 443 -R0:localhost:3000 a.pinggy.io"
+	@echo ""
+	@echo "Then set the webhook URL in Razorpay Dashboard (Test mode) to:"
+	@echo "  https://<tunnel-host>/api/payments/webhook"
