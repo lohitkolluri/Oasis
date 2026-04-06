@@ -10,6 +10,12 @@ interface ClaimVerificationPromptProps {
   zoneName?: string;
 }
 
+type MotionCaptureResult = {
+  imu_variance: number | null;
+  samples: number;
+  permission: "granted" | "denied" | "unavailable" | "unknown";
+};
+
 export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone" }: ClaimVerificationPromptProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -34,18 +40,97 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
     }
   };
 
+  const captureImuVariance = async (durationMs: number): Promise<MotionCaptureResult> => {
+    if (typeof window === "undefined") {
+      return { imu_variance: null, samples: 0, permission: "unavailable" };
+    }
+
+    const motionEvent = window.DeviceMotionEvent as unknown as {
+      requestPermission?: () => Promise<"granted" | "denied">;
+    };
+
+    let permission: MotionCaptureResult["permission"] = "unknown";
+    if (typeof motionEvent?.requestPermission === "function") {
+      try {
+        const r = await motionEvent.requestPermission();
+        permission = r;
+      } catch {
+        permission = "denied";
+      }
+    } else {
+      permission = "unavailable";
+    }
+
+    // Even without explicit permission API, many Android browsers allow DeviceMotionEvent.
+    const samples: number[] = [];
+    const handler = (evt: DeviceMotionEvent) => {
+      const a = evt.accelerationIncludingGravity;
+      const ax = a?.x ?? null;
+      const ay = a?.y ?? null;
+      const az = a?.z ?? null;
+      if (ax == null || ay == null || az == null) return;
+      // Use magnitude; good enough for spoofing heuristics.
+      const mag = Math.sqrt(ax * ax + ay * ay + az * az);
+      if (Number.isFinite(mag)) samples.push(mag);
+    };
+
+    window.addEventListener("devicemotion", handler, { passive: true });
+    await new Promise((r) => setTimeout(r, durationMs));
+    window.removeEventListener("devicemotion", handler);
+
+    if (samples.length < 5) {
+      return { imu_variance: null, samples: samples.length, permission };
+    }
+
+    const mean = samples.reduce((s, v) => s + v, 0) / samples.length;
+    const variance =
+      samples.reduce((s, v) => s + (v - mean) * (v - mean), 0) /
+      Math.max(1, samples.length - 1);
+
+    return {
+      imu_variance: Number.isFinite(variance) ? Number(variance.toFixed(4)) : null,
+      samples: samples.length,
+      permission,
+    };
+  };
+
   const submitVerification = async (proof?: File) => {
-    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-    });
+    const [pos, motion] = await Promise.all([
+      new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+      }),
+      captureImuVariance(2000),
+    ]);
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
+    const speedKmh =
+      pos.coords.speed != null && Number.isFinite(pos.coords.speed)
+        ? Number((pos.coords.speed * 3.6).toFixed(2))
+        : null;
 
     const formData = new FormData();
     formData.set("claim_id", claimId);
     formData.set("lat", String(lat));
     formData.set("lng", String(lng));
     formData.set("declaration", "true");
+    if (speedKmh != null) formData.set("speed_kmh", String(speedKmh));
+    if (motion.imu_variance != null) {
+      formData.set("imu_variance", String(motion.imu_variance));
+    }
+    // Not available in web PWAs (kept for schema compatibility).
+    // formData.set("gnss_snr_variance", ...)
+    // formData.set("play_integrity_pass", ...)
+    // formData.set("os_signature_valid", ...)
+    // formData.set("rooted_device", ...)
+    formData.set(
+      "device_attestation",
+      JSON.stringify({
+        client: "pwa",
+        motion_permission: motion.permission,
+        motion_samples: motion.samples,
+        ua: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      }),
+    );
     if (proof) formData.append("proof", proof);
 
     const res = await fetch("/api/claims/verify-location", {
