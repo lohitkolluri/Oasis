@@ -40,7 +40,7 @@ export function ChartCard({
         </div>
         {headerRight && <div>{headerRight}</div>}
       </div>
-      <div className="p-5">
+      <div className="p-5 min-w-0 min-h-0">
         {children}
       </div>
     </motion.div>

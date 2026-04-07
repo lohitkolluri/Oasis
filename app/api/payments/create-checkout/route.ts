@@ -2,16 +2,16 @@
  * Creates a Razorpay order for weekly premium coverage and returns checkout options
  * for Razorpay Standard Checkout (client opens modal).
  */
+import { getRazorpayInstance } from '@/lib/clients/razorpay';
 import { RATE_LIMITS } from '@/lib/config/constants';
 import { getRazorpayKeyId } from '@/lib/config/env';
-import { getRazorpayInstance } from '@/lib/clients/razorpay';
+import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { createCheckoutSchema } from '@/lib/validations/schemas';
-import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
-import { getPolicyWeekRange } from '@/lib/utils/policy-week';
-import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
+import { getCoverageWeekRange } from '@/lib/utils/policy-week';
+import { parseWithSchema } from '@/lib/validations/parse';
+import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -36,7 +36,37 @@ export async function POST(request: Request) {
     if (!parsed.success) return parsed.response;
     const { planId } = parsed.data;
     const admin = createAdminClient();
-    const { start: weekStart, end: weekEnd } = getPolicyWeekRange();
+    const { start: weekStart, end: weekEnd } = getCoverageWeekRange();
+
+    // Race-condition guard: prevent duplicate pending/active policy for same profile + week.
+    const { data: existingPolicy } = await admin
+      .from('weekly_policies')
+      .select('id, is_active, payment_status')
+      .eq('profile_id', user.id)
+      .eq('week_start_date', weekStart);
+
+    if (existingPolicy && existingPolicy.length > 0) {
+      const active = existingPolicy.find((p) => p.is_active);
+      if (active) {
+        return NextResponse.json(
+          {
+            error: 'You already have active coverage for this week.',
+            policyId: active.id,
+          },
+          { status: 400 },
+        );
+      }
+      const pending = existingPolicy.find((p) => p.payment_status === 'pending');
+      if (pending) {
+        return NextResponse.json(
+          {
+            error: 'You already have a pending checkout for this week. Complete payment first.',
+            policyId: pending.id,
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     let amountInr: number;
     if (planId) {
@@ -76,6 +106,29 @@ export async function POST(request: Request) {
       .single();
 
     if (policyError || !policy) {
+      // If a concurrent request already created the policy for this rider/week, return that instead.
+      if ((policyError as { code?: string } | null)?.code === '23505') {
+        const { data: existing } = await admin
+          .from('weekly_policies')
+          .select('id, is_active, payment_status')
+          .eq('profile_id', user.id)
+          .eq('week_start_date', weekStart)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing?.id) {
+          return NextResponse.json(
+            {
+              error: existing.is_active
+                ? 'You already have active coverage for this week.'
+                : 'You already have a pending checkout for this week. Complete payment first.',
+              policyId: existing.id,
+            },
+            { status: 409 },
+          );
+        }
+      }
       return NextResponse.json(
         { error: policyError?.message ?? 'Failed to create policy' },
         { status: 500 },

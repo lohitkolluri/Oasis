@@ -165,7 +165,7 @@ export function PlanPricingForecastChart({
       </div>
 
       <div className="h-[clamp(260px,34vh,420px)] w-full min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart data={points} margin={{ top: 10, right: 18, left: 6, bottom: 14 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" vertical={false} />
             <XAxis

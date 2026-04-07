@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatShortDateIST } from '@/lib/datetime/ist';
+import { formatPolicyDateShort } from '@/lib/datetime/oasis-time';
 import type { ReservesCohortsPayload, WeeklyCohortRow } from '@/lib/reserves/weekly-cohorts';
 import { cn } from '@/lib/utils';
 import {
@@ -47,6 +47,10 @@ function inr(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
 
+function fmtWeek(ymd: string) {
+  return formatPolicyDateShort(ymd);
+}
+
 function CapUtilBar({ label, pct, help }: { label: string; pct: number; help: string }) {
   const p = Math.min(100, Math.max(0, pct));
   return (
@@ -56,11 +60,17 @@ function CapUtilBar({ label, pct, help }: { label: string; pct: number; help: st
           <span className={cn(G.helper, '!text-[10px]')}>{label}</span>
           <InlineHelp text={help} size="sm" className="translate-y-px" />
         </div>
-        <span className="shrink-0 text-[10px] font-medium tabular-nums text-white/55">{p.toFixed(1)}%</span>
+        <span className="shrink-0 text-[10px] font-medium tabular-nums text-white/55">
+          {p.toFixed(1)}%
+        </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
         <div
-          className={cn('h-full rounded-full transition-[width] duration-300 ease-out', SB.bg, 'opacity-90')}
+          className={cn(
+            'h-full rounded-full transition-[width] duration-300 ease-out',
+            SB.bg,
+            'opacity-90',
+          )}
           style={{ width: `${p}%` }}
         />
       </div>
@@ -80,10 +90,9 @@ export function ReservesCohortPanel() {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(
-        `/api/admin/reserves-cohorts?weeks=${weeks}&extraDays=${extraDays}`,
-        { credentials: 'include' },
-      );
+      const res = await fetch(`/api/admin/reserves-cohorts?weeks=${weeks}&extraDays=${extraDays}`, {
+        credentials: 'include',
+      });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(j.error ?? res.statusText);
@@ -133,9 +142,9 @@ export function ReservesCohortPanel() {
             />
           </div>
           <p className="max-w-2xl text-sm leading-relaxed text-white/45">
-            Earned premium vs. contractual exposure and realized parametric payouts by coverage week. Stress
-            simulates extra lockdown-equivalent days against remaining headroom — for liquidity narrative only,
-            not statutory IBNR.
+            Earned premium vs. contractual exposure and realized parametric payouts by coverage
+            week. Stress simulates extra lockdown-equivalent days against remaining headroom — for
+            liquidity narrative only, not statutory IBNR.
           </p>
         </div>
       </header>
@@ -197,8 +206,8 @@ export function ReservesCohortPanel() {
                 aria-label="Extra lockdown-equivalent days"
               />
               <p className={G.helper}>
-                Each day adds <span className="text-white/55">1/7</span> of remaining headroom (max exposure −
-                realized) to the stressed payout total.
+                Each day adds <span className="text-white/55">1/7</span> of remaining headroom (max
+                exposure − realized) to the stressed payout total.
               </p>
             </div>
           </div>
@@ -209,7 +218,10 @@ export function ReservesCohortPanel() {
             size="default"
             onClick={() => void load()}
             disabled={loading}
-            className={cn('shrink-0 border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]', SB.ring)}
+            className={cn(
+              'shrink-0 border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]',
+              SB.ring,
+            )}
           >
             <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} aria-hidden />
             {loading ? 'Refreshing…' : 'Refresh'}
@@ -222,7 +234,9 @@ export function ReservesCohortPanel() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className={cn(G.helper, '!text-[11px]')}>
                 Weekly payout cap{' '}
-                <span className="font-medium text-white/55">{inr(data.meta.weeklyPayoutCapInr)}</span>
+                <span className="font-medium text-white/55">
+                  {inr(data.meta.weeklyPayoutCapInr)}
+                </span>
                 <span className="text-white/30"> · </span>
                 {data.disclaimer}
               </p>
@@ -257,7 +271,7 @@ export function ReservesCohortPanel() {
               icon={IndianRupee}
               accent="cyan"
               delay={0}
-              subtext={formatShortDateIST(latest.weekStart)}
+              subtext={fmtWeek(latest.weekStart)}
               help="Premium collected for the latest row's coverage week only: we add weekly_premium_inr for every policy in that week with paid or demo status. The chip is that week's start (Monday, IST). Not lifetime revenue — just that seven-day window."
             />
             <MetricCard
@@ -319,7 +333,11 @@ export function ReservesCohortPanel() {
         </div>
 
         <TabsContent value="cohorts" className="mt-4">
-          <Card variant="default" padding="none" className={cn(G.contentCard, 'flex min-h-0 flex-col overflow-hidden')}>
+          <Card
+            variant="default"
+            padding="none"
+            className={cn(G.contentCard, 'flex min-h-0 flex-col overflow-hidden')}
+          >
             <div className={G.panelHeader}>
               <div className="min-w-0">
                 <p className={G.sectionTitle}>Coverage-week ledger</p>
@@ -342,70 +360,91 @@ export function ReservesCohortPanel() {
               >
                 <div className="w-full min-w-0 overflow-x-auto scrollbar-admin pb-1">
                   <Table className="min-w-[920px]">
-                  <TableHeader>
-                    <TableRow className="border-white/[0.06] hover:bg-transparent">
-                      <TableHead className={cn(G.th, 'whitespace-nowrap')}>Week (IST)</TableHead>
-                      <TableHead className={cn(G.th, 'text-right')}>Policies</TableHead>
-                      <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>Premium</TableHead>
-                      <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>Max exp.</TableHead>
-                      <TableHead className={cn(G.th, 'text-right')}>Realized</TableHead>
-                      <TableHead className={cn(G.th, 'text-right')}>Headroom</TableHead>
-                      <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>Stress +</TableHead>
-                      <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>Stressed</TableHead>
-                      <TableHead className={cn(G.th, 'text-right')}>Gap</TableHead>
-                      <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>Cap %</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.cohorts.map((c) => (
-                      <TableRow
-                        key={c.weekStart}
-                        className="border-white/[0.06] transition-colors hover:bg-white/[0.02]"
-                      >
-                        <TableCell className={cn(G.td, 'whitespace-nowrap text-white/80')}>
-                          {formatShortDateIST(c.weekStart)}
-                          {c.weekEnd ? (
-                            <span className="text-white/35"> — {formatShortDateIST(c.weekEnd)}</span>
-                          ) : null}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-white/45')}>
-                          {c.policyCount}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-white')}>
-                          {inr(c.earnedPremiumInr)}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-violet-300/90')}>
-                          {inr(c.cohortMaxExposureInr)}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-emerald-300/85')}>
-                          {inr(c.realizedPayoutInr)}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-white/45')}>
-                          {inr(c.headroomInr)}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-amber-200/90')}>
-                          +{inr(c.incrementalStressInr)}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-amber-100/95')}>
-                          {inr(c.stressedTotalPayoutInr)}
-                        </TableCell>
-                        <TableCell
-                          className={cn(
-                            G.td,
-                            'text-right tabular-nums',
-                            c.liquidityGapVsPremiumInr > 0 ? 'text-red-300/90' : 'text-emerald-300/85',
-                          )}
-                        >
-                          {c.liquidityGapVsPremiumInr >= 0 ? '+' : ''}
-                          {inr(c.liquidityGapVsPremiumInr)}
-                        </TableCell>
-                        <TableCell className={cn(G.td, 'text-right tabular-nums text-white/45')}>
-                          {c.utilizationOfCapPct.toFixed(1)} → {c.stressedUtilizationOfCapPct.toFixed(1)}%
-                        </TableCell>
+                    <TableHeader>
+                      <TableRow className="border-white/[0.06] hover:bg-transparent">
+                        <TableHead className={cn(G.th, 'whitespace-nowrap')}>Week (IST)</TableHead>
+                        <TableHead className={cn(G.th, 'text-right')}>Policies</TableHead>
+                        <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>
+                          Premium
+                        </TableHead>
+                        <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>
+                          Max exp.
+                        </TableHead>
+                        <TableHead className={cn(G.th, 'text-right')}>Realized</TableHead>
+                        <TableHead className={cn(G.th, 'text-right')}>Headroom</TableHead>
+                        <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>
+                          Stress +
+                        </TableHead>
+                        <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>
+                          Stressed
+                        </TableHead>
+                        <TableHead className={cn(G.th, 'text-right')}>Gap</TableHead>
+                        <TableHead className={cn(G.th, 'text-right whitespace-nowrap')}>
+                          Cap %
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {data.cohorts.map((c) => (
+                        <TableRow
+                          key={c.weekStart}
+                          className="border-white/[0.06] transition-colors hover:bg-white/[0.02]"
+                        >
+                          <TableCell className={cn(G.td, 'whitespace-nowrap text-white/80')}>
+                            {fmtWeek(c.weekStart)}
+                            {c.weekEnd ? (
+                              <span className="text-white/35"> — {fmtWeek(c.weekEnd)}</span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className={cn(G.td, 'text-right tabular-nums text-white/45')}>
+                            {c.policyCount}
+                          </TableCell>
+                          <TableCell className={cn(G.td, 'text-right tabular-nums text-white')}>
+                            {inr(c.earnedPremiumInr)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(G.td, 'text-right tabular-nums text-violet-300/90')}
+                          >
+                            {inr(c.cohortMaxExposureInr)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(G.td, 'text-right tabular-nums text-emerald-300/85')}
+                          >
+                            {inr(c.realizedPayoutInr)}
+                          </TableCell>
+                          <TableCell className={cn(G.td, 'text-right tabular-nums text-white/45')}>
+                            {inr(c.headroomInr)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(G.td, 'text-right tabular-nums text-amber-200/90')}
+                          >
+                            +{inr(c.incrementalStressInr)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(G.td, 'text-right tabular-nums text-amber-100/95')}
+                          >
+                            {inr(c.stressedTotalPayoutInr)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              G.td,
+                              'text-right tabular-nums',
+                              c.liquidityGapVsPremiumInr > 0
+                                ? 'text-red-300/90'
+                                : 'text-emerald-300/85',
+                            )}
+                          >
+                            {c.liquidityGapVsPremiumInr >= 0 ? '+' : ''}
+                            {inr(c.liquidityGapVsPremiumInr)}
+                          </TableCell>
+                          <TableCell className={cn(G.td, 'text-right tabular-nums text-white/45')}>
+                            {c.utilizationOfCapPct.toFixed(1)} →{' '}
+                            {c.stressedUtilizationOfCapPct.toFixed(1)}%
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             )}
@@ -430,7 +469,7 @@ export function ReservesCohortPanel() {
                   >
                     {data.cohorts.map((c) => (
                       <option key={c.weekStart} value={c.weekStart}>
-                        {formatShortDateIST(c.weekStart)}
+                        {fmtWeek(c.weekStart)}
                       </option>
                     ))}
                   </select>
@@ -438,105 +477,143 @@ export function ReservesCohortPanel() {
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
-                <Card variant="default" padding="none" className={cn(G.contentCard, 'flex flex-col overflow-hidden')}>
+                <Card
+                  variant="default"
+                  padding="none"
+                  className={cn(G.contentCard, 'flex flex-col overflow-hidden')}
+                >
                   <div className={G.panelHeader}>
                     <p className={G.sectionTitle}>By zone</p>
-                    <Badge variant="secondary" className="border-0 bg-white/[0.06] text-[10px] text-white/50">
+                    <Badge
+                      variant="secondary"
+                      className="border-0 bg-white/[0.06] text-[10px] text-white/50"
+                    >
                       Expected vs realized
                     </Badge>
                   </div>
                   {!detail || detail.byZone.length === 0 ? (
-                    <div className="px-4 py-12 text-center text-sm text-white/40">No zone breakdown.</div>
+                    <div className="px-4 py-12 text-center text-sm text-white/40">
+                      No zone breakdown.
+                    </div>
                   ) : (
                     <ScrollArea
                       viewportClassName="scrollbar-admin"
-                      className={cn(
-                        G.tableShell,
-                        '!h-[min(360px,42vh)] min-h-[200px] border-0',
-                      )}
+                      className={cn(G.tableShell, '!h-[min(360px,42vh)] min-h-[200px] border-0')}
                     >
                       <div className="min-w-0 overflow-x-auto scrollbar-admin">
                         <Table className="min-w-[520px]">
-                        <TableHeader>
-                          <TableRow className="border-white/[0.06] hover:bg-transparent">
-                            <TableHead className={G.th}>Zone</TableHead>
-                            <TableHead className={cn(G.th, 'text-right')}>N</TableHead>
-                            <TableHead className={cn(G.th, 'text-right')}>Premium</TableHead>
-                            <TableHead className={cn(G.th, 'text-right')}>Max</TableHead>
-                            <TableHead className={cn(G.th, 'text-right')}>Paid</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {detail.byZone.map((z) => (
-                            <TableRow key={z.zone} className="border-white/[0.06] hover:bg-white/[0.02]">
-                              <TableCell
-                                className={cn(G.td, 'max-w-[160px] truncate text-white/80')}
-                                title={z.zone}
-                              >
-                                {z.zone}
-                              </TableCell>
-                              <TableCell className={cn(G.td, 'text-right tabular-nums')}>{z.policyCount}</TableCell>
-                              <TableCell className={cn(G.td, 'text-right tabular-nums text-white')}>
-                                {inr(z.earnedPremiumInr)}
-                              </TableCell>
-                              <TableCell className={cn(G.td, 'text-right tabular-nums text-violet-300/85')}>
-                                {inr(z.maxExposureInr)}
-                              </TableCell>
-                              <TableCell className={cn(G.td, 'text-right tabular-nums text-emerald-300/85')}>
-                                {inr(z.realizedPayoutInr)}
-                              </TableCell>
+                          <TableHeader>
+                            <TableRow className="border-white/[0.06] hover:bg-transparent">
+                              <TableHead className={G.th}>Zone</TableHead>
+                              <TableHead className={cn(G.th, 'text-right')}>N</TableHead>
+                              <TableHead className={cn(G.th, 'text-right')}>Premium</TableHead>
+                              <TableHead className={cn(G.th, 'text-right')}>Max</TableHead>
+                              <TableHead className={cn(G.th, 'text-right')}>Paid</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {detail.byZone.map((z) => (
+                              <TableRow
+                                key={z.zone}
+                                className="border-white/[0.06] hover:bg-white/[0.02]"
+                              >
+                                <TableCell
+                                  className={cn(G.td, 'max-w-[160px] truncate text-white/80')}
+                                  title={z.zone}
+                                >
+                                  {z.zone}
+                                </TableCell>
+                                <TableCell className={cn(G.td, 'text-right tabular-nums')}>
+                                  {z.policyCount}
+                                </TableCell>
+                                <TableCell
+                                  className={cn(G.td, 'text-right tabular-nums text-white')}
+                                >
+                                  {inr(z.earnedPremiumInr)}
+                                </TableCell>
+                                <TableCell
+                                  className={cn(G.td, 'text-right tabular-nums text-violet-300/85')}
+                                >
+                                  {inr(z.maxExposureInr)}
+                                </TableCell>
+                                <TableCell
+                                  className={cn(
+                                    G.td,
+                                    'text-right tabular-nums text-emerald-300/85',
+                                  )}
+                                >
+                                  {inr(z.realizedPayoutInr)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </ScrollArea>
                   )}
                 </Card>
 
-                <Card variant="default" padding="none" className={cn(G.contentCard, 'flex flex-col overflow-hidden')}>
+                <Card
+                  variant="default"
+                  padding="none"
+                  className={cn(G.contentCard, 'flex flex-col overflow-hidden')}
+                >
                   <div className={G.panelHeader}>
                     <p className={G.sectionTitle}>By peril</p>
-                    <Badge variant="secondary" className="border-0 bg-white/[0.06] text-[10px] text-white/50">
+                    <Badge
+                      variant="secondary"
+                      className="border-0 bg-white/[0.06] text-[10px] text-white/50"
+                    >
                       From disruption events
                     </Badge>
                   </div>
                   {!detail || detail.byPeril.length === 0 ? (
                     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-14 text-center">
                       <Activity className="h-7 w-7 text-white/15" aria-hidden />
-                      <p className="text-sm text-white/40">No claims linked to events for this week.</p>
+                      <p className="text-sm text-white/40">
+                        No claims linked to events for this week.
+                      </p>
                     </div>
                   ) : (
                     <ScrollArea
                       viewportClassName="scrollbar-admin"
-                      className={cn(
-                        G.tableShell,
-                        '!h-[min(360px,42vh)] min-h-[200px] border-0',
-                      )}
+                      className={cn(G.tableShell, '!h-[min(360px,42vh)] min-h-[200px] border-0')}
                     >
                       <div className="min-w-0 overflow-x-auto scrollbar-admin">
                         <Table className="min-w-[320px]">
-                        <TableHeader>
-                          <TableRow className="border-white/[0.06] hover:bg-transparent">
-                            <TableHead className={G.th}>Event type</TableHead>
-                            <TableHead className={cn(G.th, 'text-right')}>Claims</TableHead>
-                            <TableHead className={cn(G.th, 'text-right')}>Payout</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {detail.byPeril.map((p) => (
-                            <TableRow key={p.peril} className="border-white/[0.06] hover:bg-white/[0.02]">
-                              <TableCell className={cn(G.td, 'font-mono text-[11px] text-white/70')}>
-                                {p.peril}
-                              </TableCell>
-                              <TableCell className={cn(G.td, 'text-right tabular-nums')}>{p.claimCount}</TableCell>
-                              <TableCell className={cn(G.td, 'text-right tabular-nums text-emerald-300/85')}>
-                                {inr(p.realizedPayoutInr)}
-                              </TableCell>
+                          <TableHeader>
+                            <TableRow className="border-white/[0.06] hover:bg-transparent">
+                              <TableHead className={G.th}>Event type</TableHead>
+                              <TableHead className={cn(G.th, 'text-right')}>Claims</TableHead>
+                              <TableHead className={cn(G.th, 'text-right')}>Payout</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {detail.byPeril.map((p) => (
+                              <TableRow
+                                key={p.peril}
+                                className="border-white/[0.06] hover:bg-white/[0.02]"
+                              >
+                                <TableCell
+                                  className={cn(G.td, 'font-mono text-[11px] text-white/70')}
+                                >
+                                  {p.peril}
+                                </TableCell>
+                                <TableCell className={cn(G.td, 'text-right tabular-nums')}>
+                                  {p.claimCount}
+                                </TableCell>
+                                <TableCell
+                                  className={cn(
+                                    G.td,
+                                    'text-right tabular-nums text-emerald-300/85',
+                                  )}
+                                >
+                                  {inr(p.realizedPayoutInr)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </ScrollArea>
                   )}
@@ -544,7 +621,10 @@ export function ReservesCohortPanel() {
               </div>
             </>
           ) : (
-            <Card variant="default" className={cn(G.contentCard, 'p-8 text-center text-sm text-white/45')}>
+            <Card
+              variant="default"
+              className={cn(G.contentCard, 'p-8 text-center text-sm text-white/45')}
+            >
               Load cohort data from the first tab — no policies in range yet.
             </Card>
           )}

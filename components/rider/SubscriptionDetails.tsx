@@ -1,11 +1,8 @@
 'use client';
 
+import { getCoverageWeekProgressPercent } from '@/lib/coverage-week';
+import { coverageWindowStatus, formatPolicyDateShort } from '@/lib/datetime/oasis-time';
 import type { WeeklyPolicy } from '@/lib/types/database';
-import { formatShortDateIST } from '@/lib/datetime/ist';
-import {
-  getCoverageTimeRemainingParts,
-  getCoverageWeekProgressPercent,
-} from '@/lib/coverage-week';
 import { cn } from '@/lib/utils';
 import { Copy, CreditCard, Hash, RefreshCw, Smartphone, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,7 +14,7 @@ interface SubscriptionDetailsProps {
 }
 
 function formatShortDate(d: string) {
-  return formatShortDateIST(d);
+  return formatPolicyDateShort(d);
 }
 
 function copyToClipboard(text: string, onCopied: () => void) {
@@ -51,20 +48,20 @@ export function SubscriptionDetails({
   const [copied, setCopied] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(() =>
-    getCoverageTimeRemainingParts(policy.week_end_date),
+  const [windowStatus, setWindowStatus] = useState(() =>
+    coverageWindowStatus(policy.week_start_date, policy.week_end_date),
   );
   const progress = getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date);
 
   useEffect(() => {
-    setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
+    setWindowStatus(coverageWindowStatus(policy.week_start_date, policy.week_end_date));
     const interval = setInterval(() => {
-      setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
+      setWindowStatus(coverageWindowStatus(policy.week_start_date, policy.week_end_date));
     }, 60000);
     return () => clearInterval(interval);
-  }, [policy.week_end_date]);
+  }, [policy.week_end_date, policy.week_start_date]);
   const displayId = policy.id.slice(0, 8).toUpperCase();
-  const methodType = policy.razorpay_payment_method ?? policy.stripe_payment_method_type;
+  const methodType = policy.razorpay_payment_method;
   const methodLabel = paymentMethodLabel(methodType);
   const hasKnownMethod = Boolean(methodType?.trim());
 
@@ -130,9 +127,15 @@ export function SubscriptionDetails({
           Coverage period
         </p>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <p className="text-sm font-semibold text-white">Time remaining</p>
+          <p className="text-sm font-semibold text-white">
+            {windowStatus.status === 'upcoming'
+              ? 'Starts in'
+              : windowStatus.status === 'expired'
+                ? 'Coverage ended'
+                : 'Time remaining'}
+          </p>
           <span className="rounded-full bg-uber-green/20 px-2.5 py-1 text-[11px] font-semibold text-uber-green tabular-nums">
-            {timeLeft.days}d {timeLeft.hours}h
+            {windowStatus.days}d {windowStatus.hours}h
           </span>
         </div>
         <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">

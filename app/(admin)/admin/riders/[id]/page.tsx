@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { ZoneMapLazy } from '@/components/ui/ZoneMapLazy';
 import { isEarnedPremiumStatus } from '@/lib/config/constants';
+import { formatPolicyDateShort } from '@/lib/datetime/oasis-time';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reverseGeocode } from '@/lib/utils/geo';
 import {
@@ -100,16 +101,12 @@ export default async function AdminRiderDetailPage({
     coordinates?: unknown;
   } | null;
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+  const formatDate = (d: string) => formatPolicyDateShort(d);
 
   const sortedPolicies = [...policies].sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-    return new Date(b.week_start_date).getTime() - new Date(a.week_start_date).getTime();
+    // week_start_date is a DATE string (YYYY-MM-DD); string compare is safe.
+    return String(b.week_start_date).localeCompare(String(a.week_start_date));
   });
 
   const displayName = profile.full_name ?? 'Unnamed rider';

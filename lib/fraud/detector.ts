@@ -13,6 +13,90 @@ export interface FraudCheckResult {
   facts?: Record<string, unknown>;
 }
 
+export type DeviceAttestationSignals = {
+  speed_kmh?: number | null;
+  imu_variance?: number | null;
+  gnss_snr_variance?: number | null;
+  dev_settings_enabled?: boolean | null;
+  is_mock_location?: boolean | null;
+  play_integrity_pass?: boolean | null;
+  os_signature_valid?: boolean | null;
+  rooted_device?: boolean | null;
+};
+
+/**
+ * Device-integrity + sensor plausibility checks.
+ * These are optional signals; if absent we degrade gracefully.
+ */
+export function checkDeviceAttestation(
+  signals: DeviceAttestationSignals | null | undefined,
+): FraudCheckResult {
+  if (!signals) return { isFlagged: false };
+
+  if (signals.is_mock_location === true || signals.dev_settings_enabled === true) {
+    return {
+      isFlagged: true,
+      reason: 'Device integrity: mock location / developer settings enabled',
+      checkName: 'device_integrity',
+      facts: {
+        is_mock_location: signals.is_mock_location ?? null,
+        dev_settings_enabled: signals.dev_settings_enabled ?? null,
+      },
+    };
+  }
+
+  if (signals.rooted_device === true) {
+    return {
+      isFlagged: true,
+      reason: 'Device integrity: rooted/jailbroken device detected',
+      checkName: 'device_integrity',
+      facts: { rooted_device: true },
+    };
+  }
+
+  if (signals.os_signature_valid === false || signals.play_integrity_pass === false) {
+    return {
+      isFlagged: true,
+      reason: 'Device integrity: OS signature / Play Integrity check failed',
+      checkName: 'device_integrity',
+      facts: {
+        os_signature_valid: signals.os_signature_valid ?? null,
+        play_integrity_pass: signals.play_integrity_pass ?? null,
+      },
+    };
+  }
+
+  const speed = signals.speed_kmh;
+  const imu = signals.imu_variance;
+  if (
+    speed != null &&
+    imu != null &&
+    Number.isFinite(speed) &&
+    Number.isFinite(imu) &&
+    speed >= FRAUD.IMU_SPEED_MIN_KMH &&
+    imu < FRAUD.IMU_MIN_VARIANCE
+  ) {
+    return {
+      isFlagged: true,
+      reason: `Physics anomaly: speed=${speed}km/h but IMU variance=${imu} (<${FRAUD.IMU_MIN_VARIANCE})`,
+      checkName: 'imu_teleportation',
+      facts: { speed_kmh: speed, imu_variance: imu },
+    };
+  }
+
+  const snrVar = signals.gnss_snr_variance;
+  if (snrVar != null && Number.isFinite(snrVar) && snrVar < FRAUD.GNSS_SNR_VARIANCE_MIN) {
+    return {
+      isFlagged: true,
+      reason: `GNSS anomaly: SNR variance too low (${snrVar} < ${FRAUD.GNSS_SNR_VARIANCE_MIN})`,
+      checkName: 'gnss_snr_variance',
+      facts: { gnss_snr_variance: snrVar, min: FRAUD.GNSS_SNR_VARIANCE_MIN },
+    };
+  }
+
+  return { isFlagged: false };
+}
+
 export async function checkDuplicateClaim(
   supabase: SupabaseClient,
   policyId: string,

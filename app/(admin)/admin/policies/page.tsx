@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { isEarnedPremiumStatus } from '@/lib/config/constants';
+import { formatPolicyDateShort } from '@/lib/datetime/oasis-time';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ChevronRight, FileCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -31,8 +32,7 @@ const zoneName = (gf: unknown) => {
   return z?.zone_name ?? '—';
 };
 
-const formatDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+const formatDate = (d: string) => formatPolicyDateShort(d);
 
 function PolicyTable({
   policies,
@@ -44,11 +44,7 @@ function PolicyTable({
   emptyMessage: string;
 }) {
   if (policies.length === 0) {
-    return (
-      <div className="px-5 py-10 text-center text-sm text-[#555]">
-        {emptyMessage}
-      </div>
-    );
+    return <div className="px-5 py-10 text-center text-sm text-[#555]">{emptyMessage}</div>;
   }
 
   return (
@@ -58,9 +54,7 @@ function PolicyTable({
           <TableHead className="w-[min(280px,40%)]">Rider / Plan</TableHead>
           <TableHead className="w-[140px]">Week</TableHead>
           <TableHead className="w-[100px] text-right">Premium</TableHead>
-          {showStatus && (
-            <TableHead className="w-[100px]">Status</TableHead>
-          )}
+          {showStatus && <TableHead className="w-[100px]">Status</TableHead>}
           <TableHead className="w-[44px]" />
         </TableRow>
       </TableHeader>
@@ -74,9 +68,7 @@ function PolicyTable({
                 <div className="flex items-center gap-3 min-w-0">
                   <PlatformLogo platform={profile?.platform} size={32} showName />
                   <div className="min-w-0">
-                    <p className="truncate text-sm text-white">
-                      {profile?.full_name ?? 'Unknown'}
-                    </p>
+                    <p className="truncate text-sm text-white">{profile?.full_name ?? 'Unknown'}</p>
                     <p className="truncate text-[11px] text-[#666]">
                       {plan?.name ?? 'Legacy'} · {zoneName(profile?.primary_zone_geofence)}
                     </p>
@@ -168,24 +160,14 @@ export default async function AdminPoliciesPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <KPICard
-          title="Active Policies"
-          label="Current week"
-          value={activeCount}
-          accent="cyan"
-        />
+        <KPICard title="Active Policies" label="Current week" value={activeCount} accent="cyan" />
         <KPICard
           title="Total Premium"
           label="Active · paid or demo"
           value={`₹${activePremium.toLocaleString('en-IN')}`}
           accent="emerald"
         />
-        <KPICard
-          title="Plans in Use"
-          label="Distinct"
-          value={plansInUse}
-          accent="violet"
-        />
+        <KPICard title="Plans in Use" label="Distinct" value={plansInUse} accent="violet" />
       </div>
 
       {!hasAnyPolicies ? (
@@ -201,9 +183,7 @@ export default async function AdminPoliciesPage() {
           {/* Active policies — primary focus */}
           <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden flex flex-col">
             <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">
-                Active policies
-              </h2>
+              <h2 className="text-sm font-semibold text-white">Active policies</h2>
               <span className="text-[11px] text-[#555] tabular-nums">
                 {activeCount} policy{activeCount !== 1 ? 'ies' : ''}
               </span>
@@ -220,9 +200,7 @@ export default async function AdminPoliciesPage() {
           {/* Expired policies — secondary, limited list */}
           <div className="rounded-xl border border-[#2d2d2d] bg-[#161616] overflow-hidden flex flex-col">
             <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[#737373]">
-                Expired (past weeks)
-              </h2>
+              <h2 className="text-sm font-semibold text-[#737373]">Expired (past weeks)</h2>
               <span className="text-[11px] text-[#555] tabular-nums">
                 {expiredPolicies.length > 0
                   ? `Showing ${expiredToShow.length} of ${expiredPolicies.length}`

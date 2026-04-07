@@ -23,9 +23,19 @@ SELECT
   COUNT(pc.id) FILTER (WHERE pc.is_flagged = true)      AS flagged_claims,
   MAX(pc.created_at)                                    AS last_payout_at,
   COALESCE(SUM(pc.payout_amount_inr)
-    FILTER (WHERE pc.created_at >= date_trunc('week', NOW())), 0) AS this_week_earned_inr,
+    FILTER (
+      WHERE pc.created_at >= (
+        ((NOW() AT TIME ZONE 'Asia/Kolkata')::date - (((EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Asia/Kolkata'))::int + 6) % 7)))::text
+        || 'T00:00:00+05:30'
+      )::timestamptz
+    ), 0) AS this_week_earned_inr,
   COUNT(pc.id)
-    FILTER (WHERE pc.created_at >= date_trunc('week', NOW()))     AS this_week_claims
+    FILTER (
+      WHERE pc.created_at >= (
+        ((NOW() AT TIME ZONE 'Asia/Kolkata')::date - (((EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Asia/Kolkata'))::int + 6) % 7)))::text
+        || 'T00:00:00+05:30'
+      )::timestamptz
+    )     AS this_week_claims
 FROM   parametric_claims pc
 JOIN   weekly_policies   wp ON wp.id = pc.policy_id
 WHERE  pc.status = 'paid'

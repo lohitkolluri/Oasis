@@ -95,7 +95,7 @@ export function TriggerAnalytics({ events }: { events: Event[] }) {
         icon={BarChart2}
       >
         <div className="h-[220px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <BarChart
               data={byType}
               layout="vertical"
@@ -144,7 +144,7 @@ export function TriggerAnalytics({ events }: { events: Event[] }) {
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="h-[140px] w-full sm:w-[140px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <PieChart>
                 <Pie
                   data={severityData}

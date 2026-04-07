@@ -214,6 +214,7 @@ export async function runAdjudicatorCore(
       const newsCandidates = await checkNewsTriggers(
         openRouterKey,
         newsDataKey,
+        tomtomKey,
         zones,
         instCtx,
       );

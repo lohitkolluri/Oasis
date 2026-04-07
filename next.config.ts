@@ -42,7 +42,14 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.brandfetch.io data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' https://www.openstreetmap.org https://*.openstreetmap.org;",
+              // NOTE: Keep CSP strict, but allow required third-party widgets.
+              // - Razorpay Checkout loads https://checkout.razorpay.com/v1/checkout.js and uses iframes/network to Razorpay domains.
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' https://cdn.brandfetch.io data:; " +
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://checkout.razorpay.com; " +
+              "frame-src 'self' https://www.openstreetmap.org https://*.openstreetmap.org https://api.razorpay.com https://checkout.razorpay.com;",
           },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
         ],

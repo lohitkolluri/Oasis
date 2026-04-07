@@ -191,6 +191,7 @@ export async function mergeSourceHealth(
     p_observed_at: touch.observedAt,
     p_is_fallback: touch.isFallback === undefined ? null : touch.isFallback,
     p_fallback_of: touch.fallbackOf === undefined ? null : touch.fallbackOf,
+    p_error_detail: touch.ok ? null : (touch.errorDetail ?? null),
   });
 
   if (!rpcError) return;
@@ -212,7 +213,7 @@ async function mergeSourceHealthClientUpsert(
   const { data: existing } = await supabase
     .from('parametric_source_health')
     .select(
-      'error_streak,success_streak,avg_latency_ms,last_latency_ms,last_success_at,last_error_at,is_fallback,fallback_of',
+      'error_streak,success_streak,avg_latency_ms,last_latency_ms,last_success_at,last_error_at,last_error_detail,is_fallback,fallback_of',
     )
     .eq('source_id', sourceId)
     .maybeSingle();
@@ -239,6 +240,9 @@ async function mergeSourceHealthClientUpsert(
     last_error_at: touch.ok
       ? (existing?.last_error_at as string | null | undefined) ?? null
       : touch.observedAt,
+    last_error_detail: touch.ok
+      ? (existing?.last_error_detail as string | null | undefined) ?? null
+      : (touch.errorDetail ?? null),
     error_streak,
     success_streak,
     avg_latency_ms,

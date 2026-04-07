@@ -35,6 +35,19 @@ export interface LedgerRow {
   disruption_event_id: string | null;
 }
 
+function friendlyError(code: string): string {
+  const c = code.trim();
+  const map: Record<string, string> = {
+    duplicate_event_within_window: 'Already detected recently. Skipping to avoid double counting.',
+    subtype_excluded_by_rule_set: 'This trigger is currently turned off in the active rule set.',
+    disruption_insert_failed: 'Could not save this event. Please retry.',
+    no_valid_aqi: 'No valid AQI reading available right now.',
+  };
+  if (map[c]) return map[c];
+  // Generic fallback: prettify snake_case for humans.
+  return c.replace(/_/g, ' ');
+}
+
 function OutcomeBadge({ outcome, dryRun }: { outcome: string; dryRun: boolean }) {
   const cfg =
     outcome === 'pay'
@@ -156,7 +169,12 @@ export function ParametricLedgerTable({ rows, variant = 'standalone' }: Parametr
                       {r.disruption_event_id ? (
                         <CopyableDisruptionRef id={r.disruption_event_id} />
                       ) : r.error_message ? (
-                        <span className="text-[11px] text-amber-400/90 line-clamp-2">{r.error_message}</span>
+                        <span
+                          className="text-[11px] text-amber-400/90 line-clamp-2"
+                          title={r.error_message}
+                        >
+                          {friendlyError(r.error_message)}
+                        </span>
                       ) : (
                         <span className="text-[#3f3f3f]">—</span>
                       )}

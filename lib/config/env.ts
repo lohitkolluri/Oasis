@@ -8,7 +8,9 @@ const isProd = process.env.NODE_ENV === 'production';
 function required(name: string, value: string | undefined): string {
   const trimmed = value?.trim();
   if (!trimmed) {
-    throw new Error(`Missing required env: ${name}. Set it in .env.local or your deployment config.`);
+    throw new Error(
+      `Missing required env: ${name}. Set it in .env.local or your deployment config.`,
+    );
   }
   return trimmed;
 }
@@ -86,6 +88,24 @@ export function getOpenRouterApiKey(): string | null {
   return optional('OPENROUTER_API_KEY', process.env.OPENROUTER_API_KEY);
 }
 
+/**
+ * Vision model for KYC (Gov ID + face) verification.
+ * Defaults to a free-tier model if not configured.
+ */
+export function getKycVisionModel(): string {
+  const raw = process.env.KYC_VISION_MODEL?.trim();
+  return raw || 'qwen/qwen3.6-plus:free';
+}
+
+/**
+ * Vision model for rider self-reports (report-delivery).
+ * Defaults to a free-tier model if not configured.
+ */
+export function getSelfReportVisionModel(): string {
+  const raw = process.env.SELF_REPORT_VISION_MODEL?.trim();
+  return raw || 'qwen/qwen3.6-plus:free';
+}
+
 /** Tomorrow.io API key for weather and forecast data. */
 export function getTomorrowApiKey(): string | null {
   return optional('TOMORROW_IO_API_KEY', process.env.TOMORROW_IO_API_KEY);
@@ -119,4 +139,3 @@ export function getAppUrl(): string {
   if (raw) return raw.replace(/\/$/, '');
   return 'http://localhost:3000';
 }
-

@@ -5,6 +5,7 @@
  */
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { callOpenRouterChat } from '@/lib/clients/openrouter';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,41 +65,53 @@ export async function GET() {
   const totalPayouts = (claims ?? []).reduce((s, c) => s + Number(c.payout_amount_inr ?? 0), 0);
   const activeDisruptions = (eventsRes.data ?? []).filter((e) => (e.severity_score ?? 0) >= 7);
 
-  const prompt = `You are a friendly assistant for a gig delivery rider. Write ONE short, actionable sentence (max 15 words) as a personalized tip or reassurance. Be encouraging and practical. Use simple, direct language. No em dashes.
+  const disruptions =
+    activeDisruptions.length > 0
+      ? activeDisruptions
+          .map((e) => String(e.event_type ?? '').trim())
+          .filter(Boolean)
+          .slice(0, 3)
+          .join(', ')
+      : 'none';
 
-Context:
-- Rider uses ${platform}, has ${hasPolicy ? 'active' : 'no'} weekly coverage
-- Recent payouts: ₹${totalPayouts.toLocaleString('en-IN')} from ${recentClaims} claim(s)
-- Active disruptions: ${activeDisruptions.length > 0 ? activeDisruptions.map((e) => e.event_type).join(', ') : 'none'}
+  const system = [
+    'You write micro-copy for a gig delivery rider in India.',
+    'Product scope: this is weekly income-protection for external disruptions only.',
+    'Never mention health, life, accidents, or vehicle repairs as covered.',
+    '',
+    'Output rules:',
+    '- Exactly ONE sentence, <= 15 words.',
+    '- Plain language. No emojis. No quotes. No em dashes.',
+    '- Do not end with punctuation.',
+  ].join('\n');
 
-Reply with ONLY the sentence, no quotes or punctuation at the end.`;
+  const userPrompt = [
+    'Write one actionable tip or reassurance based on this context:',
+    `- Platform: ${platform}`,
+    `- Weekly coverage: ${hasPolicy ? 'active' : 'none'}`,
+    `- Recent payouts: INR ${totalPayouts.toLocaleString('en-IN')} across ${recentClaims} claim(s)`,
+    `- Active disruptions: ${disruptions}`,
+  ].join('\n');
 
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: 'arcee-ai/trinity-large-preview:free:free',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 50,
-      }),
+    const data = await callOpenRouterChat({
+      model: 'liquid/lfm-2.5-1.2b-instruct:free',
+      temperature: 0,
+      max_tokens: 40,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userPrompt },
+      ],
     });
-
-    if (!res.ok) return NextResponse.json({ insight: null });
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
     let content = data.choices?.[0]?.message?.content?.trim();
     if (!content) return NextResponse.json({ insight: null });
     content = content.replace(/\s*—\s*/g, '. ');
+    content = content.replace(/["'`]+/g, '').trim();
+    content = content.replace(/[.!?]+$/g, '').trim();
 
     return NextResponse.json({ insight: content });
   } catch (err) {
-    console.error("Rider insight generation failed:", err);
+    console.error('Rider insight generation failed:', err);
     return NextResponse.json({ insight: null });
   }
 }

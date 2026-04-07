@@ -379,6 +379,8 @@ cp .env.local.example .env.local
 | `TOMORROW_IO_API_KEY` | Weather trigger data |
 | `NEWSDATA_IO_API_KEY` | News trigger data |
 | `OPENROUTER_API_KEY` | AI-assisted verification and classification |
+| `KYC_VISION_MODEL` | Vision model slug for KYC (Gov ID + face verification) |
+| `SELF_REPORT_VISION_MODEL` | Vision model slug for rider self-report photo verification |
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Must be `rzp_test_*` in development |
 | `RAZORPAY_KEY_SECRET` | Razorpay server secret |
 
@@ -543,6 +545,7 @@ cp .env.local.example .env.local
 | Endpoint | Cadence | Purpose |
 | :--- | :--- | :--- |
 | `/api/cron/adjudicator` | ~15 min | Ingest signals, detect disruptions, create claims |
+| `/api/cron/self-report-verification` | As needed | Drain queued self-reports and re-run vision verification |
 | `/api/cron/weekly-premium` | Weekly | Bill riders, rotate coverage windows |
 
 Scheduling options:
@@ -591,6 +594,8 @@ Full OpenAPI spec: [`docs/openapi.yaml`](./docs/openapi.yaml) | Interactive refe
 - [x] AI-assisted KYC (government ID + face verification)
 - [x] Fully automated parametric claims pipeline
 - [x] Fraud controls: geo validation, velocity caps, cluster detection
+- [x] Payment safety: DB-level weekly policy uniqueness + webhook retry logging
+- [x] Cron mutual exclusion via Postgres advisory locks
 - [x] Append-only trigger ledger with versioned rule governance
 - [x] Admin console: analytics, fraud monitoring, financial dashboards
 - [x] Rider console: coverage, claims, wallet with realtime updates

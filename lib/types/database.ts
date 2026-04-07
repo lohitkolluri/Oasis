@@ -1,6 +1,6 @@
-export type PlatformType = "zepto" | "blinkit";
-export type DisruptionEventType = "weather" | "traffic" | "social";
-export type ClaimStatus = "triggered" | "paid" | "pending_verification";
+export type PlatformType = 'zepto' | 'blinkit';
+export type DisruptionEventType = 'weather' | 'traffic' | 'social';
+export type ClaimStatus = 'triggered' | 'paid' | 'pending_verification';
 
 export interface Profile {
   id: string;
@@ -22,6 +22,8 @@ export interface Profile {
   government_id_verification_result?: Record<string, unknown> | null;
   face_photo_url?: string | null;
   face_verified?: boolean | null;
+  /** When set, the rider has been deprovisioned (soft-deleted) by an admin. */
+  deprovisioned_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,9 +55,6 @@ export interface WeeklyPolicy {
   razorpay_order_id?: string | null;
   razorpay_payment_id?: string | null;
   razorpay_subscription_id?: string | null;
-  /** Legacy import only (pre–Razorpay migration). */
-  stripe_payment_method_type?: string | null;
-  stripe_payment_intent_id?: string | null;
   created_at: string;
   updated_at: string;
 }

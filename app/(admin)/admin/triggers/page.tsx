@@ -5,6 +5,11 @@ import { TriggerTrustConsole } from '@/components/admin/TriggerTrustConsole';
 import type { LedgerRow } from '@/components/admin/ParametricLedgerTable';
 import type { SourceHealthRow } from '@/components/admin/ParametricSourceHealth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  getExpectedParametricSourceIds,
+  getPinnedParametricSourceIds,
+  shouldKeepSourceHealthRow,
+} from '@/lib/adjudicator/source-health-registry';
 import { Zap } from 'lucide-react';
 
 export default async function TriggersPage() {
@@ -26,14 +31,25 @@ export default async function TriggersPage() {
     supabase
       .from('parametric_source_health')
       .select(
-        'source_id,last_success_at,last_error_at,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of',
+        'source_id,last_success_at,last_error_at,last_error_detail,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of',
       )
       .order('source_id', { ascending: true }),
   ]);
 
   const events = eventsRes.error ? null : eventsRes.data;
   const ledgerRows = (ledgerRes.error ? [] : ledgerRes.data ?? []) as LedgerRow[];
-  const healthRows = (healthRes.error ? [] : healthRes.data ?? []) as SourceHealthRow[];
+  const healthRowsRaw = (healthRes.error ? [] : healthRes.data ?? []) as SourceHealthRow[];
+  const expectedIds = getExpectedParametricSourceIds();
+  const pinnedIds = getPinnedParametricSourceIds();
+  const healthRows = healthRowsRaw.filter((r) =>
+    shouldKeepSourceHealthRow({
+      sourceId: r.source_id,
+      lastObservedAt: r.last_observed_at,
+      expectedIds,
+      pinnedIds,
+      keepObservedWithinDays: 30,
+    }),
+  );
 
   const list = events ?? [];
   const total = list.length;

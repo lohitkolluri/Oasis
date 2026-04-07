@@ -90,7 +90,7 @@ function writeOpenState(state: Record<string, boolean>) {
   }
 }
 
-export function AdminNav() {
+export function AdminNav({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({}));
 
@@ -115,6 +115,45 @@ export function AdminNav() {
     },
     [pathname],
   );
+
+  if (collapsed) {
+    const flat = navSections.flatMap((s) =>
+      s.items.flatMap((i) =>
+        Array.isArray(i.children) && i.children.length > 0 ? [i, ...i.children] : [i],
+      ),
+    ) as NavItem[];
+
+    return (
+      <nav className="flex flex-1 flex-col px-2 py-3 overflow-y-auto min-h-0">
+        <ul className="space-y-1" aria-label="Admin navigation (collapsed)">
+          {flat.map((item) => {
+            const isActive =
+              item.href === '/admin'
+                ? pathname === '/admin' || pathname === '/admin/'
+                : pathname.startsWith(item.href);
+            const Icon = item.icon;
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex items-center justify-center h-10 rounded-lg',
+                    'text-[#9ca3af] hover:bg-muted/50 transition-colors duration-150',
+                    isActive && 'bg-white/[0.06] text-white',
+                  )}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
+                  title={item.label}
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    );
+  }
 
   return (
     <nav className="flex flex-1 flex-col px-2 py-3 overflow-y-auto min-h-0">
@@ -190,9 +229,7 @@ function SidebarSection({ section, isOpen, hasActive, onToggle, children }: Side
         aria-label={section.label}
       >
         <div className="overflow-hidden">
-          <div className="mt-1 space-y-0.5 pl-3">
-            {children}
-          </div>
+          <div className="mt-1 space-y-0.5 pl-3">{children}</div>
         </div>
       </div>
     </div>
@@ -259,8 +296,7 @@ function SidebarItem({ item, pathname, depth, parentActive = false }: SidebarIte
             'hover:bg-muted/50 transition-colors duration-150',
             !isActive && !parentActive && (depth === 0 ? 'text-[#9ca3af]' : 'text-[#a3a3a3]'),
             !isActive && parentActive && 'text-[#e5e7eb]',
-            isActive &&
-              'bg-white/[0.06] text-white font-medium',
+            isActive && 'bg-white/[0.06] text-white font-medium',
             depth > 0 ? 'pl-8 pr-3' : 'px-3',
           )}
           aria-current={isActive ? 'page' : undefined}

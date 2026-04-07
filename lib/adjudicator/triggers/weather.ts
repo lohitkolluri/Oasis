@@ -3,16 +3,14 @@
  * Uses Open-Meteo (and optionally Tomorrow.io, WAQI) with retry and cache.
  */
 
-import { EXTERNAL_APIS } from '@/lib/config/constants';
-import { triggersFromContext } from '@/lib/adjudicator/rule-context';
 import { probeSource } from '@/lib/adjudicator/instrumentation';
 import { mergeSourceHealth } from '@/lib/adjudicator/ledger';
-import type {
-  AdjudicatorInstrumentationContext,
-  TriggerCandidate,
-} from '@/lib/adjudicator/types';
-import { fetchWithRetry } from '@/lib/utils/retry';
+import { triggersFromContext } from '@/lib/adjudicator/rule-context';
+import type { AdjudicatorInstrumentationContext, TriggerCandidate } from '@/lib/adjudicator/types';
+import { EXTERNAL_APIS } from '@/lib/config/constants';
 import { toDateString } from '@/lib/utils/date';
+import { clusterKey } from '@/lib/utils/geo';
+import { fetchWithRetry } from '@/lib/utils/retry';
 
 export async function fetchCurrentAqi(
   lat: number,
@@ -27,11 +25,9 @@ export async function fetchCurrentAqi(
       const data = await fetchWithRetry<{
         status?: string;
         data?: { aqi?: number | string };
-      }>(
-        `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${waqiKey}`,
-        undefined,
-        { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
-      );
+      }>(`https://api.waqi.info/feed/geo:${lat};${lng}/?token=${waqiKey}`, undefined, {
+        cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS,
+      });
       if (data.status === 'ok' && data.data?.aqi != null) {
         const aqi = Number(data.data.aqi);
         if (!isNaN(aqi) && aqi >= 0) {
@@ -74,17 +70,13 @@ export async function fetchCurrentAqi(
           current?: { us_aqi?: number | null };
           hourly?: { us_aqi?: (number | null)[] };
         }>(
-          `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`,
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi&hourly=us_aqi`,
           undefined,
           { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
         ),
-      waqiKey
-        ? { isFallback: true, fallbackOf: 'waqi_ground_station' }
-        : undefined,
+      waqiKey ? { isFallback: true, fallbackOf: 'waqi_ground_station' } : undefined,
     );
-    return Number(
-      data.current?.us_aqi ?? (data.hourly?.us_aqi ?? []).find((v) => v != null) ?? 0,
-    );
+    return Number(data.current?.us_aqi ?? (data.hourly?.us_aqi ?? []).find((v) => v != null) ?? 0);
   } catch {
     return 0;
   }
@@ -126,10 +118,7 @@ export async function checkWeatherTriggers(
         if (v != null && typeof v === 'number') last3.push(v);
       }
     }
-    if (
-      last3.length >= T.HEAT_SUSTAINED_HOURS &&
-      last3.every((v) => v >= T.HEAT_THRESHOLD_C)
-    ) {
+    if (last3.length >= T.HEAT_SUSTAINED_HOURS && last3.every((v) => v >= T.HEAT_THRESHOLD_C)) {
       heatSustained3h = true;
       heatRawData = {
         ...forecast,
@@ -150,8 +139,10 @@ export async function checkWeatherTriggers(
               values?: { temperature?: number; precipitationIntensity?: number };
             };
           }>(
-            `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}&apikey=${tomorrowKey}`,
-            undefined,
+            `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}`,
+            {
+              headers: { 'X-API-Key': tomorrowKey },
+            },
             { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
           ),
           fetchWithRetry<{
@@ -159,8 +150,10 @@ export async function checkWeatherTriggers(
               hourly?: Array<{ values?: { temperature?: number } }>;
             };
           }>(
-            `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${tomorrowKey}`,
-            undefined,
+            `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h`,
+            {
+              headers: { 'X-API-Key': tomorrowKey },
+            },
             { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
           ),
         ]),
@@ -228,10 +221,7 @@ export async function checkWeatherTriggers(
         trigger: 'extreme_heat',
         consecutive_hot_hours: consecutiveHot,
         prolonged: prolongedHeat,
-        source:
-          typeof heatRawData.source === 'string'
-            ? heatRawData.source
-            : 'tomorrow_io',
+        source: typeof heatRawData.source === 'string' ? heatRawData.source : 'tomorrow_io',
       },
     });
   }
@@ -251,6 +241,22 @@ export async function checkWeatherTriggers(
     });
   }
 
+  // Per-run memoization: AQI historical requests are large and can time out.
+  // Cache by coarse zone cluster + date window to avoid refetching for many riders in the same zone.
+  // Module-scope cache would persist across runs; we keep it function-scoped but static via globalThis.
+  const memoKeyBase = `${clusterKey(lat, lng)}:${EXTERNAL_APIS.AQI_HISTORICAL_LOOKBACK_DAYS}`;
+  const globalMemo =
+    (
+      globalThis as unknown as {
+        __oasisAqiHistMemo?: Map<string, { expiresAt: number; data: unknown }>;
+      }
+    ).__oasisAqiHistMemo ??
+    ((
+      globalThis as unknown as {
+        __oasisAqiHistMemo?: Map<string, { expiresAt: number; data: unknown }>;
+      }
+    ).__oasisAqiHistMemo = new Map());
+
   try {
     const today = new Date();
     const lookbackDays = EXTERNAL_APIS.AQI_HISTORICAL_LOOKBACK_DAYS;
@@ -260,18 +266,31 @@ export async function checkWeatherTriggers(
 
     const [currentAqi, historical] = await Promise.all([
       fetchCurrentAqi(lat, lng, waqiKey, ctx),
-      probeSource(ctx, 'openmeteo_aqi_historical', () =>
-        fetchWithRetry<{
-          hourly?: { us_aqi?: (number | null)[] };
-        }>(
-          `https://air-quality.api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&start_date=${startDate}&end_date=${endDate}`,
-          undefined,
-          {
-            cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS,
-            timeoutMs: EXTERNAL_APIS.OPENMETEO_AQI_HISTORICAL_TIMEOUT_MS,
-          },
-        ),
-      ),
+      (async () => {
+        const memoKey = `${memoKeyBase}:${startDate}:${endDate}`;
+        const cached = globalMemo.get(memoKey);
+        if (cached && Date.now() < cached.expiresAt) {
+          return cached.data as { hourly?: { us_aqi?: (number | null)[] } };
+        }
+        // Open-Meteo historical can be flaky/heavy; use the lighter `past_days` form
+        // to reduce payload and improve reliability.
+        const data = await probeSource(ctx, 'openmeteo_aqi_historical', () =>
+          fetchWithRetry<{
+            hourly?: { us_aqi?: (number | null)[] };
+          }>(
+            // Per Open-Meteo docs: air-quality-api.open-meteo.com
+            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=us_aqi&past_days=${lookbackDays}&forecast_days=0`,
+            undefined,
+            {
+              // AQI baseline changes slowly; cache longer to stabilize reliability.
+              cacheTtlMs: 6 * 60 * 60 * 1000,
+              timeoutMs: EXTERNAL_APIS.OPENMETEO_AQI_HISTORICAL_TIMEOUT_MS,
+            },
+          ),
+        );
+        globalMemo.set(memoKey, { data, expiresAt: Date.now() + 6 * 60 * 60 * 1000 });
+        return data;
+      })(),
     ]);
 
     const historicalValues = (historical.hourly?.us_aqi ?? []).filter(
@@ -287,7 +306,7 @@ export async function checkWeatherTriggers(
     if (historicalValues.length >= 48) {
       const sorted = [...historicalValues].sort((a, b) => a - b);
       baseline75 = sorted[Math.floor(sorted.length * 0.75)];
-      baseline90 = sorted[Math.floor(sorted.length * 0.90)];
+      baseline90 = sorted[Math.floor(sorted.length * 0.9)];
       baselineMean = Math.round(
         historicalValues.reduce((s, v) => s + v, 0) / historicalValues.length,
       );
@@ -299,20 +318,14 @@ export async function checkWeatherTriggers(
         // use p90 with a tighter multiplier so only truly anomalous spikes trigger.
         adaptiveThreshold = Math.min(
           T.AQI_MAX_THRESHOLD,
-          Math.max(
-            T.AQI_CHRONIC_MIN_THRESHOLD,
-            Math.round(baseline90 * T.AQI_CHRONIC_MULTIPLIER),
-          ),
+          Math.max(T.AQI_CHRONIC_MIN_THRESHOLD, Math.round(baseline90 * T.AQI_CHRONIC_MULTIPLIER)),
         );
       } else {
         // Clean-to-moderate zone (e.g., Bangalore, coastal cities):
         // use p75 with standard multiplier.
         adaptiveThreshold = Math.min(
           T.AQI_MAX_THRESHOLD,
-          Math.max(
-            T.AQI_MIN_THRESHOLD,
-            Math.round(baseline75 * T.AQI_EXCESS_MULTIPLIER),
-          ),
+          Math.max(T.AQI_MIN_THRESHOLD, Math.round(baseline75 * T.AQI_EXCESS_MULTIPLIER)),
         );
       }
     }

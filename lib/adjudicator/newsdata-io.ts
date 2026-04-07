@@ -1,6 +1,7 @@
 /**
  * NewsData.io — Latest News API client.
- * @see https://newsdata.io/documentation — endpoint `/api/1/latest`, param `size` (not `limit`), auth via `X-ACCESS-KEY`.
+ * @see https://newsdata.io/documentation — endpoint `/api/1/latest`, param `size` (not `limit`).
+ * Auth supports `apikey` query param or `X-ACCESS-KEY` header.
  */
 
 import { EXTERNAL_APIS } from '@/lib/config/constants';
@@ -90,9 +91,13 @@ export async function fetchNewsDataLatest(
     String(clampSizeForFreeTier(params.size ?? EXTERNAL_APIS.NEWS_DATA_LATEST_SIZE)),
   );
 
-  const tf = params.timeframeHours ?? EXTERNAL_APIS.NEWS_DATA_LATEST_TIMEFRAME_HOURS;
-  if (tf >= 1 && tf <= 48) {
-    search.set('timeframe', String(tf));
+  // `timeframe` is not available on the Free plan per NewsData docs.
+  // Only include it when explicitly requested by the caller.
+  if (params.timeframeHours != null) {
+    const tf = params.timeframeHours;
+    if (tf >= 1 && tf <= 48) {
+      search.set('timeframe', String(tf));
+    }
   }
 
   if (params.removeduplicate !== false) {

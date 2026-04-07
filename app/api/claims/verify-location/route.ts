@@ -17,6 +17,7 @@ import { isWithinCircle } from "@/lib/utils/geo";
 import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from "@/lib/config/constants";
 import {
   runExtendedFraudChecks,
+  checkDeviceAttestation,
   checkGpsAccuracy,
   checkImpossibleTravel,
   checkPayoutDestinationAnomaly,
@@ -54,6 +55,15 @@ export async function POST(request: Request) {
   let proof: File | null = null;
   let deviceFingerprint: string | null = null;
   let gpsAccuracy: number | null = null;
+  let speedKmh: number | null = null;
+  let imuVariance: number | null = null;
+  let gnssSnrVariance: number | null = null;
+  let devSettingsEnabled: boolean | null = null;
+  let isMockLocation: boolean | null = null;
+  let playIntegrityPass: boolean | null = null;
+  let osSignatureValid: boolean | null = null;
+  let rootedDevice: boolean | null = null;
+  let deviceAttestation: Record<string, unknown> | null = null;
 
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
@@ -68,6 +78,38 @@ export async function POST(request: Request) {
     deviceFingerprint = formData.get("device_fingerprint") as string | null;
     const accS = formData.get("accuracy");
     gpsAccuracy = accS != null ? parseFloat(String(accS)) : null;
+
+    const speedS = formData.get("speed_kmh");
+    speedKmh = speedS != null ? parseFloat(String(speedS)) : null;
+    const imuS = formData.get("imu_variance");
+    imuVariance = imuS != null ? parseFloat(String(imuS)) : null;
+    const snrS = formData.get("gnss_snr_variance");
+    gnssSnrVariance = snrS != null ? parseFloat(String(snrS)) : null;
+
+    const devS = formData.get("dev_settings_enabled");
+    devSettingsEnabled =
+      devS == null ? null : String(devS) === "true" || String(devS) === "1";
+    const mockS = formData.get("is_mock_location");
+    isMockLocation =
+      mockS == null ? null : String(mockS) === "true" || String(mockS) === "1";
+    const playS = formData.get("play_integrity_pass");
+    playIntegrityPass =
+      playS == null ? null : String(playS) === "true" || String(playS) === "1";
+    const osS = formData.get("os_signature_valid");
+    osSignatureValid =
+      osS == null ? null : String(osS) === "true" || String(osS) === "1";
+    const rootS = formData.get("rooted_device");
+    rootedDevice =
+      rootS == null ? null : String(rootS) === "true" || String(rootS) === "1";
+
+    const attestationS = formData.get("device_attestation");
+    if (attestationS != null) {
+      try {
+        deviceAttestation = JSON.parse(String(attestationS));
+      } catch {
+        deviceAttestation = null;
+      }
+    }
   } else {
     const body = await request.json().catch(() => ({}));
     claimId = body.claim_id ?? null;
@@ -76,6 +118,30 @@ export async function POST(request: Request) {
     declaration = body.declaration === true || body.declaration === "true";
     deviceFingerprint = body.device_fingerprint ?? null;
     gpsAccuracy = body.accuracy != null ? parseFloat(body.accuracy) : null;
+
+    speedKmh = body.speed_kmh != null ? parseFloat(body.speed_kmh) : null;
+    imuVariance =
+      body.imu_variance != null ? parseFloat(body.imu_variance) : null;
+    gnssSnrVariance =
+      body.gnss_snr_variance != null
+        ? parseFloat(body.gnss_snr_variance)
+        : null;
+
+    devSettingsEnabled =
+      body.dev_settings_enabled == null ? null : Boolean(body.dev_settings_enabled);
+    isMockLocation =
+      body.is_mock_location == null ? null : Boolean(body.is_mock_location);
+    playIntegrityPass =
+      body.play_integrity_pass == null ? null : Boolean(body.play_integrity_pass);
+    osSignatureValid =
+      body.os_signature_valid == null ? null : Boolean(body.os_signature_valid);
+    rootedDevice =
+      body.rooted_device == null ? null : Boolean(body.rooted_device);
+
+    deviceAttestation =
+      body.device_attestation && typeof body.device_attestation === "object"
+        ? (body.device_attestation as Record<string, unknown>)
+        : null;
   }
 
   if (!claimId || lat == null || !Number.isFinite(lat) || lng == null || !Number.isFinite(lng)) {
@@ -132,6 +198,18 @@ export async function POST(request: Request) {
     );
   }
 
+  // Device integrity / sensor plausibility checks (optional but high-signal when present).
+  const deviceCheck = checkDeviceAttestation({
+    speed_kmh: speedKmh,
+    imu_variance: imuVariance,
+    gnss_snr_variance: gnssSnrVariance,
+    dev_settings_enabled: devSettingsEnabled,
+    is_mock_location: isMockLocation,
+    play_integrity_pass: playIntegrityPass,
+    os_signature_valid: osSignatureValid,
+    rooted_device: rootedDevice,
+  });
+
   const { data: policy } = await supabase
     .from("weekly_policies")
     .select("profile_id")
@@ -187,6 +265,16 @@ export async function POST(request: Request) {
       declaration_confirmed: declaration,
       proof_url: proofUrl,
       declaration_at: declaration ? now : null,
+      device_fingerprint: deviceFingerprint,
+      speed_kmh: speedKmh,
+      imu_variance: imuVariance,
+      gnss_snr_variance: gnssSnrVariance,
+      dev_settings_enabled: devSettingsEnabled,
+      is_mock_location: isMockLocation,
+      play_integrity_pass: playIntegrityPass,
+      os_signature_valid: osSignatureValid,
+      rooted_device: rootedDevice,
+      device_attestation: deviceAttestation,
     },
     { onConflict: "claim_id,profile_id" }
   );
@@ -214,6 +302,38 @@ export async function POST(request: Request) {
         flag_reason: "Location verification: rider GPS outside event geofence",
       })
       .eq("id", claimId);
+  }
+
+  // If device integrity checks flagged the session, hold payout (but keep verification record).
+  if (inside && deviceCheck.isFlagged) {
+    await admin
+      .from("parametric_claims")
+      .update({
+        is_flagged: true,
+        flag_reason: deviceCheck.reason ?? "Device integrity checks flagged this verification",
+      })
+      .eq("id", claimId);
+
+    await createAutomatedHold({
+      supabase: admin,
+      stage: "pre_payout",
+      profileId: user.id,
+      claimId,
+      policyId: claim.policy_id,
+      disruptionEventId: claim.disruption_event_id,
+      reason: deviceCheck.reason ?? "Device integrity checks flagged this verification",
+      checkName: deviceCheck.checkName ?? "device_integrity",
+      facts: deviceCheck.facts,
+    });
+
+    return NextResponse.json({
+      verified: true,
+      status,
+      payout_initiated: false,
+      held: true,
+      hold_reason: deviceCheck.reason ?? "Held for manual review",
+      message: `Verification received. Payout on hold: ${deviceCheck.reason ?? "manual review required"}.`,
+    });
   }
 
   // Run extended fraud checks BEFORE payout decision so cluster/baseline/device

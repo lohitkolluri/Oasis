@@ -1,6 +1,7 @@
 import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
-import { KPICard } from '@/components/ui/KPICard';
+import { RevenueCharts } from '@/components/admin/RevenueCharts';
 import { Card } from '@/components/ui/Card';
+import { KPICard } from '@/components/ui/KPICard';
 import {
   Table,
   TableBody,
@@ -10,8 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
+import { policySinceYmd } from '@/lib/datetime/oasis-time';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { RevenueCharts } from '@/components/admin/RevenueCharts';
 
 type PolicyRow = {
   id: string;
@@ -43,21 +44,23 @@ type PlanBucket = {
 export default async function RevenuePage() {
   const supabase = createAdminClient();
 
-  const since = new Date();
-  since.setDate(since.getDate() - 90);
-  const sinceIso = since.toISOString();
+  // `weekly_policies.week_start_date` is a DATE (YYYY-MM-DD) on the IST calendar.
+  // Use IST date strings for policy windowing; use instants for claim created_at.
+  const sinceInstant = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const sinceClaimsIso = sinceInstant.toISOString();
+  const sincePolicyWeekStart = policySinceYmd(90);
 
   const [policiesRes, claimsRes] = await Promise.all([
     supabase
       .from('weekly_policies')
       .select('id, weekly_premium_inr, plan_packages(slug,name), profiles(primary_zone_geofence)')
-      .gte('created_at', sinceIso)
-      .eq('is_active', true)
+      // Use policy week, not row creation time; include inactive (expired) policies in the window.
+      .gte('week_start_date', sincePolicyWeekStart)
       .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
     supabase
       .from('parametric_claims')
       .select('policy_id, payout_amount_inr')
-      .gte('created_at', sinceIso),
+      .gte('created_at', sinceClaimsIso),
   ]);
 
   const policies = (policiesRes.data ?? []) as unknown as PolicyRow[];
@@ -96,11 +99,7 @@ export default async function RevenuePage() {
       if (typeof rawZone === 'string') {
         zoneKey = rawZone;
       } else if (typeof rawZone === 'object') {
-        zoneKey =
-          rawZone.name ||
-          rawZone.label ||
-          rawZone.zone_name ||
-          'Unspecified zone';
+        zoneKey = rawZone.name || rawZone.label || rawZone.zone_name || 'Unspecified zone';
       }
     }
     if (!zoneBuckets.has(zoneKey)) {
@@ -116,13 +115,9 @@ export default async function RevenuePage() {
     zb.payouts += payouts;
     zb.policyCount += 1;
 
-    const planSlug =
-      p.plan_packages?.slug ??
-      p.plan_packages?.name?.toLowerCase() ??
-      'unassigned';
+    const planSlug = p.plan_packages?.slug ?? p.plan_packages?.name?.toLowerCase() ?? 'unassigned';
     const planName =
-      p.plan_packages?.name ??
-      (planSlug === 'unassigned' ? 'Unassigned plan' : planSlug);
+      p.plan_packages?.name ?? (planSlug === 'unassigned' ? 'Unassigned plan' : planSlug);
 
     if (!planBuckets.has(planSlug)) {
       planBuckets.set(planSlug, {
@@ -139,8 +134,7 @@ export default async function RevenuePage() {
     pb.policyCount += 1;
   }
 
-  const lossRatio =
-    totalPremium > 0 ? ((totalPayouts / totalPremium) * 100).toFixed(1) : null;
+  const lossRatio = totalPremium > 0 ? ((totalPayouts / totalPremium) * 100).toFixed(1) : null;
 
   const zones = Array.from(zoneBuckets.values()).sort((a, b) => {
     const lrA = a.premium > 0 ? a.payouts / a.premium : 0;
@@ -163,7 +157,7 @@ export default async function RevenuePage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <KPICard
           title="Modeled premium"
-          label="Active weekly policies · last 90 days"
+          label="Earned weekly policies · last 90 days"
           value={`₹${totalPremium.toLocaleString('en-IN')}`}
           accent="cyan"
           animateValue
@@ -189,21 +183,16 @@ export default async function RevenuePage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card variant="default" padding="none">
           <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">
-              Zones by loss ratio
-            </p>
+            <p className="text-sm font-semibold text-white">Zones by loss ratio</p>
             <span className="text-[11px] text-[#555] tabular-nums">
               Top {Math.min(zones.length, 8)} zones · last 90 days
             </span>
           </div>
           {zones.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-5">
-              <p className="text-sm font-medium text-[#555]">
-                No active policies with zones yet
-              </p>
+              <p className="text-sm font-medium text-[#555]">No active policies with zones yet</p>
               <p className="text-xs text-[#444] mt-1">
-                Once riders have zone geofences, you&apos;ll see which areas are
-                most loss-making.
+                Once riders have zone geofences, you&apos;ll see which areas are most loss-making.
               </p>
             </div>
           ) : (
@@ -222,9 +211,7 @@ export default async function RevenuePage() {
                   const lr = z.premium > 0 ? (z.payouts / z.premium) * 100 : 0;
                   return (
                     <TableRow key={z.zone} className="border-[#2d2d2d]">
-                      <TableCell className="text-xs text-[#e5e7eb]">
-                        {z.zone}
-                      </TableCell>
+                      <TableCell className="text-xs text-[#e5e7eb]">{z.zone}</TableCell>
                       <TableCell className="text-right text-xs text-white tabular-nums">
                         ₹{z.premium.toLocaleString('en-IN')}
                       </TableCell>
@@ -247,21 +234,14 @@ export default async function RevenuePage() {
 
         <Card variant="default" padding="none">
           <div className="border-b border-[#2d2d2d] px-5 py-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">
-              Plan tier performance
-            </p>
-            <span className="text-[11px] text-[#555] tabular-nums">
-              Basic · Standard · Premium
-            </span>
+            <p className="text-sm font-semibold text-white">Plan tier performance</p>
+            <span className="text-[11px] text-[#555] tabular-nums">Basic · Standard · Premium</span>
           </div>
           {plans.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-5">
-              <p className="text-sm font-medium text-[#555]">
-                No active plans yet
-              </p>
+              <p className="text-sm font-medium text-[#555]">No active plans yet</p>
               <p className="text-xs text-[#444] mt-1">
-                When riders are assigned to plan tiers, you&apos;ll see per-tier
-                loss ratios here.
+                When riders are assigned to plan tiers, you&apos;ll see per-tier loss ratios here.
               </p>
             </div>
           ) : (
@@ -277,13 +257,10 @@ export default async function RevenuePage() {
               </TableHeader>
               <TableBody>
                 {plans.map((p) => {
-                  const lr =
-                    p.premium > 0 ? (p.payouts / p.premium) * 100 : null;
+                  const lr = p.premium > 0 ? (p.payouts / p.premium) * 100 : null;
                   return (
                     <TableRow key={p.slug} className="border-[#2d2d2d]">
-                      <TableCell className="text-xs text-[#e5e7eb]">
-                        {p.name}
-                      </TableCell>
+                      <TableCell className="text-xs text-[#e5e7eb]">{p.name}</TableCell>
                       <TableCell className="text-right text-xs text-white tabular-nums">
                         ₹{p.premium.toLocaleString('en-IN')}
                       </TableCell>
@@ -307,4 +284,3 @@ export default async function RevenuePage() {
     </div>
   );
 }
-

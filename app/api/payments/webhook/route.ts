@@ -2,11 +2,11 @@
  * POST /api/payments/webhook
  * Razorpay webhooks (e.g. payment.captured) — idempotent backup to client-side verify.
  */
-import { createAdminClient } from '@/lib/supabase/admin';
 import { getRazorpayWebhookSecret } from '@/lib/config/env';
-import { verifyRazorpayWebhookSignature } from '@/lib/payments/razorpay-crypto';
-import { handleSubscriptionPaymentCapture } from '@/lib/payments/handle-subscription-capture';
 import { logger } from '@/lib/logger';
+import { handleSubscriptionPaymentCapture } from '@/lib/payments/handle-subscription-capture';
+import { verifyRazorpayWebhookSignature } from '@/lib/payments/razorpay-crypto';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -119,7 +119,20 @@ export async function POST(request: Request) {
       expected: expectedPaise,
       got: entity.amount,
     });
-    return NextResponse.json({ ok: true, message: 'Amount mismatch' });
+    await admin.from('system_logs').insert({
+      event_type: 'razorpay_webhook_amount_mismatch',
+      severity: 'error',
+      metadata: {
+        policy_id: policy.id,
+        profile_id: policy.profile_id,
+        payment_id: paymentId,
+        order_id: orderId,
+        expected_paise: expectedPaise,
+        got_paise: entity.amount,
+      },
+    });
+    // Non-2xx so Razorpay retries and we can investigate.
+    return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
   }
 
   const { data: result, error: rpcError } = await admin.rpc('process_razorpay_payment_event', {

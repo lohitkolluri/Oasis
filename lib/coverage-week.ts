@@ -1,4 +1,5 @@
 import { getISTDateString, istEndOfDay, istStartOfDay } from '@/lib/datetime/ist';
+import { coverageWindowStatus } from '@/lib/datetime/oasis-time';
 
 /** @deprecated Use istStartOfDay — kept for call sites that mean "policy DATE → instant". */
 export const parseLocalDate = istStartOfDay;
@@ -14,12 +15,18 @@ const MS_PER_HOUR = 60 * 60 * 1000;
  * Calendar days from start of today IST through `weekEnd` still inside the policy week (1–7).
  * Not wall-clock time until coverage ends — use {@link getCoverageTimeRemainingParts} for UI countdowns.
  */
-export function getDaysRemainingInCoverageWeek(weekStart: string, weekEnd: string, now: Date = new Date()): number {
+export function getDaysRemainingInCoverageWeek(
+  weekStart: string,
+  weekEnd: string,
+  now: Date = new Date(),
+): number {
   const start = istStartOfDay(weekStart);
   const end = coverageEndOfDay(weekEnd);
   if (now > end) return 0;
   const totalDays =
-    Math.round((istStartOfDay(weekEnd).getTime() - istStartOfDay(weekStart).getTime()) / MS_PER_DAY) + 1;
+    Math.round(
+      (istStartOfDay(weekEnd).getTime() - istStartOfDay(weekStart).getTime()) / MS_PER_DAY,
+    ) + 1;
   const todayIst = getISTDateString(now);
   const todayStart = istStartOfDay(todayIst);
   const elapsed = Math.floor((todayStart.getTime() - start.getTime()) / MS_PER_DAY);
@@ -42,8 +49,31 @@ export function getCoverageTimeRemainingParts(
   return { days, hours };
 }
 
+export type CoverageWindowStatus =
+  | { status: 'upcoming'; days: number; hours: number }
+  | { status: 'active'; days: number; hours: number }
+  | { status: 'expired'; days: number; hours: number };
+
+/**
+ * Returns whether coverage is upcoming/active/expired, and the appropriate countdown.
+ * - upcoming: time until start of `weekStart` (IST)
+ * - active: time until end of `weekEnd` (IST)
+ * - expired: 0
+ */
+export function getCoverageWindowStatus(
+  weekStart: string,
+  weekEnd: string,
+  now: Date = new Date(),
+): CoverageWindowStatus {
+  return coverageWindowStatus(weekStart, weekEnd, now);
+}
+
 /** Progress 0–100 through the coverage window (0% before week start IST). */
-export function getCoverageWeekProgressPercent(weekStart: string, weekEnd: string, now: Date = new Date()): number {
+export function getCoverageWeekProgressPercent(
+  weekStart: string,
+  weekEnd: string,
+  now: Date = new Date(),
+): number {
   const start = istStartOfDay(weekStart);
   const end = coverageEndOfDay(weekEnd);
   const total = end.getTime() - start.getTime();

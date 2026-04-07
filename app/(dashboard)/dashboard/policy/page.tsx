@@ -4,7 +4,8 @@ import Link from "next/link";
 import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
 import { ArrowLeft, FileText } from "lucide-react";
 import { computeDynamicPlanQuotesForProfile } from "@/lib/ml/resolve-dynamic-plan-quotes";
-import { getPolicyWeekRange } from "@/lib/utils/policy-week";
+import { getCoverageWeekRange } from "@/lib/utils/policy-week";
+import { addCalendarDaysIST } from "@/lib/datetime/ist";
 import type { WeeklyPolicy } from "@/lib/types/database";
 
 export default async function PolicyPage({
@@ -20,7 +21,9 @@ export default async function PolicyPage({
 
   if (!user) redirect("/login");
 
-  const { start: weekStart } = getPolicyWeekRange();
+  const { start: weekStart } = getCoverageWeekRange();
+  // Pull a small window so we don't miss the current week even if there are many future/pending rows.
+  const policySince = addCalendarDaysIST(weekStart, -21);
 
   const [{ data: policies }, { data: profile }, { data: plans }, dynamicQuotesBySlug] =
     await Promise.all([
@@ -28,8 +31,9 @@ export default async function PolicyPage({
         .from("weekly_policies")
         .select("*, plan_packages(name)")
         .eq("profile_id", user.id)
+        .gte("week_start_date", policySince)
         .order("week_start_date", { ascending: false })
-        .limit(5),
+        .limit(30),
       supabase
         .from("profiles")
         .select(
@@ -47,8 +51,15 @@ export default async function PolicyPage({
 
   const premium = dynamicQuotesBySlug.standard?.weekly_premium_inr ?? 99;
 
-  let activePolicy: (WeeklyPolicy & { plan_packages?: unknown }) | null =
-    policies?.find((p) => p.is_active) ?? null;
+  // Treat the current week as active if we have a paid/demo policy for this week,
+  // even if `is_active` lags briefly right after verification.
+  const earnedStatuses = new Set(['paid', 'demo']);
+  const activePolicy: (WeeklyPolicy & { plan_packages?: unknown }) | null =
+    policies?.find((p) => p.is_active) ??
+    policies?.find(
+      (p) => p.week_start_date === weekStart && earnedStatuses.has(String(p.payment_status ?? '')),
+    ) ??
+    null;
 
   const planName =
     activePolicy?.plan_packages && typeof activePolicy.plan_packages === "object" && activePolicy.plan_packages !== null

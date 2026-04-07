@@ -1,13 +1,10 @@
 'use client';
 
-import type { WeeklyPolicy } from '@/lib/types/database';
-import { formatShortDateIST } from '@/lib/datetime/ist';
-import {
-  getCoverageTimeRemainingParts,
-  getCoverageWeekProgressPercent,
-} from '@/lib/coverage-week';
-import { Shield, ShieldOff, CalendarClock } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
+import { getCoverageWeekProgressPercent } from '@/lib/coverage-week';
+import { coverageWindowStatus, formatPolicyDateShort } from '@/lib/datetime/oasis-time';
+import type { WeeklyPolicy } from '@/lib/types/database';
+import { CalendarClock, Shield, ShieldOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface CoverageStatusBannerProps {
@@ -16,26 +13,26 @@ interface CoverageStatusBannerProps {
 }
 
 function formatShortDate(d: string) {
-  return formatShortDateIST(d);
+  return formatPolicyDateShort(d);
 }
 
 export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerProps) {
   const [hydrated, setHydrated] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number } | null>(null);
+  const [windowStatus, setWindowStatus] = useState<{
+    status: 'upcoming' | 'active' | 'expired';
+    days: number;
+    hours: number;
+  } | null>(null);
   const [progress, setProgress] = useState<number>(0);
 
   useEffect(() => {
     if (!policy) return;
     setHydrated(true);
-    setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
-    setProgress(
-      getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date),
-    );
+    setWindowStatus(coverageWindowStatus(policy.week_start_date, policy.week_end_date));
+    setProgress(getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date));
     const interval = setInterval(() => {
-      setTimeLeft(getCoverageTimeRemainingParts(policy.week_end_date));
-      setProgress(
-        getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date),
-      );
+      setWindowStatus(coverageWindowStatus(policy.week_start_date, policy.week_end_date));
+      setProgress(getCoverageWeekProgressPercent(policy.week_start_date, policy.week_end_date));
     }, 60000);
     return () => clearInterval(interval);
   }, [policy]);
@@ -49,9 +46,7 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold text-amber-300">
-                No active coverage
-              </span>
+              <span className="text-[13px] font-semibold text-amber-300">No active coverage</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full">
                 Unprotected
               </span>
@@ -74,9 +69,13 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
   }
 
   const remaining =
-    timeLeft ?? (hydrated ? getCoverageTimeRemainingParts(policy.week_end_date) : { days: 0, hours: 0 });
+    windowStatus ??
+    (hydrated
+      ? coverageWindowStatus(policy.week_start_date, policy.week_end_date)
+      : { status: 'active', days: 0, hours: 0 });
   const totalHoursLeft = remaining.days * 24 + remaining.hours;
   const isExpiringSoon = totalHoursLeft > 0 && totalHoursLeft <= 48;
+  const isUpcoming = remaining.status === 'upcoming';
 
   return (
     <div
@@ -104,9 +103,7 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
           <div className="relative shrink-0">
             <div
               className={`flex items-center justify-center w-10 h-10 rounded-xl shrink-0 ${
-                isExpiringSoon
-                  ? 'bg-amber-500/15'
-                  : 'bg-uber-green/15'
+                isExpiringSoon ? 'bg-amber-500/15' : 'bg-uber-green/15'
               }`}
             >
               <Shield
@@ -117,10 +114,7 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
             </div>
             {/* Live pulse ring */}
             {!isExpiringSoon && (
-              <span
-                className="absolute -top-0.5 -right-0.5 flex h-3 w-3"
-                aria-hidden
-              >
+              <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3" aria-hidden>
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-uber-green/40" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-uber-green border-2 border-[#0c0c0c]" />
               </span>
@@ -169,7 +163,9 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
               {remaining.hours}h
             </span>
           </div>
-          <p className="text-[10px] text-zinc-500 font-medium">remaining</p>
+          <p className="text-[10px] text-zinc-500 font-medium">
+            {isUpcoming ? 'starts in' : remaining.status === 'expired' ? 'ended' : 'remaining'}
+          </p>
         </div>
       </div>
 

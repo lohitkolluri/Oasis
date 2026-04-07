@@ -48,10 +48,8 @@ export async function getNextWeekPrediction(
       const allTriggers = new Set<string>();
       let totalAqiHighHours = 0;
 
-      const results = await allSettledWithConcurrency(
-        uniqueZones,
-        FORECAST_ZONE_CONCURRENCY,
-        (z) => checkZoneForecast(z.lat, z.lng, tomorrowKey),
+      const results = await allSettledWithConcurrency(uniqueZones, FORECAST_ZONE_CONCURRENCY, (z) =>
+        checkZoneForecast(z.lat, z.lng, tomorrowKey),
       );
 
       for (const result of results) {
@@ -74,10 +72,7 @@ export async function getNextWeekPrediction(
       const high = Math.round(estClaims * 1.4) + 1;
 
       let riskLevel: 'low' | 'medium' | 'high' = 'low';
-      if (
-        totalTriggerHours >= 10 ||
-        (totalTriggerHours >= 5 && triggers.includes('heat'))
-      )
+      if (totalTriggerHours >= 10 || (totalTriggerHours >= 5 && triggers.includes('heat')))
         riskLevel = 'high';
       else if (totalTriggerHours >= 3 || triggers.length >= 2) riskLevel = 'medium';
 
@@ -88,7 +83,9 @@ export async function getNextWeekPrediction(
 
       const detailParts: string[] = [];
       if (triggers.length > 0) {
-        detailParts.push(`${triggers.join(', ')} risk detected (${totalTriggerHours}h above thresholds)`);
+        detailParts.push(
+          `${triggers.join(', ')} risk detected (${totalTriggerHours}h above thresholds)`,
+        );
       }
       if (uniqueZones.length > 1) {
         detailParts.push(`Checked ${uniqueZones.length} active zones`);
@@ -114,24 +111,17 @@ export async function getNextWeekPrediction(
   const { data: recentClaims } = await supabase
     .from('parametric_claims')
     .select('id, created_at')
-    .gte(
-      'created_at',
-      new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
-    )
+    .gte('created_at', new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
     .order('created_at', { ascending: true });
 
   const all = recentClaims ?? [];
   const avgPerWeek = all.length / 3;
 
   const week1 = all.filter(
-    (c) =>
-      new Date(c.created_at) <
-      new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+    (c) => new Date(c.created_at) < new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
   ).length;
   const week3 = all.filter(
-    (c) =>
-      new Date(c.created_at) >=
-      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    (c) => new Date(c.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
   ).length;
   const weeklyTrend = all.length >= 3 ? (week3 - week1) / 2 : 0;
   const adjusted = Math.max(0, Math.round(avgPerWeek + weeklyTrend));
@@ -167,9 +157,8 @@ async function allSettledWithConcurrency<T, R>(
     }
   }
 
-  const workers = Array.from(
-    { length: Math.max(1, Math.min(concurrency, items.length)) },
-    () => runWorker(),
+  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, () =>
+    runWorker(),
   );
   await Promise.all(workers);
   return results;
@@ -195,8 +184,10 @@ async function checkZoneForecast(
       }>;
     };
   }>(
-    `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h&apikey=${apiKey}`,
-    undefined,
+    `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h`,
+    {
+      headers: { 'X-API-Key': apiKey },
+    },
     { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
   );
 
@@ -223,9 +214,7 @@ async function checkZoneForecast(
       undefined,
       { cacheTtlMs: EXTERNAL_APIS.CACHE_AQI_TTL_MS },
     );
-    const aqiValues = (aqiData.hourly?.us_aqi ?? []).filter(
-      (v): v is number => v != null,
-    );
+    const aqiValues = (aqiData.hourly?.us_aqi ?? []).filter((v): v is number => v != null);
     aqiHighHours = aqiValues.filter((v) => v >= 150).length;
     if (aqiHighHours > 0) {
       triggers.push('aqi');
@@ -276,9 +265,7 @@ function deduplicateZones(
   return Array.from(seen.values());
 }
 
-async function getActivePolicyCount(
-  supabase: SupabaseClient,
-): Promise<number> {
+async function getActivePolicyCount(supabase: SupabaseClient): Promise<number> {
   const today = getISTDateString();
   const { count } = await supabase
     .from('weekly_policies')

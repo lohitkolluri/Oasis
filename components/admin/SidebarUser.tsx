@@ -7,9 +7,10 @@ interface SidebarUserProps {
   role?: string | null;
   email?: string | null;
   className?: string;
+  collapsed?: boolean;
 }
 
-export function SidebarUser({ name, email, className }: SidebarUserProps) {
+export function SidebarUser({ name, email, className, collapsed = false }: SidebarUserProps) {
   const displayName = name || email || 'Oasis Admin';
   const avatarSeed = email || name || 'oasis-admin';
 
@@ -18,14 +19,15 @@ export function SidebarUser({ name, email, className }: SidebarUserProps) {
       className={cn(
         'w-full flex items-center justify-between gap-3 px-3 py-3 rounded-xl',
         'bg-zinc-900/90 border border-zinc-800 shadow-sm',
+        collapsed && 'px-2',
         className,
       )}
     >
       <div className="flex items-center gap-3 min-w-0">
         <Avatar seed={avatarSeed} size={32} className="h-8 w-8" />
-        <span className="text-sm font-medium leading-snug truncate">
-          {displayName}
-        </span>
+        {!collapsed && (
+          <span className="text-sm font-medium leading-snug truncate">{displayName}</span>
+        )}
       </div>
       <form action="/api/auth/signout" method="post">
         <button
@@ -39,5 +41,3 @@ export function SidebarUser({ name, email, className }: SidebarUserProps) {
     </div>
   );
 }
-
-

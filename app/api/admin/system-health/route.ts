@@ -7,6 +7,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { withAdminAuth } from "@/lib/utils/admin-guard";
+import { mergeSourceHealth } from "@/lib/adjudicator/ledger";
+import { getExpectedParametricSourceIds, getPinnedParametricSourceIds, shouldKeepSourceHealthRow } from "@/lib/adjudicator/source-health-registry";
 export const dynamic = "force-dynamic";
 
 async function checkSupabase(admin: ReturnType<typeof createAdminClient>): Promise<{ ok: boolean; error?: string }> {
@@ -40,9 +42,46 @@ async function checkRazorpay(): Promise<{ ok: boolean; error?: string }> {
 export const GET = withAdminAuth(async () => {
   const admin = createAdminClient();
 
+  // Ensure RSS fallbacks appear in parametric source health even when unused.
+  async function touchHttpSource(sourceId: string, url: string): Promise<void> {
+    const t0 = Date.now();
+    const observedAt = new Date().toISOString();
+    try {
+      const r = await fetch(url, {
+        headers: {
+          Accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+      await mergeSourceHealth(admin, sourceId, {
+        ok: r.ok,
+        latencyMs: Date.now() - t0,
+        observedAt,
+        ...(r.ok ? {} : { errorDetail: `HTTP ${r.status}` }),
+      });
+    } catch (e) {
+      await mergeSourceHealth(admin, sourceId, {
+        ok: false,
+        latencyMs: Date.now() - t0,
+        observedAt,
+        errorDetail: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  const [dbCheck, razorpayCheck] = await Promise.all([
+    checkSupabase(admin),
+    checkRazorpay(),
+  ]);
+
+  // IMPORTANT: touch TOI rows first, then read `parametric_source_health`.
+  // Otherwise the SELECT can race ahead and the UI won't show TOI rows until the next refresh.
+  await Promise.all([
+    touchHttpSource("toi_rss_top_stories", "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"),
+    touchHttpSource("toi_rss_india", "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"),
+  ]);
+
   const [
-    dbCheck,
-    razorpayCheck,
     lastRunRes,
     errorCountRes,
     recentLogsRes,
@@ -51,8 +90,6 @@ export const GET = withAdminAuth(async () => {
     parametricSourcesRes,
     parametricLedgerRes,
   ] = await Promise.all([
-    checkSupabase(admin),
-    checkRazorpay(),
     admin
       .from("system_logs")
       .select("created_at, metadata, severity")
@@ -83,7 +120,7 @@ export const GET = withAdminAuth(async () => {
     admin
       .from("parametric_source_health")
       .select(
-        "source_id,last_success_at,last_error_at,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of",
+        "source_id,last_success_at,last_error_at,last_error_detail,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of",
       )
       .order("source_id", { ascending: true }),
     admin
@@ -102,7 +139,18 @@ export const GET = withAdminAuth(async () => {
   const recentLogs = recentLogsRes.data ?? [];
   const lastRotation = lastRotationRes.data;
   const totalLogCount = logCountRes.count ?? 0;
-  const parametricSources = parametricSourcesRes.error ? [] : (parametricSourcesRes.data ?? []);
+  const expectedIds = getExpectedParametricSourceIds();
+  const pinnedIds = getPinnedParametricSourceIds();
+  const parametricSourcesRaw = parametricSourcesRes.error ? [] : (parametricSourcesRes.data ?? []);
+  const parametricSources = parametricSourcesRaw.filter((r) =>
+    shouldKeepSourceHealthRow({
+      sourceId: r.source_id,
+      lastObservedAt: r.last_observed_at,
+      expectedIds,
+      pinnedIds,
+      keepObservedWithinDays: 30,
+    }),
+  );
   const parametricLedgerPreview = parametricLedgerRes.error ? [] : (parametricLedgerRes.data ?? []);
 
   if (!dbOk) {
@@ -127,24 +175,60 @@ export const GET = withAdminAuth(async () => {
 
   const apis = await Promise.all([
     probe(
-      "Open-Meteo Weather",
-      "https://api.open-meteo.com/v1/forecast?latitude=12.97&longitude=77.59&hourly=temperature_2m&forecast_days=1"
+      "Open-Meteo forecast",
+      "https://api.open-meteo.com/v1/forecast?latitude=12.97&longitude=77.59&hourly=temperature_2m&forecast_days=1",
     ),
     probe(
       "Open-Meteo AQI",
-      "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.52&longitude=13.41&hourly=pm10,pm2_5"
+      "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.52&longitude=13.41&hourly=pm10,pm2_5",
     ),
   ]);
-  apis.push(
-    { name: "Tomorrow.io", ok: !!process.env.TOMORROW_IO_API_KEY, status: process.env.TOMORROW_IO_API_KEY ? 200 : 0 },
-    { name: "NewsData.io", ok: !!process.env.NEWSDATA_IO_API_KEY, status: process.env.NEWSDATA_IO_API_KEY ? 200 : 0 },
-    { name: "OpenRouter LLM", ok: !!process.env.OPENROUTER_API_KEY, status: process.env.OPENROUTER_API_KEY ? 200 : 0 },
-    {
-      name: "Razorpay",
-      ok: razorpayOk,
-      status: razorpayOk ? 200 : process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ? 0 : 200,
-    },
-  );
+
+  if (expectedIds.has("tomorrow_io")) {
+    apis.push({
+      name: "Tomorrow.io",
+      ok: !!process.env.TOMORROW_IO_API_KEY,
+      status: process.env.TOMORROW_IO_API_KEY ? 200 : 0,
+    });
+  }
+  if (expectedIds.has("newsdata_io_traffic") || expectedIds.has("newsdata_io_curfew")) {
+    apis.push({
+      name: "NewsData.io",
+      ok: !!process.env.NEWSDATA_IO_API_KEY,
+      status: process.env.NEWSDATA_IO_API_KEY ? 200 : 0,
+    });
+  }
+  if (
+    expectedIds.has("openrouter_toi_traffic") ||
+    expectedIds.has("openrouter_toi_curfew") ||
+    expectedIds.has("openrouter_news_traffic") ||
+    expectedIds.has("openrouter_news_curfew")
+  ) {
+    apis.push({
+      name: "OpenRouter LLM",
+      ok: !!process.env.OPENROUTER_API_KEY,
+      status: process.env.OPENROUTER_API_KEY ? 200 : 0,
+    });
+  }
+  if (expectedIds.has("tomtom_traffic")) {
+    apis.push({
+      name: "TomTom traffic",
+      ok: !!process.env.TOMTOM_API_KEY,
+      status: process.env.TOMTOM_API_KEY ? 200 : 0,
+    });
+  }
+  if (expectedIds.has("waqi_ground_station")) {
+    apis.push({
+      name: "WAQI ground station",
+      ok: !!process.env.WAQI_API_KEY,
+      status: process.env.WAQI_API_KEY ? 200 : 0,
+    });
+  }
+  apis.push({
+    name: "Razorpay",
+    ok: razorpayOk,
+    status: razorpayOk ? 200 : process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ? 0 : 200,
+  });
 
   const m = lastRun?.metadata as Record<string, unknown> | undefined;
   const overallHealthy = apis.every((a) => a.ok) && errorCount === 0;

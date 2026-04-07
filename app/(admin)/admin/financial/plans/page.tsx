@@ -45,22 +45,8 @@ export default async function PlansPage() {
     plans = [];
   }
 
-  const { data: planFinancialRows } = await supabase.rpc('admin_plan_financials');
   const premiumByPlan = new Map<string, { premium: number; policies: number }>();
   const payoutsByPlan = new Map<string, number>();
-  for (const row of (planFinancialRows ?? []) as Array<{
-    plan_id: string;
-    active_policies: number;
-    modeled_premium_inr: number;
-    payouts_inr: number;
-  }>) {
-    if (!row.plan_id) continue;
-    premiumByPlan.set(row.plan_id, {
-      premium: Number(row.modeled_premium_inr ?? 0),
-      policies: Number(row.active_policies ?? 0),
-    });
-    payoutsByPlan.set(row.plan_id, Number(row.payouts_inr ?? 0));
-  }
 
   const tiers = plans.length > 0 ? plans.length : 3;
 
@@ -79,6 +65,8 @@ export default async function PlansPage() {
   const forecastWeekStart = getPolicyWeekRange(now).start;
   const currentWeekStart = istPolicyWeekMondayYmd(now);
   const sinceIso = addDays(currentWeekStart, -7 * 23);
+  // Rolling plan performance window aligned with pricing widgets.
+  const performanceSinceIso = sinceIso;
 
   const [snapshotsRes, policiesPaidRes, recsRes] = await Promise.all([
     supabase
@@ -88,8 +76,8 @@ export default async function PlansPage() {
       .order('week_start_date', { ascending: false }),
     supabase
       .from('weekly_policies')
-      .select('week_start_date, plan_id, payment_status')
-      .gte('week_start_date', sinceIso)
+      .select('id, week_start_date, plan_id, payment_status, weekly_premium_inr')
+      .gte('week_start_date', performanceSinceIso)
       .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
     supabase
       .from('premium_recommendations')
@@ -152,15 +140,61 @@ export default async function PlansPage() {
   }>;
 
   const paidPolicies = (policiesPaidRes.data ?? []) as Array<{
+    id: string;
     week_start_date: string;
     plan_id: string | null;
+    weekly_premium_inr?: number | null;
   }>;
 
   const subsByWeekPlan = new Map<string, number>();
+  const premiumByWeekPlan = new Map<string, number>();
+  const policiesByPlan = new Map<string, number>();
+  const premiumSumByPlan = new Map<string, number>();
   for (const p of paidPolicies) {
     if (!p.plan_id) continue;
     const key = `${p.week_start_date}:${p.plan_id}`;
     subsByWeekPlan.set(key, (subsByWeekPlan.get(key) ?? 0) + 1);
+    premiumByWeekPlan.set(
+      key,
+      (premiumByWeekPlan.get(key) ?? 0) + Number(p.weekly_premium_inr ?? 0),
+    );
+    policiesByPlan.set(p.plan_id, (policiesByPlan.get(p.plan_id) ?? 0) + 1);
+    premiumSumByPlan.set(
+      p.plan_id,
+      (premiumSumByPlan.get(p.plan_id) ?? 0) + Number(p.weekly_premium_inr ?? 0),
+    );
+  }
+
+  // Populate per-plan aggregates for the rolling window (so cards reflect recent activity,
+  // not just "currently active" weekly policies).
+  for (const [planId, policies] of policiesByPlan.entries()) {
+    premiumByPlan.set(planId, {
+      premium: premiumSumByPlan.get(planId) ?? 0,
+      policies,
+    });
+  }
+
+  // Payouts across policies in the rolling window
+  if (paidPolicies.length > 0) {
+    const policyIds = paidPolicies.map((p) => p.id);
+    const { data: payoutRows } = await supabase
+      .from('parametric_claims')
+      .select('policy_id, payout_amount_inr')
+      .in('policy_id', policyIds);
+    for (const row of (payoutRows ?? []) as Array<{ policy_id: string; payout_amount_inr: number }>) {
+      payoutsByPlan.set(
+        row.policy_id,
+        (payoutsByPlan.get(row.policy_id) ?? 0) + Number(row.payout_amount_inr ?? 0),
+      );
+    }
+  }
+
+  // Convert policy-level payouts to plan-level payouts
+  const planPayouts = new Map<string, number>();
+  for (const p of paidPolicies) {
+    if (!p.plan_id) continue;
+    const policyPayout = payoutsByPlan.get(p.id) ?? 0;
+    planPayouts.set(p.plan_id, (planPayouts.get(p.plan_id) ?? 0) + policyPayout);
   }
 
   const priceByWeekPlan = new Map<string, number>();
@@ -339,7 +373,7 @@ export default async function PlansPage() {
         />
         <KPICard
           title="Modeled weekly premium"
-          label="Sum of active plan premiums"
+          label="Earned premium in window"
           value={`₹${Array.from(premiumByPlan.values())
             .reduce((s, v) => s + v.premium, 0)
             .toLocaleString('en-IN')}`}
@@ -434,7 +468,7 @@ export default async function PlansPage() {
               premium: 0,
               policies: 0,
             };
-            const payouts = payoutsByPlan.get(plan.id as string) ?? 0;
+            const payouts = planPayouts.get(plan.id as string) ?? 0;
             const lossRatio =
               agg.premium > 0 ? (payouts / agg.premium) * 100 : null;
 
@@ -464,7 +498,7 @@ export default async function PlansPage() {
                   <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-[#9ca3af]">
                     <div>
                       <p className="uppercase tracking-[0.14em] text-[#6b7280] mb-0.5">
-                        Active riders
+                        Riders in window
                       </p>
                       <p className="font-semibold text-white tabular-nums">
                         {agg.policies}
@@ -472,7 +506,7 @@ export default async function PlansPage() {
                     </div>
                     <div>
                       <p className="uppercase tracking-[0.14em] text-[#6b7280] mb-0.5">
-                        Modeled premium
+                        Earned premium
                       </p>
                       <p className="font-semibold text-white tabular-nums">
                         ₹{agg.premium.toLocaleString('en-IN')}

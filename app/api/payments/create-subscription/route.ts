@@ -2,16 +2,16 @@
  * Creates a Razorpay subscription (weekly mandate / UPI Autopay) and a pending weekly_policy row.
  * Client opens Checkout with subscription_id (not order_id).
  */
+import { getRazorpayInstance } from '@/lib/clients/razorpay';
 import { RATE_LIMITS } from '@/lib/config/constants';
 import { getRazorpayKeyId } from '@/lib/config/env';
-import { getRazorpayInstance } from '@/lib/clients/razorpay';
+import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { createCheckoutSchema } from '@/lib/validations/schemas';
-import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
-import { getPolicyWeekRange } from '@/lib/utils/policy-week';
-import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
+import { getCoverageWeekRange } from '@/lib/utils/policy-week';
+import { parseWithSchema } from '@/lib/validations/parse';
+import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { NextResponse } from 'next/server';
 
 const SUBSCRIPTION_TOTAL_WEEKS = 104;
@@ -37,13 +37,15 @@ export async function POST(request: Request) {
     const parsed = parseWithSchema(createCheckoutSchema, body);
     if (!parsed.success) return parsed.response;
     const { planId } = parsed.data;
-    const { start: weekStart, end: weekEnd } = getPolicyWeekRange();
+    const { start: weekStart, end: weekEnd } = getCoverageWeekRange();
 
     const admin = createAdminClient();
 
     const { data: profile, error: profErr } = await admin
       .from('profiles')
-      .select('id, full_name, phone_number, razorpay_customer_id, auto_renew_enabled, razorpay_subscription_id')
+      .select(
+        'id, full_name, phone_number, razorpay_customer_id, auto_renew_enabled, razorpay_subscription_id',
+      )
       .eq('id', user.id)
       .single();
 
@@ -53,7 +55,10 @@ export async function POST(request: Request) {
 
     if (profile.auto_renew_enabled && profile.razorpay_subscription_id) {
       return NextResponse.json(
-        { error: 'You already have automatic renewal enabled. Cancel it first to start a new mandate.' },
+        {
+          error:
+            'You already have automatic renewal enabled. Cancel it first to start a new mandate.',
+        },
         { status: 400 },
       );
     }
@@ -145,7 +150,10 @@ export async function POST(request: Request) {
             currency: 'INR',
             description: 'Weekly parametric income protection',
           },
-          notes: { plan_package_id: planPackageId, dynamic_premium: String(Math.round(amountInr) !== Math.round(staticInr)) },
+          notes: {
+            plan_package_id: planPackageId,
+            dynamic_premium: String(Math.round(amountInr) !== Math.round(staticInr)),
+          },
         });
         razorpayPlanId = planRes.id;
         if (Math.round(amountInr) === Math.round(staticInr)) {
@@ -171,19 +179,8 @@ export async function POST(request: Request) {
     }
 
     /* Razorpay API requires customer_id; SDK types omit it on the create body. */
-    const subscription = await razorpay.subscriptions.create({
-      plan_id: razorpayPlanId!,
-      customer_id: customerId,
-      total_count: SUBSCRIPTION_TOTAL_WEEKS,
-      customer_notify: 1,
-      notes: {
-        profile_id: user.id,
-        ...(planPackageId ? { plan_id: planPackageId } : {}),
-      },
-    } as never);
-
-    const subId = subscription.id as string;
-
+    // Create the pending weekly policy row first so a DB unique constraint
+    // prevents duplicate mandates for the same rider/week under concurrency.
     const { data: policy, error: policyError } = await supabase
       .from('weekly_policies')
       .insert({
@@ -194,21 +191,67 @@ export async function POST(request: Request) {
         weekly_premium_inr: amountInr,
         is_active: false,
         payment_status: 'pending',
-        razorpay_subscription_id: subId,
       })
       .select('id')
       .single();
 
     if (policyError || !policy) {
-      try {
-        await razorpay.subscriptions.cancel(subId);
-      } catch {
-        /* best effort */
+      if ((policyError as { code?: string } | null)?.code === '23505') {
+        const { data: existing } = await admin
+          .from('weekly_policies')
+          .select('id, is_active, payment_status')
+          .eq('profile_id', user.id)
+          .eq('week_start_date', weekStart)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing?.id) {
+          return NextResponse.json(
+            {
+              error: existing.is_active
+                ? 'You already have active coverage for this week.'
+                : 'You already have a pending mandate/checkout for this week. Complete it first.',
+              policyId: existing.id,
+            },
+            { status: 409 },
+          );
+        }
       }
       return NextResponse.json(
         { error: policyError?.message ?? 'Failed to create policy' },
         { status: 500 },
       );
+    }
+
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: razorpayPlanId!,
+      customer_id: customerId,
+      total_count: SUBSCRIPTION_TOTAL_WEEKS,
+      customer_notify: 1,
+      notes: {
+        profile_id: user.id,
+        policy_id: policy.id,
+        ...(planPackageId ? { plan_id: planPackageId } : {}),
+      },
+    } as never);
+
+    const subId = subscription.id as string;
+
+    const { error: linkErr } = await admin
+      .from('weekly_policies')
+      .update({ razorpay_subscription_id: subId, updated_at: new Date().toISOString() })
+      .eq('id', policy.id)
+      .eq('profile_id', user.id);
+
+    if (linkErr) {
+      try {
+        await razorpay.subscriptions.cancel(subId);
+      } catch {
+        /* best effort */
+      }
+      await admin.from('weekly_policies').delete().eq('id', policy.id).eq('profile_id', user.id);
+      return NextResponse.json({ error: 'Failed to link mandate to policy' }, { status: 500 });
     }
 
     await supabase.from('payment_transactions').insert({
@@ -238,7 +281,9 @@ export async function POST(request: Request) {
         email: user.email ?? undefined,
         name:
           profile.full_name ??
-          (typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : undefined),
+          (typeof user.user_metadata?.full_name === 'string'
+            ? user.user_metadata.full_name
+            : undefined),
         contact: profile.phone_number ?? undefined,
       },
     });

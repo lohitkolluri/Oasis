@@ -34,11 +34,11 @@ COMMENT ON TABLE plan_pricing_snapshots IS 'Weekly snapshots of plan tier prices
 -- Seed current week snapshots from active plans (one-time, forward-looking baseline).
 INSERT INTO plan_pricing_snapshots (week_start_date, plan_id, weekly_premium_inr, source)
 SELECT
-  (date_trunc('week', NOW())::date) AS week_start_date,
+  -- Use IST Monday for the coverage week start (DATE).
+  ((NOW() AT TIME ZONE 'Asia/Kolkata')::date - (((EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Asia/Kolkata'))::int + 6) % 7))) AS week_start_date,
   p.id AS plan_id,
   p.weekly_premium_inr,
   'manual' AS source
 FROM plan_packages p
 WHERE p.is_active = true
 ON CONFLICT (week_start_date, plan_id) DO NOTHING;
-

@@ -22,6 +22,7 @@ export interface SourceHealthRow {
   source_id: string;
   last_success_at: string | null;
   last_error_at: string | null;
+  last_error_detail?: string | null;
   last_observed_at: string | null;
   error_streak: number;
   success_streak: number;
@@ -128,7 +129,7 @@ export function ParametricSourceHealth({ rows, variant = 'standalone' }: Paramet
                         {fmt(r.last_success_at)}
                       </TableCell>
                       <TableCell className="text-xs text-[#737373] tabular-nums">
-                        {fmt(r.last_error_at)}
+                        <span title={r.last_error_detail ?? ''}>{fmt(r.last_error_at)}</span>
                       </TableCell>
                       <TableCell className="text-right">
                         {r.error_streak > 0 ? (

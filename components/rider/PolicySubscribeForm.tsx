@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import type { DynamicPlanQuote } from '@/lib/ml/resolve-dynamic-plan-quotes';
-import { getPolicyWeekRange } from '@/lib/utils/policy-week';
+import { getCoverageWeekRange } from '@/lib/utils/policy-week';
 import { cn } from '@/lib/utils';
 import { Check, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -14,14 +14,72 @@ import { SubscriptionDetails } from './SubscriptionDetails';
 function loadRazorpayScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if (window.Razorpay) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load Razorpay Checkout'));
-    document.body.appendChild(s);
-  });
+  const SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+
+  const waitForGlobal = (ms: number) =>
+    new Promise<void>((resolve, reject) => {
+      const start = Date.now();
+      const tick = () => {
+        if ((window as any).Razorpay) return resolve();
+        if (Date.now() - start > ms) return reject(new Error('Razorpay script loaded but global was not available.'));
+        setTimeout(tick, 50);
+      };
+      tick();
+    });
+
+  const injectOnce = () =>
+    new Promise<void>((resolve, reject) => {
+      // Reuse an existing script tag if present (prevents duplicate injection on retries).
+      const existing = Array.from(document.getElementsByTagName('script')).find(
+        (el) => el.src === SRC,
+      ) as HTMLScriptElement | undefined;
+
+      const s = existing ?? document.createElement('script');
+      if (!existing) {
+        s.src = SRC;
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        document.body.appendChild(s);
+      }
+
+      const cleanup = () => {
+        s.removeEventListener('load', onLoad);
+        s.removeEventListener('error', onError);
+      };
+      const onLoad = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error('Failed to load Razorpay Checkout. It may be blocked by an ad blocker or network policy.'));
+      };
+
+      // If it already loaded but global isn't set yet, just wait briefly.
+      if (existing && (existing as any).readyState === 'complete') {
+        resolve();
+        return;
+      }
+
+      s.addEventListener('load', onLoad);
+      s.addEventListener('error', onError);
+
+      // Timeout to avoid hanging forever.
+      setTimeout(() => {
+        cleanup();
+        reject(new Error('Timed out loading Razorpay Checkout. Check ad blockers or corporate network filtering.'));
+      }, 8000);
+    });
+
+  // Try twice: transient CDN errors happen.
+  return injectOnce()
+    .then(() => waitForGlobal(1500))
+    .catch(async (e) => {
+      await new Promise((r) => setTimeout(r, 400));
+      await injectOnce();
+      await waitForGlobal(1500);
+      throw e;
+    });
 }
 
 type CreateCheckoutResponse = {
@@ -85,12 +143,14 @@ export function PolicySubscribeForm({
 }: PolicySubscribeFormProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // If a mandate already exists, don't let the rider attempt to create a new one.
+  // They can still pay for the current week via one-time checkout.
   const [weeklyAutoRenew, setWeeklyAutoRenew] = useState(false);
   const defaultPlan =
     plans.length > 0 ? (plans.find((p) => p.slug === 'standard') ?? plans[0]) : null;
   const [selectedPlan, setSelectedPlan] = useState<PlanPackage | null>(defaultPlan);
 
-  const { start, end } = getPolicyWeekRange();
+  const { start, end } = getCoverageWeekRange();
   const activePlan = selectedPlan ?? defaultPlan;
   const activeQuote = activePlan ? quoteForPlan(activePlan, dynamicQuotesBySlug) : null;
   const defaultPremium = activeQuote?.weekly_premium_inr ?? suggestedPremium ?? 99;
@@ -127,7 +187,8 @@ export function PolicySubscribeForm({
     const planIdToUse = activePlan?.id ?? undefined;
 
     try {
-      const endpoint = weeklyAutoRenew ? '/api/payments/create-subscription' : '/api/payments/create-checkout';
+      const wantsMandate = weeklyAutoRenew && !autoRenewEnabled;
+      const endpoint = wantsMandate ? '/api/payments/create-subscription' : '/api/payments/create-checkout';
       const createRes = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,12 +219,16 @@ export function PolicySubscribeForm({
       await loadRazorpayScript();
       const RazorpayCtor = window.Razorpay;
       if (!RazorpayCtor) {
-        setMessage({ type: 'error', text: 'Razorpay failed to load.' });
+        setMessage({
+          type: 'error',
+          text:
+            'Razorpay failed to load. Disable ad blockers / tracking protection for this site and try again.',
+        });
         setLoading(false);
         return;
       }
 
-      if (weeklyAutoRenew) {
+      if (wantsMandate) {
         const data = raw as CreateSubscriptionResponse;
         if (!data.keyId || !data.subscriptionId) {
           setMessage({ type: 'error', text: 'Invalid subscription response.' });
@@ -376,40 +441,84 @@ export function PolicySubscribeForm({
         >
           {loading
             ? 'Opening Razorpay…'
-            : weeklyAutoRenew
+            : weeklyAutoRenew && !autoRenewEnabled
               ? 'Authorise & pay'
               : 'Pay now'}
         </Button>
 
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5">
-          <span className="text-[13px] text-zinc-300 flex items-center gap-2 min-w-0 pr-2">
-            <RefreshCw className="h-3.5 w-3.5 text-uber-green shrink-0" aria-hidden />
-            <span id="auto-renew-label">
-              <span className="font-medium text-white">Auto-renew</span>
-              <span className="text-zinc-500"> · UPI or card mandate</span>
+        {autoRenewEnabled ? (
+          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[13px] text-zinc-300 flex items-center gap-2 min-w-0 pr-2">
+                <RefreshCw className="h-3.5 w-3.5 text-uber-green shrink-0" aria-hidden />
+                <span>
+                  <span className="font-medium text-white">Auto-renew is already enabled</span>
+                  <span className="text-zinc-500"> · future weeks renew automatically</span>
+                </span>
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={loading}
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    setMessage(null);
+                    const res = await fetch('/api/payments/cancel-subscription', { method: 'POST' });
+                    const j = (await res.json()) as { ok?: boolean; error?: string };
+                    if (!res.ok || !j.ok) {
+                      throw new Error(j.error ?? 'Could not cancel auto-renewal');
+                    }
+                    window.location.reload();
+                  } catch (e) {
+                    setMessage({
+                      type: 'error',
+                      text: e instanceof Error ? e.message : 'Could not cancel auto-renewal',
+                    });
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-zinc-500">
+              To start a new mandate (e.g. switch payment method), cancel this one first.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5">
+            <span className="text-[13px] text-zinc-300 flex items-center gap-2 min-w-0 pr-2">
+              <RefreshCw className="h-3.5 w-3.5 text-uber-green shrink-0" aria-hidden />
+              <span id="auto-renew-label">
+                <span className="font-medium text-white">Auto-renew</span>
+                <span className="text-zinc-500"> · UPI or card mandate</span>
+              </span>
             </span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={weeklyAutoRenew}
-            aria-labelledby="auto-renew-label"
-            onClick={() => setWeeklyAutoRenew((v) => !v)}
-            className={cn(
-              'relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
-              weeklyAutoRenew ? 'bg-uber-green' : 'bg-zinc-600',
-            )}
-          >
-            <span
-              aria-hidden
+            <button
+              type="button"
+              role="switch"
+              aria-checked={weeklyAutoRenew}
+              aria-labelledby="auto-renew-label"
+              onClick={() => setWeeklyAutoRenew((v) => !v)}
               className={cn(
-                'pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-out',
-                weeklyAutoRenew ? 'translate-x-6' : 'translate-x-0',
+                'relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
+                weeklyAutoRenew ? 'bg-uber-green' : 'bg-zinc-600',
               )}
-            />
-          </button>
-        </div>
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-out',
+                  weeklyAutoRenew ? 'translate-x-6' : 'translate-x-0',
+                )}
+              />
+            </button>
+          </div>
+        )}
 
         {message && (
           <p

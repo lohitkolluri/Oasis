@@ -1,9 +1,9 @@
+import { ButtonLink } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { formatShortDateIST } from '@/lib/datetime/ist';
+import { formatPolicyDateShort } from '@/lib/datetime/oasis-time';
+import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import { ChevronRight, FileCheck, Shield } from 'lucide-react';
 import Link from 'next/link';
-import type { WeeklyPolicy, ParametricClaim } from '@/lib/types/database';
-import { ButtonLink } from '@/components/ui/Button';
 
 interface PolicyCardProps {
   policy: WeeklyPolicy | null;
@@ -15,7 +15,7 @@ interface PolicyCardProps {
 }
 
 function formatDate(dateStr: string) {
-  return formatShortDateIST(dateStr);
+  return formatPolicyDateShort(dateStr);
 }
 
 export function PolicyCard({
@@ -25,7 +25,6 @@ export function PolicyCard({
   planName,
   compact = false,
 }: PolicyCardProps) {
-
   if (!policy) {
     if (compact) {
       return (
@@ -45,11 +44,7 @@ export function PolicyCard({
       );
     }
     return (
-      <Card
-        variant="default"
-        padding="md"
-        className="rounded-2xl border-white/10 bg-surface-1"
-      >
+      <Card variant="default" padding="md" className="rounded-2xl border-white/10 bg-surface-1">
         <div className="flex items-start gap-3 mb-3">
           <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 shrink-0">
             <FileCheck className="h-4 w-4 text-zinc-500" />
@@ -61,7 +56,12 @@ export function PolicyCard({
             </p>
           </div>
         </div>
-        <ButtonLink href="/dashboard/policy" variant="primary" size="sm" className="w-full justify-center">
+        <ButtonLink
+          href="/dashboard/policy"
+          variant="primary"
+          size="sm"
+          className="w-full justify-center"
+        >
           Get coverage
         </ButtonLink>
       </Card>
@@ -89,16 +89,18 @@ export function PolicyCard({
   }
 
   return (
-    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
+    <Card
+      variant="default"
+      padding="none"
+      className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden"
+    >
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-uber-green/15 border border-uber-green/20 shrink-0">
             <Shield className="h-4 w-4 text-uber-green" />
           </div>
           <div>
-            <p className="text-[13px] font-semibold text-white">
-              {planName ?? 'Current policy'}
-            </p>
+            <p className="text-[13px] font-semibold text-white">{planName ?? 'Current policy'}</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">Coverage & premium</p>
           </div>
         </div>

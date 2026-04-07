@@ -81,6 +81,11 @@ export const FRAUD = {
   GPS_MAX_ACCURACY_METERS: 100,
   IMPOSSIBLE_TRAVEL_KM: 50,
   IMPOSSIBLE_TRAVEL_MINUTES: 30,
+  /** IMU spoofing heuristic: if moving above this speed but IMU variance is too low, flag. */
+  IMU_MIN_VARIANCE: 0.1,
+  IMU_SPEED_MIN_KMH: 5,
+  /** GNSS spoofing heuristic: very low SNR variance is suspicious (synthetic). */
+  GNSS_SNR_VARIANCE_MIN: 1.0,
 } as const;
 
 /** Rate limiting (requests per window) */
@@ -132,14 +137,14 @@ export const EXTERNAL_APIS = {
   NEWS_DATA_LATEST_SIZE: 5,
   /** Upper bound for `size` (NewsData docs: 50 on paid; free plans must keep NEWS_DATA_LATEST_SIZE ≤ 10). */
   NEWS_DATA_LATEST_SIZE_MAX: 50,
-  /** Latest endpoint `timeframe` in hours (docs: 1–48). */
-  NEWS_DATA_LATEST_TIMEFRAME_HOURS: 24,
+  /** Latest endpoint `timeframe` in hours (docs: 1–48). Smaller = lighter payload and fewer timeouts. */
+  NEWS_DATA_LATEST_TIMEFRAME_HOURS: 8,
   /** Abort single NewsData attempt if it hangs (avoids 5s+ “stuck” probes). */
   NEWS_FETCH_TIMEOUT_MS: 14_000,
   /** Space out the two NewsData calls per adjudicator run (429 on free tier). */
   NEWS_BACKOFF_BETWEEN_CALLS_MS: 900,
-  /** Open-Meteo AQI historical series: shorter window = smaller payload, fewer timeouts (still ≫48h for baselines). */
-  AQI_HISTORICAL_LOOKBACK_DAYS: 14,
+  /** Open-Meteo AQI historical series: shorter window = smaller payload, fewer timeouts (still ≥48h for baselines). */
+  AQI_HISTORICAL_LOOKBACK_DAYS: 7,
   /** Historical AQI JSON can be large; cap wait per attempt. */
   OPENMETEO_AQI_HISTORICAL_TIMEOUT_MS: 18_000,
 } as const;

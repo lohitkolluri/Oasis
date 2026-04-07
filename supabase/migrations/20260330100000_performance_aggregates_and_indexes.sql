@@ -43,7 +43,12 @@ SET search_path = public
 AS $$
 DECLARE
   v_reports24 BIGINT := 0;
+  v_since_week_ist DATE;
 BEGIN
+  -- Normalize p_since_week to IST week Monday for consistent bucketing.
+  -- This protects against callers passing a date derived from UTC instants.
+  v_since_week_ist := public.ist_week_monday_ymd((p_since_week::timestamptz));
+
   IF to_regclass('public.rider_delivery_reports') IS NOT NULL THEN
     EXECUTE 'SELECT COUNT(*) FROM public.rider_delivery_reports WHERE created_at >= $1'
       INTO v_reports24
@@ -83,7 +88,7 @@ BEGIN
   premium_window AS (
     SELECT COALESCE(SUM(weekly_premium_inr), 0) AS total_premium
     FROM weekly_policies
-    WHERE week_start_date >= p_since_week
+    WHERE week_start_date >= v_since_week_ist
       AND payment_status IN ('paid', 'demo')
   )
   SELECT
@@ -96,7 +101,7 @@ BEGIN
     cw.fraud_pending,
     v_reports24,
     e24.severe_events_24h,
-    COALESCE(tt.event_type, 'none'),
+    COALESCE(tt.event_type::text, 'none'),
     COALESCE(tt.cnt, 0)
   FROM claim_window cw
   CROSS JOIN event_window ew
