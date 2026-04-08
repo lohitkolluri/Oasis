@@ -1,9 +1,10 @@
 'use client';
 
+import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { G } from '@/components/admin/governance-styles';
-import { AdminInlineHelp } from '@/components/admin/AdminPageTitle';
 import { RuleSetInteractiveForm } from '@/components/admin/RuleSetInteractiveForm';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { CopyableId } from '@/components/ui/CopyableId';
 import { Input } from '@/components/ui/input';
@@ -18,12 +19,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { auditActionTitle, auditDetailLines, auditSearchBlob } from '@/lib/admin/audit-display';
 import {
-  auditActionTitle,
-  auditDetailLines,
-  auditSearchBlob,
-} from '@/lib/admin/audit-display';
-import { effectiveStartCaption, formatEffectiveStartLine } from '@/lib/parametric-rules/format-display';
+  effectiveStartCaption,
+  formatEffectiveStartLine,
+} from '@/lib/parametric-rules/format-display';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Activity, BookOpen, Gavel, History, Layers, Search, Shield } from 'lucide-react';
@@ -126,6 +126,8 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
 
   const current = rules.find((r) => r.effective_until == null);
   const anchorHint = current ? effectiveStartCaption(current.effective_from) : null;
+  const latestRule = rules[0] ?? null;
+  const lastPublishedAt = latestRule ? new Date(latestRule.created_at) : null;
 
   const auditQuery = auditSearch.trim().toLowerCase();
   const filteredAudits = useMemo(() => {
@@ -135,78 +137,161 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
 
   return (
     <div className="space-y-8">
-      <header>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Governance</h1>
-          <AdminInlineHelp
-            text="Versioned parametric_rule_sets control thresholds, payout ladder, and exclusions the adjudicator uses. Creating a new set does not rewrite history — ledger rows and claims record which rule_set_id applied. Audit log captures admin actions. Changes affect automated loss-of-income triggers only."
-            className="translate-y-0.5"
-          />
-        </div>
-        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/45">
-          Rule versions in Postgres drive adjudication. Ledger and disruption rows store which version
-          applied at event time.
-        </p>
+      <header className="space-y-4">
+        <AdminPageTitle
+          eyebrow="Admin"
+          title="Governance"
+          description="Publish and review versioned rule sets used by the automated adjudicator. History is immutable."
+          help="Rule sets are versioned. Publishing a new set affects future automated loss-of-income adjudication only; past ledger/disruption rows keep the rule_set_id that applied at the time. Admin actions are recorded in the audit log."
+          actions={
+            <>
+              <Badge
+                variant="outline"
+                className="border-white/12 bg-white/[0.04] text-[10px] font-normal text-white/60"
+              >
+                Automated payouts
+              </Badge>
+              <Badge
+                variant="outline"
+                className="border-white/12 bg-white/[0.04] text-[10px] font-normal text-white/60"
+              >
+                Loss-of-income only
+              </Badge>
+              <Badge
+                variant="outline"
+                className="border-white/12 bg-white/[0.04] text-[10px] font-normal text-white/60"
+              >
+                Weekly pricing
+              </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 border-white/15 bg-white/[0.03] px-3 text-white/75 hover:bg-white/[0.06]"
+                onClick={() => void refresh()}
+                disabled={loading}
+              >
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </Button>
+            </>
+          }
+        />
       </header>
 
-      {current ? (
-        <div className={cn(G.summaryPanel, 'p-5')}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex gap-4">
-              <div className={G.iconTileLg}>
-                <Layers className="h-5 w-5" />
+      <section className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+        <Card variant="default" padding="lg" className="border-[#2a2a2a] bg-[#1a1a1a]">
+          {current ? (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex gap-4">
+                <div className={G.iconTileLg}>
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 space-y-3">
+                  <div>
+                    <p className={G.eyebrow}>Active rule set</p>
+                    <p className="mt-0.5 font-mono text-xl font-semibold tracking-tight text-white">
+                      {current.version_label}
+                    </p>
+                  </div>
+                  <dl className="grid gap-2 text-[13px] sm:grid-cols-[minmax(0,10rem)_1fr] sm:gap-x-8 sm:gap-y-1.5">
+                    <dt className="text-white/40">In effect since</dt>
+                    <dd className="font-medium text-white/85">
+                      {formatEffectiveStartLine(current.effective_from)}
+                    </dd>
+                    <dt className="text-white/40">Status</dt>
+                    <dd className="text-white/85">Current — no end date</dd>
+                  </dl>
+                  {anchorHint ? (
+                    <p className={cn(G.helper, 'max-w-xl text-[12px]')}>{anchorHint}</p>
+                  ) : null}
+                </div>
               </div>
-              <div className="min-w-0 space-y-3">
-                <div>
-                  <p className={G.eyebrow}>Active rule set</p>
-                  <p className="mt-0.5 font-mono text-xl font-semibold tracking-tight text-white">
-                    {current.version_label}
+              {current.excluded_subtypes && current.excluded_subtypes.length > 0 ? (
+                <div className="sm:max-w-xs sm:text-right">
+                  <p className={G.eyebrow}>Excluded triggers</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 sm:justify-end">
+                    {current.excluded_subtypes.map((s) => (
+                      <Badge
+                        key={s}
+                        variant="outline"
+                        className="border-amber-500/25 bg-amber-500/[0.08] text-[10px] font-normal text-amber-100/90"
+                      >
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex gap-4">
+                <div className={G.iconTileLg}>
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 space-y-2">
+                  <div>
+                    <p className={G.eyebrow}>Active rule set</p>
+                    <p className="mt-0.5 text-[13px] font-medium text-white/75">
+                      None published yet
+                    </p>
+                  </div>
+                  <p className={cn(G.helper, 'max-w-xl')}>
+                    Create and publish your first rule set to enable automated adjudication.
                   </p>
                 </div>
-                <dl className="grid gap-2 text-[13px] sm:grid-cols-[minmax(0,10rem)_1fr] sm:gap-x-8 sm:gap-y-1.5">
-                  <dt className="text-white/40">In effect since</dt>
-                  <dd className="font-medium text-white/85">{formatEffectiveStartLine(current.effective_from)}</dd>
-                  <dt className="text-white/40">Status</dt>
-                  <dd className="text-white/85">Current — no end date</dd>
-                </dl>
-                {anchorHint ? (
-                  <p className={cn(G.helper, 'max-w-xl text-[12px]')}>{anchorHint}</p>
-                ) : null}
               </div>
+              <Badge
+                variant="outline"
+                className="w-fit border-white/12 bg-white/[0.04] text-[10px] font-normal text-white/55"
+              >
+                Waiting for first publish
+              </Badge>
             </div>
-            {current.excluded_subtypes && current.excluded_subtypes.length > 0 ? (
-              <div className="sm:max-w-xs sm:text-right">
-                <p className={G.eyebrow}>Excluded triggers</p>
-                <div className="mt-2 flex flex-wrap gap-1.5 sm:justify-end">
-                  {current.excluded_subtypes.map((s) => (
-                    <Badge
-                      key={s}
-                      variant="outline"
-                      className="border-amber-500/25 bg-amber-500/[0.08] text-[10px] font-normal text-amber-100/90"
-                    >
-                      {s}
-                    </Badge>
-                  ))}
-                </div>
+          )}
+        </Card>
+
+        <Card variant="default" padding="lg" className="border-[#2a2a2a] bg-[#141414]">
+          <CardHeader
+            icon={
+              <div className={G.iconTile}>
+                <Activity className="h-4 w-4" />
               </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+            }
+            title="At a glance"
+            description="Quick sanity check for governance data."
+          />
+          <dl className="grid gap-3">
+            <div className={cn(G.insetCard, 'p-3')}>
+              <dt className="text-[11px] font-medium text-white/55">Rule sets</dt>
+              <dd className="mt-1 text-sm font-semibold text-white tabular-nums">{rules.length}</dd>
+            </div>
+            <div className={cn(G.insetCard, 'p-3')}>
+              <dt className="text-[11px] font-medium text-white/55">Audit entries</dt>
+              <dd className="mt-1 text-sm font-semibold text-white tabular-nums">
+                {audits.length}
+              </dd>
+            </div>
+            <div className={cn(G.insetCard, 'p-3')}>
+              <dt className="text-[11px] font-medium text-white/55">Last publish</dt>
+              <dd className="mt-1 text-sm font-semibold text-white tabular-nums">
+                {lastPublishedAt ? lastPublishedAt.toLocaleString() : '—'}
+              </dd>
+            </div>
+          </dl>
+        </Card>
+      </section>
 
       <Tabs defaultValue="create" className="w-full">
         <TabsList
-          className={cn(
-            G.panel,
-            'h-auto w-full flex-wrap justify-start gap-1 p-1.5 sm:w-auto',
-          )}
+          className={cn(G.panel, 'h-auto w-full flex-wrap justify-start gap-1 p-1.5 sm:w-auto')}
         >
           <TabsTrigger
             value="create"
             className="gap-2 data-[state=active]:border data-[state=active]:border-white/15 data-[state=active]:bg-white/[0.06] data-[state=active]:text-white"
           >
             <Gavel className="h-3.5 w-3.5 opacity-70" />
-            New rule set
+            Create
           </TabsTrigger>
           <TabsTrigger
             value="history"
@@ -220,7 +305,7 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
             className="gap-2 data-[state=active]:border data-[state=active]:border-white/15 data-[state=active]:bg-white/[0.06] data-[state=active]:text-white"
           >
             <Shield className="h-3.5 w-3.5 opacity-70" />
-            Audit log
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -233,7 +318,7 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                 </div>
               }
               title="Interactive builder"
-              description="Step through version, thresholds, payout ladder, and exclusions. Preview updates as you edit."
+              description="Create a new version: thresholds, payout ladder, and exclusions. Preview as you edit."
             />
             <RuleSetInteractiveForm onPublished={() => void refresh()} />
           </Card>
@@ -248,7 +333,7 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                 </div>
               }
               title="Rule set history"
-              description="Each version is immutable. The row with no end date is the one in use."
+              description="Versions are immutable. The row with no end date is the active one."
             />
             {loading ? (
               <div className="space-y-2 py-4">
@@ -317,8 +402,8 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                   <Shield className="h-4 w-4" />
                 </div>
               }
-              title="Admin audit log"
-              description="Append-only trail: claim reviews, policy edits, roles, and rule publishes."
+              title="Admin activity"
+              description="Append-only trail of governance and administrative actions."
             />
             {loading ? (
               <div className="space-y-2 py-4">
@@ -356,10 +441,14 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                     <TableHeader>
                       <TableRow className="border-[#2a2a2a] hover:bg-transparent">
                         <TableHead className={cn(G.th, 'w-[108px]')}>When</TableHead>
-                        <TableHead className={cn(G.th, 'min-w-[140px] max-w-[200px]')}>Actor</TableHead>
+                        <TableHead className={cn(G.th, 'min-w-[140px] max-w-[200px]')}>
+                          Actor
+                        </TableHead>
                         <TableHead className={cn(G.th, 'min-w-[120px]')}>Event</TableHead>
                         <TableHead className={G.th}>Details</TableHead>
-                        <TableHead className={cn(G.th, 'min-w-[160px] max-w-[220px]')}>Resource</TableHead>
+                        <TableHead className={cn(G.th, 'min-w-[160px] max-w-[220px]')}>
+                          Resource
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -381,12 +470,21 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                           const details = auditDetailLines(a);
                           return (
                             <TableRow key={a.id} className="border-[#2a2a2a]">
-                              <TableCell className={cn(G.td, 'whitespace-nowrap align-top text-[11px]')}>
-                                <span className="block text-white/70">{d.toLocaleDateString()}</span>
-                                <span className="block text-white/40">{d.toLocaleTimeString()}</span>
+                              <TableCell
+                                className={cn(G.td, 'whitespace-nowrap align-top text-[11px]')}
+                              >
+                                <span className="block text-white/70">
+                                  {d.toLocaleDateString()}
+                                </span>
+                                <span className="block text-white/40">
+                                  {d.toLocaleTimeString()}
+                                </span>
                               </TableCell>
                               <TableCell
-                                className={cn(G.td, 'max-w-[200px] align-top text-xs text-white/60')}
+                                className={cn(
+                                  G.td,
+                                  'max-w-[200px] align-top text-xs text-white/60',
+                                )}
                               >
                                 <span className="break-all">{a.actor_email ?? '—'}</span>
                               </TableCell>
@@ -408,7 +506,9 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                                 </ul>
                               </TableCell>
                               <TableCell className={cn(G.td, 'align-top')}>
-                                <span className="block text-[11px] text-white/55">{a.resource_type}</span>
+                                <span className="block text-[11px] text-white/55">
+                                  {a.resource_type}
+                                </span>
                                 {a.resource_id ? (
                                   <div className="mt-1">
                                     <CopyableId
@@ -420,7 +520,9 @@ export function GovernanceDashboard({ initialRules, initialAudits }: Props) {
                                     />
                                   </div>
                                 ) : (
-                                  <span className="mt-1 block text-[11px] text-white/25">No id</span>
+                                  <span className="mt-1 block text-[11px] text-white/25">
+                                    No id
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>

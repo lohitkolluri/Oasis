@@ -1,5 +1,6 @@
 'use client';
 
+import { G, GOV_BUILDER_HEIGHT } from '@/components/admin/governance-styles';
 import {
   Accordion,
   AccordionContent,
@@ -7,24 +8,17 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/Button';
-import { G, GOV_BUILDER_HEIGHT } from '@/components/admin/governance-styles';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { TRIGGERS, type TriggersConfig } from '@/lib/config/constants';
-import { EXCLUDABLE_SUBTYPES, TRIGGER_FIELD_GROUPS } from '@/lib/parametric-rules/trigger-field-metadata';
+import {
+  EXCLUDABLE_SUBTYPES,
+  TRIGGER_FIELD_GROUPS,
+} from '@/lib/parametric-rules/trigger-field-metadata';
 import type { PayoutLadderStep } from '@/lib/parametric-rules/types';
 import { cn } from '@/lib/utils';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Layers,
-  Plus,
-  RotateCcw,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const STEPS = ['Basics', 'Thresholds', 'Payout & exclusions', 'Review'] as const;
@@ -53,30 +47,12 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
   ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const changedKeys = useMemo(() => {
     return (Object.keys(TRIGGERS) as (keyof TriggersConfig)[]).filter(
       (k) => thresholds[k] !== TRIGGERS[k],
     );
   }, [thresholds]);
-
-  const payloadPreview = useMemo(() => {
-    const triggers: Record<string, number> = {};
-    for (const k of Object.keys(TRIGGERS) as (keyof TriggersConfig)[]) {
-      triggers[k] = thresholds[k];
-    }
-    return {
-      versionLabel: versionLabel.trim() || '(required)',
-      effectiveFrom: effectiveFrom.trim()
-        ? new Date(effectiveFrom).toISOString()
-        : '(server default: now)',
-      triggers,
-      payoutLadder: ladder,
-      excludedSubtypes: [...excluded],
-      notes: notes.trim() || undefined,
-    };
-  }, [versionLabel, effectiveFrom, thresholds, ladder, excluded, notes]);
 
   const goesLiveSummary = useMemo(() => {
     if (!effectiveFrom.trim()) return 'When you publish (server time)';
@@ -100,10 +76,7 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
   }
 
   function addLadderRow() {
-    setLadder((rows) => [
-      ...rows,
-      { severity_min: 0, severity_max: 10, multiplier: 1 },
-    ]);
+    setLadder((rows) => [...rows, { severity_min: 0, severity_max: 10, multiplier: 1 }]);
   }
 
   function removeLadderRow(i: number) {
@@ -112,16 +85,6 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
 
   function patchLadder(i: number, patch: Partial<PayoutLadderStep>) {
     setLadder((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  }
-
-  async function copyPreview() {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(payloadPreview, null, 2));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
   }
 
   async function onSubmit() {
@@ -141,9 +104,7 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
         versionLabel: versionLabel.trim(),
         triggers,
         payoutLadder: ladder,
-        ...(effectiveFrom.trim()
-          ? { effectiveFrom: new Date(effectiveFrom).toISOString() }
-          : {}),
+        ...(effectiveFrom.trim() ? { effectiveFrom: new Date(effectiveFrom).toISOString() } : {}),
         ...(excluded.size > 0 ? { excludedSubtypes: [...excluded] } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
@@ -179,13 +140,7 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
   const defDd = 'text-[12px] text-white/80';
 
   return (
-    <div
-      className={cn(
-        'grid gap-4',
-        'lg:grid-cols-2 lg:items-stretch lg:gap-5',
-      )}
-    >
-      {/* Builder */}
+    <div className="w-full">
       <div className={cn('flex min-h-0 min-w-0 flex-col', G.panel, GOV_BUILDER_HEIGHT)}>
         <nav aria-label="Steps" className={cn(G.panelHeader, 'items-stretch py-3')}>
           <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
@@ -271,7 +226,9 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
                       Clear — use publish time
                     </Button>
                   </div>
-                  <p className={G.helper}>Leave empty to start the new set when you click Publish.</p>
+                  <p className={G.helper}>
+                    Leave empty to start the new set when you click Publish.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="rs-notes" className={G.fieldLabel}>
@@ -293,7 +250,10 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
                 <p className={G.helper}>
                   Adjust numbers by group. Reset restores the platform default for that field only.
                 </p>
-                <Accordion type="multiple" defaultValue={[TRIGGER_FIELD_GROUPS[0]?.id ?? 'heat_rain']}>
+                <Accordion
+                  type="multiple"
+                  defaultValue={[TRIGGER_FIELD_GROUPS[0]?.id ?? 'heat_rain']}
+                >
                   {TRIGGER_FIELD_GROUPS.map((group) => (
                     <AccordionItem key={group.id} value={group.id} className="border-white/10">
                       <AccordionTrigger className="py-4 text-[13px] text-white/85 hover:no-underline">
@@ -307,7 +267,10 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
                       <AccordionContent>
                         <div className="grid gap-4 sm:grid-cols-2">
                           {group.fields.map((f) => (
-                            <div key={f.key} className={cn(G.insetCard, 'flex min-h-[132px] flex-col')}>
+                            <div
+                              key={f.key}
+                              className={cn(G.insetCard, 'flex min-h-[132px] flex-col')}
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[12px] font-medium text-white/80">{f.label}</p>
@@ -344,7 +307,9 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
                                   className={cn(G.input, 'w-[7.25rem] font-mono text-[13px]')}
                                 />
                                 {f.unit ? (
-                                  <span className="text-[11px] tabular-nums text-white/35">{f.unit}</span>
+                                  <span className="text-[11px] tabular-nums text-white/35">
+                                    {f.unit}
+                                  </span>
                                 ) : null}
                                 {thresholds[f.key] !== TRIGGERS[f.key] ? (
                                   <span className="rounded border border-white/12 bg-white/[0.05] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/50">
@@ -501,9 +466,7 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
                   <dt className={defDt}>Payout tiers</dt>
                   <dd className={defDd}>{ladder.length}</dd>
                   <dt className={defDt}>Exclusions</dt>
-                  <dd className={defDd}>
-                    {excluded.size ? [...excluded].join(', ') : 'None'}
-                  </dd>
+                  <dd className={defDd}>{excluded.size ? [...excluded].join(', ') : 'None'}</dd>
                 </dl>
                 {error ? <p className="text-sm text-red-400/90">{error}</p> : null}
                 <p className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-[11px] leading-relaxed text-amber-100/75">
@@ -549,53 +512,6 @@ export function RuleSetInteractiveForm({ onPublished }: Props) {
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Preview */}
-      <div className={cn('flex min-h-0 min-w-0 flex-col', G.panel, GOV_BUILDER_HEIGHT)}>
-        <div className={cn(G.panelHeader, 'justify-between gap-3')}>
-          <span className={G.eyebrow}>Preview</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-[11px] text-white/55 hover:bg-white/[0.06] hover:text-white/90"
-            onClick={() => void copyPreview()}
-          >
-            <Copy className="h-3.5 w-3.5" />
-            {copied ? 'Copied' : 'Copy JSON'}
-          </Button>
-        </div>
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-5 p-4">
-            <section>
-              <p className={cn(G.eyebrow, 'mb-3')}>At a glance</p>
-              <dl className={defListClass}>
-                <dt className={defDt}>Rule version</dt>
-                <dd className={cn(defDd, 'font-mono')}>{versionLabel.trim() || '—'}</dd>
-                <dt className={defDt}>Goes live</dt>
-                <dd className={defDd}>{goesLiveSummary}</dd>
-                <dt className={defDt}>Payout tiers</dt>
-                <dd className={defDd}>{ladder.length}</dd>
-                <dt className={defDt}>Exclusions</dt>
-                <dd className={defDd}>
-                  {excluded.size ? [...excluded].join(', ') : 'None'}
-                </dd>
-                <dt className={defDt}>Notes</dt>
-                <dd className={defDd}>{notes.trim() || '—'}</dd>
-              </dl>
-            </section>
-            <Separator className="bg-white/[0.08]" />
-            <section>
-              <p className={cn(G.eyebrow, 'mb-3')}>API payload</p>
-              <div className="max-h-[min(320px,38vh)] overflow-auto rounded-lg border border-white/[0.06] bg-[#0a0a0a] p-4">
-                <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-zinc-500">
-                  {JSON.stringify(payloadPreview, null, 2)}
-                </pre>
-              </div>
-            </section>
-          </div>
-        </ScrollArea>
       </div>
     </div>
   );
