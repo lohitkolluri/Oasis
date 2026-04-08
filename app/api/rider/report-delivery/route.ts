@@ -177,9 +177,24 @@ async function corroborateSelfReport(
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Support native/mobile clients that authenticate via Authorization header
+  // instead of cookies (e.g. when calling this endpoint from outside the browser).
+  if (!user) {
+    const auth = request.headers.get('authorization') ?? request.headers.get('Authorization');
+    const token = auth?.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : null;
+    if (token) {
+      try {
+        const res = await supabase.auth.getUser(token);
+        user = res.data.user ?? null;
+      } catch {
+        // ignore; will fall through to 401
+      }
+    }
+  }
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
