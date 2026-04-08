@@ -2,10 +2,10 @@
 
 import { isMobileForGps } from '@/lib/utils/device';
 import { AnimatePresence, motion } from 'framer-motion';
-import { toast } from 'react-toastify';
 import { Camera, Flag, ImageIcon, Loader2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'react-toastify';
 
 export interface ReportDeliveryImpactProps {
   open?: boolean;
@@ -30,9 +30,9 @@ export function ReportDeliveryImpact({
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? onOpenChange : setInternalOpen;
   const [message, setMessage] = useState('');
-  const [category, setCategory] = useState<'bad_weather' | 'traffic' | 'curfew' | 'unsafe_crowd' | 'other'>(
-    'bad_weather',
-  );
+  const [category, setCategory] = useState<
+    'bad_weather' | 'traffic' | 'curfew' | 'unsafe_crowd' | 'other'
+  >('bad_weather');
   const [photo, setPhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -81,8 +81,13 @@ export function ReportDeliveryImpact({
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const srcW = video.videoWidth;
+    const srcH = video.videoHeight;
+    // Keep uploads fast on mobile networks: downscale large photos client-side.
+    const MAX_DIM = 1280;
+    const scale = Math.min(1, MAX_DIM / Math.max(srcW, srcH));
+    canvas.width = Math.max(1, Math.round(srcW * scale));
+    canvas.height = Math.max(1, Math.round(srcH * scale));
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
@@ -98,7 +103,7 @@ export function ReportDeliveryImpact({
         }
       },
       'image/jpeg',
-      0.9,
+      0.72,
     );
   }
 
@@ -143,7 +148,13 @@ export function ReportDeliveryImpact({
         // optional
       }
 
-      const res = await fetch('/api/rider/report-delivery', { method: 'POST', body: formData });
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 45_000);
+      const res = await fetch('/api/rider/report-delivery', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      }).finally(() => window.clearTimeout(timeout));
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         if (!data.verified) {
@@ -164,10 +175,18 @@ export function ReportDeliveryImpact({
           setSuccess(false);
         }, 1500);
       } else {
-        toast.error(data.error ?? 'Failed to submit report');
+        if (res.status === 401) toast.error('Please sign in again to submit a report');
+        else if (res.status === 403)
+          toast.error(data.error ?? 'This report must be submitted from a mobile device');
+        else if (res.status === 429) toast.error(data.error ?? 'Too many attempts. Try later');
+        else toast.error(data.error ?? 'Failed to submit report');
       }
-    } catch {
-      toast.error('Failed to submit report');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        toast.error('Taking too long. Check your network and try again');
+      } else {
+        toast.error('Failed to submit report');
+      }
     } finally {
       setLoading(false);
     }
@@ -185,7 +204,9 @@ export function ReportDeliveryImpact({
               : 'rounded-2xl border-2 border-uber-yellow/50 bg-uber-yellow/15 px-4 py-3.5 text-sm font-semibold text-uber-yellow active:bg-uber-yellow/25 hover:bg-uber-yellow/25 min-h-[48px]'
           } ${triggerClassName ?? ''}`}
         >
-          <Flag className={`h-4 w-4 shrink-0 ${triggerTone === 'neutral' ? 'text-zinc-500' : ''}`} />
+          <Flag
+            className={`h-4 w-4 shrink-0 ${triggerTone === 'neutral' ? 'text-zinc-500' : ''}`}
+          />
           Report delivery issue
         </button>
       )}
@@ -264,9 +285,7 @@ export function ReportDeliveryImpact({
                               <button
                                 key={opt.id}
                                 type="button"
-                                onClick={() =>
-                                  setCategory(opt.id as typeof category)
-                                }
+                                onClick={() => setCategory(opt.id as typeof category)}
                                 className={`px-3 py-1.5 rounded-full text-xs font-medium border min-h-[32px] ${
                                   category === opt.id
                                     ? 'border-uber-yellow bg-uber-yellow/20 text-uber-yellow'

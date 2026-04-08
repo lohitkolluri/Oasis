@@ -221,6 +221,9 @@ export async function POST(request: Request) {
     .from('rider_delivery_reports')
     .select('id', { count: 'exact', head: true })
     .eq('profile_id', user.id)
+    // Only count reports that are still actionable (pending verification) or verified.
+    // Failed reports (AI rejected / invalid / expired context) should not burn the daily quota.
+    .in('verification_status', ['pending', 'verified'])
     .gte('created_at', twentyFourHoursAgo);
 
   if ((recentReportCount ?? 0) >= FRAUD.SELF_REPORT_DAILY_LIMIT) {
@@ -325,24 +328,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Save report row
-  const { data: reportRow, error: reportErr } = await supabase
-    .from('rider_delivery_reports')
-    .insert({
-      profile_id: user.id,
-      zone_lat: zoneLat,
-      zone_lng: zoneLng,
-      report_type: 'cant_deliver',
-      message: message || null,
-      photo_url: photoUrl,
-    })
-    .select('id, created_at')
-    .single();
-
-  if (reportErr) {
-    return NextResponse.json({ error: reportErr.message }, { status: 500 });
-  }
-
   // LLM verification: genuine disruption + live photo (no screenshot/upload)
   const openRouterKey = getOpenRouterApiKey();
   let verified = false;
@@ -414,6 +399,25 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
     }
   }
 
+  // Save report row (after AI attempt so fast validation failures don't consume quota).
+  const { data: reportRow, error: reportErr } = await supabase
+    .from('rider_delivery_reports')
+    .insert({
+      profile_id: user.id,
+      zone_lat: zoneLat,
+      zone_lng: zoneLng,
+      report_type: 'cant_deliver',
+      message: message || null,
+      photo_url: photoUrl,
+      verification_status: llmAvailable ? (verified ? 'verified' : 'failed') : 'pending',
+    })
+    .select('id, created_at')
+    .single();
+
+  if (reportErr) {
+    return NextResponse.json({ error: reportErr.message }, { status: 500 });
+  }
+
   // If the AI verifier is unavailable or the provider is rate-limiting us,
   // enqueue this report for deferred verification via pgmq instead of making
   // a hard decision immediately. Riders still see a clear status, and a
@@ -429,11 +433,6 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
         category,
         message,
       };
-
-      await admin
-        .from('rider_delivery_reports')
-        .update({ verification_status: 'queued' })
-        .eq('id', reportRow.id);
 
       await admin.rpc('pgmq_send_self_report_verification', {
         msg: payload,
