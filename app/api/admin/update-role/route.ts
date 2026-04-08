@@ -8,7 +8,13 @@ import { AUDIT } from "@/lib/admin/audit-actions";
 
 /** Admin-only: set a user's role (rider | admin). */
 export const POST = withAdminAuth(async (ctx, request) => {
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   const parsed = parseWithSchema(updateRoleSchema, body);
   if (!parsed.success) return parsed.response;
   const { profileId, role } = parsed.data;

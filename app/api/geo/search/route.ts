@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/utils/api';
 
 export const dynamic = 'force-dynamic';
-
-const GEO_RATE_LIMIT = new Map<string, { count: number; windowStart: number }>();
-const GEO_RATE_WINDOW_MS = 60_000;
 const GEO_RATE_MAX = 30;
+const GEO_RATE_WINDOW_MS = 60_000;
 
 type GeoResult = {
   name: string;
@@ -48,16 +47,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const now = Date.now();
-  const bucket = GEO_RATE_LIMIT.get(user.id);
-  if (bucket && now - bucket.windowStart < GEO_RATE_WINDOW_MS) {
-    if (bucket.count >= GEO_RATE_MAX) {
-      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-    }
-    bucket.count++;
-  } else {
-    GEO_RATE_LIMIT.set(user.id, { count: 1, windowStart: now });
-  }
+  const rl = await checkRateLimit(`geo:${user.id}`, {
+    maxRequests: GEO_RATE_MAX,
+    windowMs: GEO_RATE_WINDOW_MS,
+  });
+  if (rl) return rl;
 
   const url = new URL(req.url);
   const q = (url.searchParams.get('q') ?? '').trim();

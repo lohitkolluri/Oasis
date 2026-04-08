@@ -18,7 +18,7 @@ function clampStandard(n: number): number {
 }
 
 function clampPremiumTier(n: number): number {
-  return Math.max(PREMIUM.BASE, Math.min(Math.round(PREMIUM.MAX * 1.5), Math.round(n)));
+  return Math.max(PREMIUM.BASE, Math.min(PREMIUM.MAX, Math.round(n)));
 }
 
 function scaleTiersFromEngine(

@@ -8,8 +8,6 @@ const uuid = z.string().uuid('Invalid UUID');
 
 export const createCheckoutSchema = z.object({
   planId: uuid.optional(),
-  weekStart: z.string().min(1, 'weekStart required'),
-  weekEnd: z.string().min(1, 'weekEnd required'),
 });
 
 export const updatePolicySchema = z.object({

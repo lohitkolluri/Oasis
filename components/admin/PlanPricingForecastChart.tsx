@@ -1,6 +1,7 @@
 'use client';
 
 import { GeneratePremiumForecastButton } from '@/components/admin/GeneratePremiumForecastButton';
+import { InlineHelp } from '@/components/ui/inline-help';
 import { cn } from '@/lib/utils';
 import { useCallback, useState } from 'react';
 import {
@@ -47,13 +48,7 @@ function formatINR(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
 
-function labelForSeries({
-  dataKey,
-  tiers,
-}: {
-  dataKey: string;
-  tiers: ForecastTier[];
-}): string {
+function labelForSeries({ dataKey, tiers }: { dataKey: string; tiers: ForecastTier[] }): string {
   const isForecast = dataKey.toLowerCase().includes('pred');
   const tier = tiers.find((t) => dataKey.startsWith(`${t.key}`));
   const tierLabel = tier?.label ?? 'Tier';
@@ -142,11 +137,7 @@ export function PlanPricingForecastChart({
                 onJobComplete={onForecastJobComplete}
               />
             ) : null}
-            {caption ? (
-              <span className="inline-flex items-center min-h-[2.125rem] text-[10px] px-2.5 rounded-full bg-white/5 border border-white/10 text-[#9ca3af] tabular-nums max-w-[min(100%,280px)] leading-snug text-right">
-                {caption}
-              </span>
-            ) : null}
+            {caption ? <InlineHelp text={caption} /> : null}
           </div>
         </div>
         {forecastJobNote ? (
@@ -269,4 +260,3 @@ export function PlanPricingForecastChart({
     </div>
   );
 }
-

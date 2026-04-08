@@ -141,7 +141,7 @@ export async function calculatePremiumWithLlm(
         Authorization: `Bearer ${openRouterKey}`,
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-plus:free',
+        model: 'deepseek/deepseek-chat',
         messages: [
           {
             role: 'system',
@@ -548,9 +548,16 @@ export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngin
   else if (input.zoneChanged)
     explanation = 'Premium blended smoothly into your new operating zone.';
 
-  const basicPremium = Math.max(PREMIUM.BASE, Math.round(final_premium * 0.7));
-  const maxTierCap = PREMIUM.MAX * 1.5;
-  const premiumPremium = Math.min(maxTierCap, Math.round(final_premium * 1.3));
+  // Tier headroom: if Standard hits the global cap, Premium collapses to the same price after clamping.
+  // Preserve product tier separation by reserving headroom for Premium (<= PREMIUM.MAX).
+  const STANDARD_MAX_FOR_PREMIUM_HEADROOM = Math.floor(PREMIUM.MAX / 1.3);
+  const standardPremium = Math.max(
+    PREMIUM.BASE,
+    Math.min(STANDARD_MAX_FOR_PREMIUM_HEADROOM, Math.round(final_premium)),
+  );
+
+  const basicPremium = Math.max(PREMIUM.BASE, Math.round(standardPremium * 0.7));
+  const premiumPremium = Math.min(PREMIUM.MAX, Math.round(standardPremium * 1.3));
 
   // Dynamic Tier Payout Solver
   // Option B: Rider Satisfaction Floor. We ensure payoutBase never drops deeply below the premium
@@ -583,7 +590,7 @@ export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngin
   const premiumClaims = isBlackSwan ? 1 : 3;
 
   return {
-    final_premium: Math.round(final_premium),
+    final_premium: standardPremium,
     tier_prices: {
       basic: {
         name: 'Basic',
@@ -593,8 +600,8 @@ export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngin
       },
       standard: {
         name: 'Standard',
-        premium: Math.round(final_premium),
-        payoutBase: calculateSafePayout(final_premium, final_risk_score * standardClaims, 1.0),
+        premium: standardPremium,
+        payoutBase: calculateSafePayout(standardPremium, final_risk_score * standardClaims, 1.0),
         maxClaims: standardClaims,
       },
       premium: {

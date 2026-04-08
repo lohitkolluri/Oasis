@@ -6,7 +6,7 @@ import { processSingleTrigger, type TriggerCandidate } from '@/lib/adjudicator/c
 import { disruptionWebhookSchema } from '@/lib/validations/schemas';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 import { TRIGGERS } from '@/lib/config/constants';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,14 @@ export async function POST(request: Request) {
   const bearer = authHeader?.startsWith('Bearer ')
     ? authHeader.slice(7)
     : request.headers.get('x-webhook-secret') ?? '';
-  if (bearer !== secret) {
+
+  // Constant-time comparison to prevent timing attacks.
+  const secretBuffer = Buffer.from(secret, 'utf8');
+  const bearerBuffer = Buffer.from(bearer, 'utf8');
+  const isMatch =
+    bearerBuffer.length === secretBuffer.length &&
+    timingSafeEqual(bearerBuffer, secretBuffer);
+  if (!isMatch) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

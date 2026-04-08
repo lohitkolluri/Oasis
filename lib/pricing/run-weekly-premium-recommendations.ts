@@ -207,10 +207,15 @@ export async function runWeeklyPremiumRecommendations(
 
       if (plans.length >= 3 && values.length > 0) {
         const medianStandard = pct(0.5);
+        const STANDARD_MAX_FOR_PREMIUM_HEADROOM = Math.floor(PREMIUM.MAX / 1.3);
+        const standardTier = Math.max(
+          PREMIUM.BASE,
+          Math.min(STANDARD_MAX_FOR_PREMIUM_HEADROOM, Math.round(medianStandard)),
+        );
         const predicted = [
-          Math.max(PREMIUM.BASE, Math.round(medianStandard * 0.7)),
-          Math.round(medianStandard),
-          Math.min(PREMIUM.MAX * 1.5, Math.round(medianStandard * 1.3)),
+          Math.max(PREMIUM.BASE, Math.round(standardTier * 0.7)),
+          standardTier,
+          Math.min(PREMIUM.MAX, Math.round(standardTier * 1.3)),
         ];
 
         await Promise.all(

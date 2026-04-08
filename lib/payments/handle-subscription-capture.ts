@@ -109,12 +109,13 @@ export async function handleSubscriptionPaymentCapture(
 
   const expectedPaise = Math.round(premiumInr * 100);
   if (entity.amount != null && Number(entity.amount) !== expectedPaise) {
-    logger.warn('Subscription webhook: amount mismatch', {
+    logger.error('Subscription webhook: amount mismatch', {
       subscriptionId,
       expected: expectedPaise,
       got: entity.amount,
     });
-    return { ok: true, message: 'Amount mismatch' };
+    // Non-2xx so Razorpay retries and we can investigate.
+    return { ok: false, error: 'Amount mismatch', status: 400 };
   }
 
   const { data: result, error: rpcError } = await admin.rpc('process_razorpay_subscription_payment', {

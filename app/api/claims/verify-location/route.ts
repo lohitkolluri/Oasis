@@ -189,6 +189,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // OWNERSHIP CHECK — must come before any DB mutation to prevent TOCTOU attacks.
+  const { data: policy } = await supabase
+    .from("weekly_policies")
+    .select("profile_id")
+    .eq("id", claim.policy_id)
+    .single();
+
+  if (!policy || policy.profile_id !== user.id) {
+    return NextResponse.json({ error: "Not your claim" }, { status: 403 });
+  }
+
   // Impossible travel check: flag if verified at distant location too recently
   const travelCheck = await checkImpossibleTravel(supabase, user.id, lat, lng);
   if (travelCheck.isFlagged) {
@@ -209,16 +220,6 @@ export async function POST(request: Request) {
     os_signature_valid: osSignatureValid,
     rooted_device: rootedDevice,
   });
-
-  const { data: policy } = await supabase
-    .from("weekly_policies")
-    .select("profile_id")
-    .eq("id", claim.policy_id)
-    .single();
-
-  if (!policy || policy.profile_id !== user.id) {
-    return NextResponse.json({ error: "Not your claim" }, { status: 403 });
-  }
 
   const { data: event } = await supabase
     .from("live_disruption_events")

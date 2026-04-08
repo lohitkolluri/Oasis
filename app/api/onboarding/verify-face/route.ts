@@ -19,6 +19,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { z } from 'zod';
 
 const BUCKET = 'face-photos';
@@ -95,6 +96,13 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Expensive LLM call — rate limit: 5 per 10 minutes per IP.
+  const rl = await checkRateLimit(rateLimitKey(request, 'kyc:face'), {
+    maxRequests: 5,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (rl) return rl;
 
   const openRouterKey = getOpenRouterApiKey();
   if (!openRouterKey) {

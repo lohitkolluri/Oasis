@@ -8,7 +8,13 @@ import { NextResponse } from 'next/server';
 
 /** Admin-only: update policy (deactivate, change plan). */
 export const POST = withAdminAuth(async (ctx, request) => {
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   const parsed = parseWithSchema(updatePolicySchema, body);
   if (!parsed.success) return parsed.response;
   const { policyId, isActive, planId } = parsed.data;

@@ -1,9 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/config/env";
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+export async function POST() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
-  const origin = request.headers.get("origin") ?? "http://localhost:3000";
-  return NextResponse.redirect(`${origin}/`, { status: 302 });
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // If signout fails (e.g., already signed out, network error), continue to redirect.
+  }
+  const appUrl = getAppUrl();
+  return NextResponse.redirect(`${appUrl}/`, { status: 302 });
 }

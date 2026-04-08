@@ -2,12 +2,18 @@
  * Cancels Razorpay weekly subscription (stops auto-renewal). Current week coverage stays until it ends.
  */
 import { getRazorpayInstance } from '@/lib/clients/razorpay';
+import { RATE_LIMITS } from '@/lib/config/constants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { errorResponse } from '@/lib/utils/api';
+import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 
-export async function POST() {
+export async function POST(request: Request) {
+  const limitKey = rateLimitKey(request, 'cancel-subscription');
+  const rateLimited = await checkRateLimit(limitKey, {
+    maxRequests: RATE_LIMITS.DEFAULT_PER_MINUTE,
+  });
+  if (rateLimited) return rateLimited;
   const supabase = await createClient();
   const {
     data: { user },
@@ -62,6 +68,11 @@ export async function POST() {
     try {
       await razorpay.subscriptions.cancel(profile.razorpay_subscription_id);
     } catch (err) {
+      // Razorpay cancel failed — rollback the DB intent so state is consistent.
+      await admin
+        .from('profiles')
+        .update({ razorpay_cancel_status: null, razorpay_cancel_requested_at: null, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
       await admin.from('system_logs').insert({
         event_type: 'subscription_cancel_failed',
         severity: 'error',
@@ -72,7 +83,6 @@ export async function POST() {
           error: err instanceof Error ? err.message : String(err),
         },
       });
-      // Keep cancel_status=pending so the UI/admin can see it's unresolved.
       return NextResponse.json(
         { error: 'Cancellation provider error. Please retry in a moment.' },
         { status: 502 },

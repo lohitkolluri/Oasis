@@ -89,12 +89,21 @@ export function getOpenRouterApiKey(): string | null {
 }
 
 /**
+ * Lightweight text model for pricing forecast aggregation/explanations (server-only).
+ * Keep this cheap: it is called from admin analytics, not customer-critical paths.
+ */
+export function getPricingForecastModel(): string {
+  const raw = process.env.PRICING_FORECAST_MODEL?.trim();
+  return raw || 'meta-llama/llama-3.1-8b-instruct';
+}
+
+/**
  * Vision model for KYC (Gov ID + face) verification.
  * Defaults to a free-tier model if not configured.
  */
 export function getKycVisionModel(): string {
   const raw = process.env.KYC_VISION_MODEL?.trim();
-  return raw || 'qwen/qwen3.6-plus:free';
+  return raw || 'google/gemma-4-26b-a4b-it';
 }
 
 /**
@@ -103,7 +112,7 @@ export function getKycVisionModel(): string {
  */
 export function getSelfReportVisionModel(): string {
   const raw = process.env.SELF_REPORT_VISION_MODEL?.trim();
-  return raw || 'qwen/qwen3.6-plus:free';
+  return raw || 'google/gemma-4-26b-a4b-it';
 }
 
 /** Tomorrow.io API key for weather and forecast data. */

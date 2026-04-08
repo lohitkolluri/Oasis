@@ -40,19 +40,42 @@ export const POST = withAdminAuth(async (ctx, request) => {
   // Use service-role Supabase client to bypass RLS for admin operations.
   const admin = ctx.admin;
 
-  // Fetch claim + linked rider profile so we can manage payouts.
-  const { data: claim, error: claimErr } = await admin
-    .from("parametric_claims")
-    .select(
-      "id, policy_id, payout_amount_inr, status, is_flagged, flag_reason, admin_review_status",
-    )
-    .eq("id", claimId)
-    .single();
+  // Advisory lock to prevent concurrent review mutations.
+  const REVIEW_LOCK_KEY = 9_200_001;
+  const { data: locked } = await admin.rpc("oasis_try_advisory_lock", {
+    p_key: REVIEW_LOCK_KEY,
+  });
+  if (locked !== true) {
+    return NextResponse.json(
+      { error: "Another review is already in progress. Please retry." },
+      { status: 409 },
+    );
+  }
+
+  try {
+    // Fetch claim + linked rider profile so we can manage payouts.
+    const { data: claim, error: claimErr } = await admin
+      .from("parametric_claims")
+      .select(
+        "id, policy_id, payout_amount_inr, status, is_flagged, flag_reason, admin_review_status",
+      )
+      .eq("id", claimId)
+      .single();
 
   if (claimErr || !claim) {
     return NextResponse.json(
       { error: claimErr?.message ?? "Claim not found" },
       { status: 404 },
+    );
+  }
+
+  // Guard against double-review (e.g., admin double-clicks or two tabs).
+  if (claim.admin_review_status) {
+    return NextResponse.json(
+      {
+        error: `Claim has already been reviewed (${claim.admin_review_status}).`,
+      },
+      { status: 409 },
     );
   }
 
@@ -203,4 +226,11 @@ export const POST = withAdminAuth(async (ctx, request) => {
   }
 
   return NextResponse.json({ ok: true, claimId, action, payout_change: payoutChange });
+  } finally {
+    try {
+      await admin.rpc("oasis_advisory_unlock", { p_key: REVIEW_LOCK_KEY });
+    } catch {
+      // ignore unlock errors
+    }
+  }
 });

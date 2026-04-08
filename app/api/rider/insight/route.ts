@@ -95,7 +95,7 @@ export async function GET() {
 
   try {
     const data = await callOpenRouterChat({
-      model: 'liquid/lfm-2.5-1.2b-instruct:free',
+      model: 'meta-llama/llama-3.1-8b-instruct',
       temperature: 0,
       max_tokens: 40,
       messages: [

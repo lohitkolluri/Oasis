@@ -125,7 +125,7 @@ export async function checkNewsTriggers(
               Authorization: `Bearer ${openRouterKey}`,
             },
             body: JSON.stringify({
-              model: 'liquid/lfm-2.5-1.2b-instruct:free',
+              model: 'meta-llama/llama-3.1-8b-instruct',
               temperature: 0,
               max_tokens: 120,
               messages: [
@@ -273,7 +273,7 @@ export async function checkNewsTriggers(
               Authorization: `Bearer ${openRouterKey}`,
             },
             body: JSON.stringify({
-              model: 'liquid/lfm-2.5-1.2b-instruct:free',
+              model: 'meta-llama/llama-3.1-8b-instruct',
               temperature: 0,
               max_tokens: 140,
               messages: [
