@@ -1,0 +1,119 @@
+{
+  "datasets": {
+    "geofence": "data/synthetic/geofence_circle.csv",
+    "impossible_travel": "data/synthetic/impossible_travel.csv",
+    "triggers": "data/synthetic/trigger_tabular.csv",
+    "premium": "data/synthetic/premium_weekly.csv"
+  },
+  "methodology": {
+    "current_setup": "Geofence: coordinates + radius only (no precomputed distance). Impossible travel: label from true endpoint; features are noisy observed fixes and elapsed time. Triggers: labels from latent draws under Oasis thresholds; features include sensor-style noise. Premium: stochastic DGP with seasonal and risk factors. Classifiers: 5-fold CV + 20% holdout. Premium: 5-fold CV R² + holdout MAE."
+  },
+  "models": {
+    "geofence_circle": {
+      "task": "geofence_circle",
+      "accuracy_holdout": 0.960625,
+      "cv_accuracy_mean": 0.96075,
+      "cv_accuracy_std": 0.005609701418079227,
+      "report": {
+        "0": {
+          "precision": 0.9651307596513076,
+          "recall": 0.9567901234567902,
+          "f1-score": 0.9609423434593924,
+          "support": 810.0
+        },
+        "1": {
+          "precision": 0.9560853199498118,
+          "recall": 0.9645569620253165,
+          "f1-score": 0.9603024574669187,
+          "support": 790.0
+        },
+        "accuracy": 0.960625,
+        "macro avg": {
+          "precision": 0.9606080398005596,
+          "recall": 0.9606735427410533,
+          "f1-score": 0.9606224004631556,
+          "support": 1600.0
+        },
+        "weighted avg": {
+          "precision": 0.9606645737986941,
+          "recall": 0.960625,
+          "f1-score": 0.9606263997506085,
+          "support": 1600.0
+        }
+      }
+    },
+    "impossible_travel": {
+      "task": "impossible_travel",
+      "accuracy_holdout": 0.958,
+      "cv_accuracy_mean": 0.9652,
+      "cv_accuracy_std": 0.011595688854052632,
+      "report": {
+        "0": {
+          "precision": 0.9991816693944353,
+          "recall": 0.9363496932515337,
+          "f1-score": 0.9667458432304038,
+          "support": 1304.0
+        },
+        "1": {
+          "precision": 0.8933161953727506,
+          "recall": 0.9985632183908046,
+          "f1-score": 0.9430122116689281,
+          "support": 696.0
+        },
+        "accuracy": 0.958,
+        "macro avg": {
+          "precision": 0.946248932383593,
+          "recall": 0.9674564558211691,
+          "f1-score": 0.9548790274496659,
+          "support": 2000.0
+        },
+        "weighted avg": {
+          "precision": 0.9623404844348891,
+          "recall": 0.958,
+          "f1-score": 0.9584865394470102,
+          "support": 2000.0
+        }
+      }
+    },
+    "trigger_tabular": {
+      "task": "trigger_tabular",
+      "accuracy_holdout": 0.96125,
+      "cv_accuracy_mean": 0.96175,
+      "cv_accuracy_std": 0.0036074768036522356,
+      "report": {
+        "0": {
+          "precision": 0.888641425389755,
+          "recall": 0.9027149321266968,
+          "f1-score": 0.8956228956228957,
+          "support": 442.0
+        },
+        "1": {
+          "precision": 0.9779600205023065,
+          "recall": 0.9744637385086823,
+          "f1-score": 0.9762087490406753,
+          "support": 1958.0
+        },
+        "accuracy": 0.96125,
+        "macro avg": {
+          "precision": 0.9333007229460307,
+          "recall": 0.9385893353176895,
+          "f1-score": 0.9359158223317855,
+          "support": 2400.0
+        },
+        "weighted avg": {
+          "precision": 0.9615105125690783,
+          "recall": 0.96125,
+          "f1-score": 0.9613675210362344,
+          "support": 2400.0
+        }
+      }
+    },
+    "premium_weekly": {
+      "task": "weekly_premium_inr",
+      "r2_holdout": 0.9080852341814128,
+      "mae_inr_holdout": 3.2805245643222305,
+      "cv_r2_mean": 0.9036185415537498,
+      "cv_r2_std": 0.003958172629114282
+    }
+  }
+}

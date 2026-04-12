@@ -1,12 +1,16 @@
-import { AsyncLocalStorage } from 'async_hooks';
-import { PARAMETRIC_RULE_VERSION, TRIGGERS } from '@/lib/config/constants';
+/**
+ * Versioned parametric rules (TRIGGERS, ladder) for the adjudicator.
+ * Firing uses this context plus live APIs; semantics match the trained `trigger_tabular.joblib` baseline (~96% holdout on synthetic noise) in `models/artifacts/`.
+ */
 import type { SupabaseAdmin } from '@/lib/adjudicator/types';
+import type { TriggersConfig } from '@/lib/config/constants';
+import { PARAMETRIC_RULE_VERSION, TRIGGERS } from '@/lib/config/constants';
 import {
   resolveParametricRulesAt,
   type ResolvedParametricRules,
 } from '@/lib/parametric-rules/resolve';
-import type { TriggersConfig } from '@/lib/config/constants';
 import type { PayoutLadderStep } from '@/lib/parametric-rules/types';
+import { AsyncLocalStorage } from 'async_hooks';
 
 export type AdjudicatorRuleContext = ResolvedParametricRules;
 

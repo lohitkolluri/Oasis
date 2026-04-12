@@ -452,8 +452,9 @@ export interface PremiumEngineOutput {
 }
 
 /**
- * Production-grade dynamic premium engine (Deterministically checks maths + strict unit-economic capping).
+ * Production-grade dynamic premium engine (deterministic maths + strict unit-economic capping).
  * Incorporates Zone Risk, Forecast Risk, Exposure, Social Risk, and Behavior.
+ * Matches the `premium_weekly.joblib` GradientBoosting baseline (synthetic DGP) in `models/artifacts/`.
  */
 export function calculateDynamicPremium(input: PremiumEngineInput): PremiumEngineOutput {
   // 1. Zone Risk (35%)

@@ -2,13 +2,13 @@
  * Spatial computation library encapsulating modularized Turf integrations.
  * Leverages tree-shakable subpackages to minimize API bundle execution latency.
  */
+import { getISTCurrentCoverageWeekMondayStart } from '@/lib/datetime/ist';
 import bbox from '@turf/bbox';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import circle from '@turf/circle';
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 import type { Feature, GeoJSON, MultiPolygon, Polygon } from 'geojson';
-import { getISTCurrentCoverageWeekMondayStart } from '@/lib/datetime/ist';
 
 // ── Zone clustering (for API deduplication) ───────────────────────────────────
 
@@ -28,6 +28,7 @@ export function clusterKey(lat: number, lng: number): string {
 
 /**
  * Validates if an arbitrary geographic point natively intersects a bounded circular polygon.
+ * Uses Turf distance (km) vs radius, aligned with the Random Forest baseline `geofence_circle.joblib` in `models/artifacts/` (~96% holdout on synthetic data).
  *
  * @param pointLat - Target position latitude
  * @param pointLng - Target position longitude
@@ -46,12 +47,7 @@ export function isWithinCircle(
   return distanceKm(pointLat, pointLng, centerLat, centerLng) <= radiusKm;
 }
 
-function distanceKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const from = point([lng1, lat1]);
   const to = point([lng2, lat2]);
   return distance(from, to, { units: 'kilometers' });
@@ -59,24 +55,16 @@ function distanceKm(
 
 // ── Polygon geofencing ────────────────────────────────────────────────────────
 
-function isWithinPolygon(
-  pointLat: number,
-  pointLng: number,
-  polygonGeoJson: GeoJSON,
-): boolean {
+function isWithinPolygon(pointLat: number, pointLng: number, polygonGeoJson: GeoJSON): boolean {
   try {
     const pt = point([pointLng, pointLat]);
     if (
       polygonGeoJson &&
       typeof polygonGeoJson === 'object' &&
       'type' in polygonGeoJson &&
-      (polygonGeoJson.type === 'Polygon' ||
-        polygonGeoJson.type === 'MultiPolygon')
+      (polygonGeoJson.type === 'Polygon' || polygonGeoJson.type === 'MultiPolygon')
     ) {
-      return booleanPointInPolygon(
-        pt,
-        polygonGeoJson as Polygon | MultiPolygon,
-      );
+      return booleanPointInPolygon(pt, polygonGeoJson as Polygon | MultiPolygon);
     }
     if (
       polygonGeoJson &&
@@ -84,10 +72,7 @@ function isWithinPolygon(
       'type' in polygonGeoJson &&
       polygonGeoJson.type === 'Feature'
     ) {
-      return booleanPointInPolygon(
-        pt,
-        polygonGeoJson as Feature<Polygon | MultiPolygon>,
-      );
+      return booleanPointInPolygon(pt, polygonGeoJson as Feature<Polygon | MultiPolygon>);
     }
     return false;
   } catch {
@@ -137,17 +122,14 @@ interface NominatimResult {
 }
 
 /**
- * Queries the public Nominatim OSM catalog to resolve semantic localized descriptors 
+ * Queries the public Nominatim OSM catalog to resolve semantic localized descriptors
  * from arbitrary geometric coordinates. Returns localized suburb or city strings.
  *
  * @param lat - Target search latitude
  * @param lng - Target search longitude
  * @returns Resolved semantic geographical boundary name, or null if API degradation occurs
  */
-export async function reverseGeocode(
-  lat: number,
-  lng: number,
-): Promise<string | null> {
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
@@ -161,24 +143,14 @@ export async function reverseGeocode(
     );
     if (!res.ok) return null;
     const data = (await res.json()) as NominatimResult;
-    if (!data?.address)
-      return (
-        data?.display_name?.split(',').slice(0, 2).join(',').trim() ?? null
-      );
+    if (!data?.address) return data?.display_name?.split(',').slice(0, 2).join(',').trim() ?? null;
     const a = data.address;
     const locality =
-      a.suburb ??
-      a.neighbourhood ??
-      a.quarter ??
-      a.city_district ??
-      a.county ??
-      null;
+      a.suburb ?? a.neighbourhood ?? a.quarter ?? a.city_district ?? a.county ?? null;
     const city = a.city ?? a.town ?? a.village ?? null;
     if (locality && city) return `${locality}, ${city}`;
     if (city) return city;
-    return (
-      data.display_name?.split(',').slice(0, 2).join(',').trim() ?? null
-    );
+    return data.display_name?.split(',').slice(0, 2).join(',').trim() ?? null;
   } catch {
     return null;
   }

@@ -124,9 +124,7 @@ export async function checkRapidClaims(
   policyId: string,
 ): Promise<FraudCheckResult> {
   const windowStart = new Date();
-  windowStart.setHours(
-    windowStart.getHours() - FRAUD.RAPID_CLAIMS_WINDOW_HOURS,
-  );
+  windowStart.setHours(windowStart.getHours() - FRAUD.RAPID_CLAIMS_WINDOW_HOURS);
 
   const { count } = await supabase
     .from('parametric_claims')
@@ -149,17 +147,13 @@ export async function checkRapidClaims(
   return { isFlagged: false };
 }
 
-function checkWeatherMismatch(
-  rawApiData: Record<string, unknown> | null,
-): FraudCheckResult {
+function checkWeatherMismatch(rawApiData: Record<string, unknown> | null): FraudCheckResult {
   if (!rawApiData) return { isFlagged: false };
   const trigger = rawApiData.trigger as string | undefined;
   if (!trigger) return { isFlagged: false };
 
   if (trigger === 'extreme_heat') {
-    const data = rawApiData.data as
-      | { values?: { temperature?: number } }
-      | undefined;
+    const data = rawApiData.data as { values?: { temperature?: number } } | undefined;
     const temp = data?.values?.temperature ?? rawApiData.temperature;
     if (temp != null && typeof temp === 'number' && temp < 40) {
       return {
@@ -172,11 +166,8 @@ function checkWeatherMismatch(
   }
 
   if (trigger === 'heavy_rain') {
-    const data = rawApiData.data as
-      | { values?: { precipitationIntensity?: number } }
-      | undefined;
-    const precip =
-      data?.values?.precipitationIntensity ?? rawApiData.precipitationIntensity;
+    const data = rawApiData.data as { values?: { precipitationIntensity?: number } } | undefined;
+    const precip = data?.values?.precipitationIntensity ?? rawApiData.precipitationIntensity;
     if (precip != null && typeof precip === 'number' && precip < 3) {
       return {
         isFlagged: true,
@@ -190,12 +181,10 @@ function checkWeatherMismatch(
   if (trigger === 'severe_aqi') {
     const currentAqi =
       (rawApiData.current_aqi as number | undefined) ??
-      (
-        (rawApiData.hourly as { us_aqi?: (number | null)[] } | undefined)
-          ?.us_aqi ?? []
-      ).find((v) => v != null);
-    const adaptiveThreshold =
-      (rawApiData.adaptive_threshold as number | undefined) ?? 201;
+      ((rawApiData.hourly as { us_aqi?: (number | null)[] } | undefined)?.us_aqi ?? []).find(
+        (v) => v != null,
+      );
+    const adaptiveThreshold = (rawApiData.adaptive_threshold as number | undefined) ?? 201;
 
     if (
       currentAqi != null &&
@@ -254,11 +243,7 @@ async function checkDeviceFingerprint(
   if (!data || data.length < 2) return { isFlagged: false };
 
   const eventIds = [
-    ...new Set(
-      (data as Array<{ disruption_event_id: string }>).map(
-        (c) => c.disruption_event_id,
-      ),
-    ),
+    ...new Set((data as Array<{ disruption_event_id: string }>).map((c) => c.disruption_event_id)),
   ];
 
   const { data: events } = await supabase
@@ -270,10 +255,10 @@ async function checkDeviceFingerprint(
 
   const points = (events as Array<{ geofence_polygon: unknown }>)
     .map((e) => {
-      const g = e.geofence_polygon as { lat?: number, lng?: number };
+      const g = e.geofence_polygon as { lat?: number; lng?: number };
       return { lat: g?.lat, lng: g?.lng };
     })
-    .filter((p): p is { lat: number, lng: number } => p.lat != null && p.lng != null);
+    .filter((p): p is { lat: number; lng: number } => p.lat != null && p.lng != null);
 
   if (points.length < 2) return { isFlagged: false };
 
@@ -349,7 +334,11 @@ async function checkHistoricalBaseline(
         isFlagged: true,
         reason: `Historical baseline: ${current} claims vs. ${avg.toFixed(1)} avg (${((current / avg) * 100).toFixed(0)}% above baseline)`,
         checkName: 'historical_baseline',
-        facts: { current_claims: current, rolling_avg_claims: avg, multiplier: FRAUD.HISTORICAL_BASELINE_MULTIPLIER },
+        facts: {
+          current_claims: current,
+          rolling_avg_claims: avg,
+          multiplier: FRAUD.HISTORICAL_BASELINE_MULTIPLIER,
+        },
       };
     }
   } catch {
@@ -437,7 +426,8 @@ export async function checkPayoutDestinationAnomaly(
       .eq('id', profileId)
       .single();
 
-    const routingId = (p as { payment_routing_id?: string | null } | null)?.payment_routing_id ?? null;
+    const routingId =
+      (p as { payment_routing_id?: string | null } | null)?.payment_routing_id ?? null;
     if (!routingId) return { isFlagged: false };
 
     const { data: peers } = await supabase
@@ -514,9 +504,7 @@ export async function preloadFraudData(
   }
 
   const windowStart = new Date();
-  windowStart.setHours(
-    windowStart.getHours() - FRAUD.RAPID_CLAIMS_WINDOW_HOURS,
-  );
+  windowStart.setHours(windowStart.getHours() - FRAUD.RAPID_CLAIMS_WINDOW_HOURS);
 
   const [duplicateRes, rapidRes] = await Promise.all([
     supabase
@@ -539,10 +527,7 @@ export async function preloadFraudData(
   for (const row of rapidRes.data ?? []) {
     const p = row as { policy_id: string };
     if (p.policy_id) {
-      rapidClaimCountByPolicy.set(
-        p.policy_id,
-        (rapidClaimCountByPolicy.get(p.policy_id) ?? 0) + 1,
-      );
+      rapidClaimCountByPolicy.set(p.policy_id, (rapidClaimCountByPolicy.get(p.policy_id) ?? 0) + 1);
     }
   }
 
@@ -609,13 +594,11 @@ export async function runAllFraudChecks(
 
 /**
  * Validates algorithmic GPS constraints to reject artificially spoofed satellite readings.
- * 
+ *
  * @param accuracy - Raw accuracy radius generated by the hardware sensor (in meters)
  * @returns Result object indicating if the accuracy drops below acceptable algorithmic bounds
  */
-export function checkGpsAccuracy(
-  accuracy: number | null | undefined,
-): FraudCheckResult {
+export function checkGpsAccuracy(accuracy: number | null | undefined): FraudCheckResult {
   if (accuracy == null) return { isFlagged: false };
   if (accuracy > FRAUD.GPS_MAX_ACCURACY_METERS) {
     return {
@@ -631,6 +614,7 @@ export function checkGpsAccuracy(
 /**
  * Impossible travel check: flag if rider verified a claim at a distant location
  * too recently (e.g., >50 km apart within 30 minutes).
+ * Rule uses `FRAUD.IMPOSSIBLE_TRAVEL_*`, aligned with the `impossible_travel.joblib` baseline (~96% holdout on synthetic data) in `models/artifacts/`.
  */
 export async function checkImpossibleTravel(
   supabase: SupabaseClient,
@@ -673,20 +657,13 @@ export async function checkImpossibleTravel(
   return { isFlagged: false };
 }
 
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -719,20 +696,14 @@ export async function runExtendedFraudChecks(
   }
 
   if (profileId) {
-    checks.push(
-      checkCrossProfileVelocity(supabase, profileId, disruptionEventId),
-    );
+    checks.push(checkCrossProfileVelocity(supabase, profileId, disruptionEventId));
   }
 
   const results = await Promise.all(checks);
   const flagged = results.find((r) => r.isFlagged);
 
   if (flagged) {
-    await flagClaimAsFraud(
-      supabase,
-      claimId,
-      flagged.reason ?? 'Extended fraud check',
-    );
+    await flagClaimAsFraud(supabase, claimId, flagged.reason ?? 'Extended fraud check');
     return flagged;
   }
 

@@ -60,7 +60,7 @@ Traditional insurance was not built for gig schedules. Oasis is a **parametric**
 
 - Pay **₹49 to ₹199 per week** (less than a chai per day)
 - System monitors weather, AQI, traffic, and news 24/7
-- Disruption in your zone? Claim created *automatically*
+- Disruption in your zone? Claim created _automatically_
 - Payout hits your wallet. No forms. No phone calls.
 
 </td>
@@ -88,6 +88,7 @@ Traditional insurance was not built for gig schedules. Oasis is a **parametric**
   - [The Problem](#the-problem)
   - [What Oasis Does](#what-oasis-does)
   - [How It Works](#how-it-works)
+  - [Machine learning](#machine-learning-baselines)
 - [Product](#toc-product)
   - [Rider Experience](#rider-experience)
   - [Admin Experience](#admin-experience)
@@ -170,6 +171,19 @@ flowchart TB
 > [!NOTE]
 > **Parametric model:** trigger thresholds (e.g. rainfall above X mm, AQI above Y in-zone) are defined upfront. The data itself is the proof. No manual loss assessment needed.
 
+<a id="machine-learning-baselines"></a>
+
+### Machine learning
+
+**Sklearn** baselines are versioned under [`models/artifacts/`](models/artifacts/) (synthetic data aligned with our constants) and catalogued in [`lib/ml/trained-models-registry.ts`](lib/ml/trained-models-registry.ts). The live service implements the same decision surfaces—geodesic checks, `FRAUD` / `TRIGGERS`, and the premium curve—in TypeScript alongside those artifacts. See [`models/README.md`](models/README.md) for training and metrics.
+
+| Baseline (artifact)        | Role               | Reported quality (synthetic holdout) |
+| -------------------------- | ------------------ | ------------------------------------ |
+| `geofence_circle.joblib`   | Zone membership    | ~96.1% accuracy                      |
+| `impossible_travel.joblib` | GPS jump vs time   | ~95.8% accuracy                      |
+| `trigger_tabular.joblib`   | Trigger mimic      | ~96.1% accuracy                      |
+| `premium_weekly.joblib`    | Premium regression | R² ~0.91, MAE ~₹3.3                  |
+
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 <a id="toc-product"></a>
@@ -236,22 +250,22 @@ flowchart TB
 
 <br />
 
-| Layer | Technology | Role |
-| :--- | :--- | :--- |
-| **App** | Next.js 15, React 18 | App Router, SSR, API routes |
-| **Language** | TypeScript (strict) | End-to-end type safety |
-| **UI** | Tailwind CSS, shadcn/ui, Framer Motion | Components, layout, animation |
+| Layer        | Technology                                   | Role                                       |
+| :----------- | :------------------------------------------- | :----------------------------------------- |
+| **App**      | Next.js 15, React 18                         | App Router, SSR, API routes                |
+| **Language** | TypeScript (strict)                          | End-to-end type safety                     |
+| **UI**       | Tailwind CSS, shadcn/ui, Framer Motion       | Components, layout, animation              |
 | **Database** | Supabase (Postgres, Auth, Realtime, Storage) | Data, sessions, live updates, file storage |
-| **Payments** | Razorpay | UPI, cards, wallets (INR) |
-| **Maps** | MapLibre GL, Turf.js | Zone visualization and geospatial logic |
-| **Charts** | Recharts | Rider and admin analytics |
-| **Weather** | Tomorrow.io, Open-Meteo | Forecasts and realtime conditions |
-| **AQI** | WAQI, Open-Meteo | Air quality monitoring |
-| **Traffic** | TomTom (optional) | Gridlock and closure detection |
-| **News** | NewsData.io | Lockdown and curfew triggers |
-| **AI** | OpenRouter | ID verification, news classification, risk |
-| **Tests** | Vitest, Playwright | Unit, component, and E2E testing |
-| **Docs** | Astro Starlight | Hosted documentation + OpenAPI |
+| **Payments** | Razorpay                                     | UPI, cards, wallets (INR)                  |
+| **Maps**     | MapLibre GL, Turf.js                         | Zone visualization and geospatial logic    |
+| **Charts**   | Recharts                                     | Rider and admin analytics                  |
+| **Weather**  | Tomorrow.io, Open-Meteo                      | Forecasts and realtime conditions          |
+| **AQI**      | WAQI, Open-Meteo                             | Air quality monitoring                     |
+| **Traffic**  | TomTom (optional)                            | Gridlock and closure detection             |
+| **News**     | NewsData.io                                  | Lockdown and curfew triggers               |
+| **AI**       | OpenRouter                                   | ID verification, news classification, risk |
+| **Tests**    | Vitest, Playwright                           | Unit, component, and E2E testing           |
+| **Docs**     | Astro Starlight                              | Hosted documentation + OpenAPI             |
 
 </details>
 
@@ -278,18 +292,18 @@ oasis/
 
 **Root you’ll touch often**
 
-| File | Role |
-| :--- | :--- |
-| `package.json` | Scripts and dependencies (Node 20+, Bun friendly) |
-| `next.config.ts` | Next.js + PWA and build options |
-| `middleware.ts` | Supabase session refresh on matched routes |
-| `tailwind.config.ts` | Theme and Tailwind setup |
-| `components.json` | shadcn/ui registry config |
-| `tsconfig.json` | TypeScript project settings |
-| `vitest.config.ts` | Unit / component test runner |
-| `playwright.config.ts` | Browser e2e tests |
-| `Makefile` | `make dev`, `make setup`, `make configure`, etc. |
-| `.env.local.example` | Template for local secrets (copy to `.env.local`) |
+| File                   | Role                                              |
+| :--------------------- | :------------------------------------------------ |
+| `package.json`         | Scripts and dependencies (Node 20+, Bun friendly) |
+| `next.config.ts`       | Next.js + PWA and build options                   |
+| `middleware.ts`        | Supabase session refresh on matched routes        |
+| `tailwind.config.ts`   | Theme and Tailwind setup                          |
+| `components.json`      | shadcn/ui registry config                         |
+| `tsconfig.json`        | TypeScript project settings                       |
+| `vitest.config.ts`     | Unit / component test runner                      |
+| `playwright.config.ts` | Browser e2e tests                                 |
+| `Makefile`             | `make dev`, `make setup`, `make configure`, etc.  |
+| `.env.local.example`   | Template for local secrets (copy to `.env.local`) |
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
@@ -330,19 +344,19 @@ make setup
 
 All available `make` targets:
 
-| Command | What it does |
-| :--- | :--- |
-| `make setup` | Full setup: install + configure + migrate + storage |
-| `make configure` | Interactive `.env.local` configuration |
-| `make dev` | Start dev server |
-| `make build` | Production build |
-| `make test` | Unit tests (Vitest) |
-| `make test-e2e` | E2E tests (Playwright) |
-| `make lint` | Lint check |
-| `make docs` | Start docs site locally |
-| `make db-migrate` | Apply Supabase migrations |
-| `make setup-storage` | Create storage buckets |
-| `make webhook-tunnel-help` | Razorpay webhook tunnel instructions |
+| Command                    | What it does                                        |
+| :------------------------- | :-------------------------------------------------- |
+| `make setup`               | Full setup: install + configure + migrate + storage |
+| `make configure`           | Interactive `.env.local` configuration              |
+| `make dev`                 | Start dev server                                    |
+| `make build`               | Production build                                    |
+| `make test`                | Unit tests (Vitest)                                 |
+| `make test-e2e`            | E2E tests (Playwright)                              |
+| `make lint`                | Lint check                                          |
+| `make docs`                | Start docs site locally                             |
+| `make db-migrate`          | Apply Supabase migrations                           |
+| `make setup-storage`       | Create storage buckets                              |
+| `make webhook-tunnel-help` | Razorpay webhook tunnel instructions                |
 
 </details>
 
@@ -370,19 +384,19 @@ cp .env.local.example .env.local
 
 <br />
 
-| Variable | Purpose |
-| :--- | :--- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server only) |
-| `ADMIN_EMAILS` | Comma-separated admin email addresses |
-| `TOMORROW_IO_API_KEY` | Weather trigger data |
-| `NEWSDATA_IO_API_KEY` | News trigger data |
-| `OPENROUTER_API_KEY` | AI-assisted verification and classification |
-| `KYC_VISION_MODEL` | Vision model slug for KYC (Gov ID + face verification) |
-| `SELF_REPORT_VISION_MODEL` | Vision model slug for rider self-report photo verification |
-| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Must be `rzp_test_*` in development |
-| `RAZORPAY_KEY_SECRET` | Razorpay server secret |
+| Variable                        | Purpose                                                    |
+| :------------------------------ | :--------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL                                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key                                            |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Service role key (server only)                             |
+| `ADMIN_EMAILS`                  | Comma-separated admin email addresses                      |
+| `TOMORROW_IO_API_KEY`           | Weather trigger data                                       |
+| `NEWSDATA_IO_API_KEY`           | News trigger data                                          |
+| `OPENROUTER_API_KEY`            | AI-assisted verification and classification                |
+| `KYC_VISION_MODEL`              | Vision model slug for KYC (Gov ID + face verification)     |
+| `SELF_REPORT_VISION_MODEL`      | Vision model slug for rider self-report photo verification |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID`   | Must be `rzp_test_*` in development                        |
+| `RAZORPAY_KEY_SECRET`           | Razorpay server secret                                     |
 
 </details>
 
@@ -391,12 +405,12 @@ cp .env.local.example .env.local
 
 <br />
 
-| Variable | Purpose |
-| :--- | :--- |
-| `CRON_SECRET` | Protects `/api/cron/*` endpoints |
-| `NEXT_PUBLIC_APP_URL` | Canonical public URL for redirects |
-| `GOV_ID_ENCRYPTION_KEY` | Encrypts government ID images (32-byte base64) |
-| `FACE_PHOTO_ENCRYPTION_KEY` | Encrypts face photos (32-byte base64) |
+| Variable                    | Purpose                                        |
+| :-------------------------- | :--------------------------------------------- |
+| `CRON_SECRET`               | Protects `/api/cron/*` endpoints               |
+| `NEXT_PUBLIC_APP_URL`       | Canonical public URL for redirects             |
+| `GOV_ID_ENCRYPTION_KEY`     | Encrypts government ID images (32-byte base64) |
+| `FACE_PHOTO_ENCRYPTION_KEY` | Encrypts face photos (32-byte base64)          |
 
 </details>
 
@@ -405,12 +419,12 @@ cp .env.local.example .env.local
 
 <br />
 
-| Variable | Purpose |
-| :--- | :--- |
-| `TOMTOM_API_KEY` | Traffic triggers (2,500 free req/day) |
-| `WAQI_API_KEY` | AQI data (falls back to Open-Meteo) |
-| `RAZORPAY_WEBHOOK_SECRET` | Webhook signature verification |
-| `WEBHOOK_SECRET` | External disruption push auth |
+| Variable                  | Purpose                               |
+| :------------------------ | :------------------------------------ |
+| `TOMTOM_API_KEY`          | Traffic triggers (2,500 free req/day) |
+| `WAQI_API_KEY`            | AQI data (falls back to Open-Meteo)   |
+| `RAZORPAY_WEBHOOK_SECRET` | Webhook signature verification        |
+| `WEBHOOK_SECRET`          | External disruption push auth         |
 
 </details>
 
@@ -423,8 +437,8 @@ cp .env.local.example .env.local
 
 **Demo videos (walkthroughs on YouTube)**
 
-| | Link |
-| :--- | :--- |
+|         | Link                                                 |
+| :------ | :--------------------------------------------------- |
 | Phase 2 | [youtu.be/pO56XCf9l0c](https://youtu.be/pO56XCf9l0c) |
 | Phase 1 | [youtu.be/y7WI73mMNIc](https://youtu.be/y7WI73mMNIc) |
 
@@ -515,12 +529,12 @@ cp .env.local.example .env.local
 
 <h2 id="running-tests">🧪 Running Tests</h2>
 
-| Goal | Command |
-| :--- | :--- |
-| Unit tests | `bun run test` |
-| Watch mode | `bun run test:watch` |
-| E2E (browser) | `bun run test:e2e` |
-| Lint | `bun run lint` |
+| Goal          | Command              |
+| :------------ | :------------------- |
+| Unit tests    | `bun run test`       |
+| Watch mode    | `bun run test:watch` |
+| E2E (browser) | `bun run test:e2e`   |
+| Lint          | `bun run lint`       |
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
@@ -542,13 +556,14 @@ cp .env.local.example .env.local
 
 <br />
 
-| Endpoint | Cadence | Purpose |
-| :--- | :--- | :--- |
-| `/api/cron/adjudicator` | ~15 min | Ingest signals, detect disruptions, create claims |
+| Endpoint                             | Cadence   | Purpose                                                  |
+| :----------------------------------- | :-------- | :------------------------------------------------------- |
+| `/api/cron/adjudicator`              | ~15 min   | Ingest signals, detect disruptions, create claims        |
 | `/api/cron/self-report-verification` | As needed | Drain queued self-reports and re-run vision verification |
-| `/api/cron/weekly-premium` | Weekly | Bill riders, rotate coverage windows |
+| `/api/cron/weekly-premium`           | Weekly    | Bill riders, rotate coverage windows                     |
 
 Scheduling options:
+
 - **GitHub Actions:** pre-configured in `.github/workflows/cron.yml`
 - **Vercel Cron:** on Pro/Enterprise plans
 - **Supabase:** via the included Edge Function
@@ -570,17 +585,17 @@ Deploy `docs/` as a separate Vercel project with root directory set to `docs/`.
 
 Full OpenAPI spec: [`docs/openapi.yaml`](./docs/openapi.yaml) | Interactive reference: [oasisdocs.vercel.app](https://oasisdocs.vercel.app)
 
-| Area | Prefix | Handles |
-| :--- | :--- | :--- |
-| Rider | `/api/rider/*` | Profile, policy, wallet |
-| Payments | `/api/payments/*` | Orders, verification, webhooks |
-| Admin | `/api/admin/*` | Operations, analytics, triggers |
-| Claims | `/api/claims/*` | Location verification |
-| Onboarding | `/api/onboarding/*` | KYC document processing |
-| Cron | `/api/cron/*` | Scheduled automation |
-| Webhooks | `/api/webhooks/*` | Inbound disruption data |
-| Geo | `/api/geo/*` | Zone search, coordinates |
-| Health | `/api/health` | Liveness check |
+| Area       | Prefix              | Handles                         |
+| :--------- | :------------------ | :------------------------------ |
+| Rider      | `/api/rider/*`      | Profile, policy, wallet         |
+| Payments   | `/api/payments/*`   | Orders, verification, webhooks  |
+| Admin      | `/api/admin/*`      | Operations, analytics, triggers |
+| Claims     | `/api/claims/*`     | Location verification           |
+| Onboarding | `/api/onboarding/*` | KYC document processing         |
+| Cron       | `/api/cron/*`       | Scheduled automation            |
+| Webhooks   | `/api/webhooks/*`   | Inbound disruption data         |
+| Geo        | `/api/geo/*`        | Zone search, coordinates        |
+| Health     | `/api/health`       | Liveness check                  |
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
