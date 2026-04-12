@@ -148,3 +148,20 @@ export function getAppUrl(): string {
   if (raw) return raw.replace(/\/$/, '');
   return 'http://localhost:3000';
 }
+
+/** VAPID public key (safe in browser). Optional — without it, Web Push opt-in is disabled. */
+export function getVapidPublicKey(): string | null {
+  return optional('NEXT_PUBLIC_VAPID_PUBLIC_KEY', process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+}
+
+/** VAPID private key (server-only). */
+export function getVapidPrivateKey(): string | null {
+  return optional('VAPID_PRIVATE_KEY', process.env.VAPID_PRIVATE_KEY);
+}
+
+/**
+ * VAPID subject (mailto: or https: URL). Identifies the sender to push services.
+ */
+export function getVapidSubject(): string {
+  return optional('VAPID_SUBJECT', process.env.VAPID_SUBJECT) || 'mailto:support@oasisprotocol.in';
+}

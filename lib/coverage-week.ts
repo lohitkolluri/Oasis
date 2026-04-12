@@ -1,10 +1,10 @@
 import { getISTDateString, istEndOfDay, istStartOfDay } from '@/lib/datetime/ist';
-import { coverageWindowStatus } from '@/lib/datetime/oasis-time';
+import { coverageWindowStatus, type CoverageWindowStatus } from '@/lib/datetime/oasis-time';
 
 /** @deprecated Use istStartOfDay — kept for call sites that mean "policy DATE → instant". */
-export const parseLocalDate = istStartOfDay;
+const parseLocalDate = istStartOfDay;
 
-export function coverageEndOfDay(weekEnd: string): Date {
+function coverageEndOfDay(weekEnd: string): Date {
   return istEndOfDay(weekEnd);
 }
 
@@ -15,7 +15,7 @@ const MS_PER_HOUR = 60 * 60 * 1000;
  * Calendar days from start of today IST through `weekEnd` still inside the policy week (1–7).
  * Not wall-clock time until coverage ends — use {@link getCoverageTimeRemainingParts} for UI countdowns.
  */
-export function getDaysRemainingInCoverageWeek(
+function getDaysRemainingInCoverageWeek(
   weekStart: string,
   weekEnd: string,
   now: Date = new Date(),
@@ -38,7 +38,7 @@ export function getDaysRemainingInCoverageWeek(
  * Whole days + hours from `now` until coverage ends (end of `weekEnd` IST).
  * Matches policy wording (Sunday 23:59 IST).
  */
-export function getCoverageTimeRemainingParts(
+function getCoverageTimeRemainingParts(
   weekEnd: string,
   now: Date = new Date(),
 ): { days: number; hours: number } {
@@ -49,10 +49,7 @@ export function getCoverageTimeRemainingParts(
   return { days, hours };
 }
 
-export type CoverageWindowStatus =
-  | { status: 'upcoming'; days: number; hours: number }
-  | { status: 'active'; days: number; hours: number }
-  | { status: 'expired'; days: number; hours: number };
+export type { CoverageWindowStatus };
 
 /**
  * Returns whether coverage is upcoming/active/expired, and the appropriate countdown.
@@ -60,7 +57,7 @@ export type CoverageWindowStatus =
  * - active: time until end of `weekEnd` (IST)
  * - expired: 0
  */
-export function getCoverageWindowStatus(
+function getCoverageWindowStatus(
   weekStart: string,
   weekEnd: string,
   now: Date = new Date(),

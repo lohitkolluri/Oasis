@@ -54,7 +54,7 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   return R * c;
 }
 
-export const TOI_RSS_FEEDS: ToiRssFeed[] = [
+const TOI_RSS_FEEDS: ToiRssFeed[] = [
   {
     id: 'toi_top_stories',
     label: 'TOI Top Stories',
@@ -146,7 +146,7 @@ export const TOI_RSS_FEEDS: ToiRssFeed[] = [
   },
 ];
 
-export async function fetchToiRss(
+async function fetchToiRss(
   feedUrl: string,
   opts?: { cacheTtlMs?: number; timeoutMs?: number },
 ): Promise<ToiRssItem[]> {

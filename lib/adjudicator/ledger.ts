@@ -29,7 +29,7 @@ export interface AppendLedgerInput {
 }
 
 /** Slim, governance-friendly snapshot of what the rules saw (not full API payloads). */
-export function normalizeObservedValues(raw: RawTriggerData): Record<string, unknown> {
+function normalizeObservedValues(raw: RawTriggerData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const copy = (k: string) => {
     const v = raw[k];
@@ -75,7 +75,7 @@ export function normalizeObservedValues(raw: RawTriggerData): Record<string, unk
   return out;
 }
 
-export function resolveLedgerSource(candidate: TriggerCandidate): string {
+function resolveLedgerSource(candidate: TriggerCandidate): string {
   const s = candidate.raw?.source;
   if (typeof s === 'string' && s.trim().length > 0) return s.trim();
 

@@ -17,6 +17,7 @@ lohit.md
 
 # PWA (generated at build time)
 /public/sw.js
+/public/worker-*.js
 /public/workbox-*.js
 /public/fallback-*.js
 

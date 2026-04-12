@@ -21,7 +21,7 @@ export function mergeTriggersPartial(partial: Record<string, unknown> | null | u
   return base;
 }
 
-export async function fetchParametricRuleSetAt(
+async function fetchParametricRuleSetAt(
   supabase: SupabaseAdmin,
   at: Date,
 ): Promise<ParametricRuleSetRow | null> {

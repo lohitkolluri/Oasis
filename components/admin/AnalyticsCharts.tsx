@@ -196,9 +196,7 @@ export function AnalyticsCharts() {
   const PIE_COLORS = [NEON.cyan, NEON.amber, NEON.violet];
 
   const flaggedPct =
-    summary.totalClaims > 0
-      ? Math.round((summary.flaggedClaims / summary.totalClaims) * 100)
-      : 0;
+    summary.totalClaims > 0 ? Math.round((summary.flaggedClaims / summary.totalClaims) * 100) : 0;
 
   return (
     <div className="space-y-5">
@@ -231,7 +229,10 @@ export function AnalyticsCharts() {
             value: `${summary.lossRatio}%`,
             sub: summary.lossRatio > 80 ? 'Above threshold' : 'Within range',
             color: summary.lossRatio > 80 ? 'text-[#f59e0b]' : 'text-[#22c55e]',
-            accent: summary.lossRatio > 80 ? 'bg-[#f59e0b]/10 text-[#f59e0b]' : 'bg-[#22c55e]/10 text-[#22c55e]',
+            accent:
+              summary.lossRatio > 80
+                ? 'bg-[#f59e0b]/10 text-[#f59e0b]'
+                : 'bg-[#22c55e]/10 text-[#22c55e]',
           },
           {
             label: 'Trigger Events',
@@ -245,7 +246,10 @@ export function AnalyticsCharts() {
             value: `${flaggedPct}%`,
             sub: `${summary.flaggedClaims} of ${summary.totalClaims} claims`,
             color: summary.flaggedClaims > 0 ? 'text-[#f59e0b]' : 'text-[#22c55e]',
-            accent: summary.flaggedClaims > 0 ? 'bg-[#f59e0b]/10 text-[#f59e0b]' : 'bg-[#22c55e]/10 text-[#22c55e]',
+            accent:
+              summary.flaggedClaims > 0
+                ? 'bg-[#f59e0b]/10 text-[#f59e0b]'
+                : 'bg-[#22c55e]/10 text-[#22c55e]',
           },
         ].map((s) => (
           <div
@@ -506,11 +510,7 @@ export function AnalyticsCharts() {
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis
-                tick={{ fill: '#666666', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
+              <YAxis tick={{ fill: '#666666', fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
                 labelStyle={TOOLTIP_LABEL_STYLE}
@@ -547,7 +547,10 @@ export function AnalyticsCharts() {
             <p className="text-sm text-[#666666] text-center py-8">No weekly data yet</p>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={lossRatioTimeline} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <BarChart
+                data={lossRatioTimeline}
+                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" vertical={false} />
                 <XAxis
                   dataKey="week"
@@ -575,7 +578,13 @@ export function AnalyticsCharts() {
                   }}
                   labelFormatter={(v) => formatShortDate(String(v))}
                 />
-                <Bar dataKey="lossRatio" fill={NEON.amber} radius={[3, 3, 0, 0]} maxBarSize={36} opacity={0.85} />
+                <Bar
+                  dataKey="lossRatio"
+                  fill={NEON.amber}
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={36}
+                  opacity={0.85}
+                />
                 <Line
                   type="monotone"
                   dataKey={() => 80}
@@ -602,7 +611,11 @@ export function AnalyticsCharts() {
             <div className="flex items-center justify-around">
               {triggerData.length > 0 && (
                 <ResponsiveContainer width="55%" height={180}>
-                  <BarChart data={triggerData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={triggerData}
+                    layout="vertical"
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" horizontal={false} />
                     <XAxis
                       type="number"
@@ -618,7 +631,13 @@ export function AnalyticsCharts() {
                       tickLine={false}
                       width={50}
                     />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} cursor={TOOLTIP_CURSOR} formatter={(v) => [v, 'Events']} />
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
+                      labelStyle={TOOLTIP_LABEL_STYLE}
+                      itemStyle={TOOLTIP_ITEM_STYLE}
+                      cursor={TOOLTIP_CURSOR}
+                      formatter={(v) => [v, 'Events']}
+                    />
                     <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={18}>
                       {triggerData.map((_, i) => (
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} opacity={0.85} />
@@ -649,7 +668,11 @@ export function AnalyticsCharts() {
                           />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        labelStyle={TOOLTIP_LABEL_STYLE}
+                        itemStyle={TOOLTIP_ITEM_STYLE}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="space-y-1 text-center">
@@ -657,7 +680,9 @@ export function AnalyticsCharts() {
                       <p key={i} className="text-[10px] text-[#666666] flex items-center gap-1.5">
                         <span
                           className="inline-block w-2 h-2 rounded-full"
-                          style={{ background: i === 0 ? NEON.cyan : i === 1 ? NEON.amber : NEON.violet }}
+                          style={{
+                            background: i === 0 ? NEON.cyan : i === 1 ? NEON.amber : NEON.violet,
+                          }}
                         />
                         {d.name}
                       </p>

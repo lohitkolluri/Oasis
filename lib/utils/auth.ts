@@ -3,7 +3,7 @@
  * Only admins can access /admin; riders must not see admin options.
  */
 
-export function getAdminEmails(): string[] {
+function getAdminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())

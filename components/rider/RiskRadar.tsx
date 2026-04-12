@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
-import { Activity, MapPin, Cloud, Car, Megaphone } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Card } from '@/components/ui/Card';
+import { createClient } from '@/lib/supabase/client';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Activity, Car, Cloud, MapPin, Megaphone } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface DisruptionEvent {
   id: string;
@@ -14,9 +14,9 @@ interface DisruptionEvent {
 }
 
 const typeLabels: Record<string, string> = {
-  weather: "Weather",
-  traffic: "Traffic",
-  social: "Social",
+  weather: 'Weather',
+  traffic: 'Traffic',
+  social: 'Social',
 };
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -26,38 +26,37 @@ const typeIcons: Record<string, React.ReactNode> = {
 };
 
 const typeIconBg: Record<string, string> = {
-  weather: "bg-sky-500/15 text-sky-400",
-  traffic: "bg-amber-500/15 text-amber-400",
-  social: "bg-red-500/15 text-red-400",
+  weather: 'bg-sky-500/15 text-sky-400',
+  traffic: 'bg-amber-500/15 text-amber-400',
+  social: 'bg-red-500/15 text-red-400',
 };
 
 const typeBorderColor: Record<string, string> = {
-  weather: "border-l-sky-500/40",
-  traffic: "border-l-amber-500/40",
-  social: "border-l-red-500/40",
+  weather: 'border-l-sky-500/40',
+  traffic: 'border-l-amber-500/40',
+  social: 'border-l-red-500/40',
 };
 
 function SeverityBadge({ score }: { score: number }) {
-  const level =
-    score >= 7 ? "high" : score >= 4 ? "med" : "low";
+  const level = score >= 7 ? 'high' : score >= 4 ? 'med' : 'low';
   const config = {
     high: {
-      bg: "bg-uber-red/15",
-      text: "text-uber-red",
-      glow: "shadow-[0_0_8px_rgba(212,67,51,0.2)]",
-      label: "High",
+      bg: 'bg-uber-red/15',
+      text: 'text-uber-red',
+      glow: 'shadow-[0_0_8px_rgba(212,67,51,0.2)]',
+      label: 'High',
     },
     med: {
-      bg: "bg-uber-yellow/15",
-      text: "text-uber-yellow",
-      glow: "shadow-[0_0_8px_rgba(255,192,67,0.15)]",
-      label: "Med",
+      bg: 'bg-uber-yellow/15',
+      text: 'text-uber-yellow',
+      glow: 'shadow-[0_0_8px_rgba(255,192,67,0.15)]',
+      label: 'Med',
     },
     low: {
-      bg: "bg-uber-green/15",
-      text: "text-uber-green",
-      glow: "",
-      label: "Low",
+      bg: 'bg-uber-green/15',
+      text: 'text-uber-green',
+      glow: '',
+      label: 'Low',
     },
   };
   const c = config[level];
@@ -68,7 +67,7 @@ function SeverityBadge({ score }: { score: number }) {
     >
       <span
         className={`inline-block w-1.5 h-1.5 rounded-full ${
-          score >= 7 ? "bg-uber-red" : score >= 4 ? "bg-uber-yellow" : "bg-uber-green"
+          score >= 7 ? 'bg-uber-red' : score >= 4 ? 'bg-uber-yellow' : 'bg-uber-green'
         }`}
       />
       {score}/10
@@ -79,11 +78,11 @@ function SeverityBadge({ score }: { score: number }) {
 /** DD/MM · 12-hour local time */
 function formatWhen(iso: string): string {
   const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const time = d.toLocaleTimeString("en-IN", {
-    hour: "numeric",
-    minute: "2-digit",
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const time = d.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
     hour12: true,
   });
   return `${day}/${month} · ${time}`;
@@ -104,9 +103,9 @@ export function RiskRadar() {
   useEffect(() => {
     const fetchEvents = async () => {
       const { data } = await supabase
-        .from("live_disruption_events")
-        .select("id, event_type, severity_score, created_at")
-        .order("created_at", { ascending: false })
+        .from('live_disruption_events')
+        .select('id, event_type, severity_score, created_at')
+        .order('created_at', { ascending: false })
         .limit(10);
       setEvents((data as DisruptionEvent[]) ?? []);
       setLoading(false);
@@ -115,18 +114,18 @@ export function RiskRadar() {
     fetchEvents();
 
     const channel = supabase
-      .channel("risk_radar")
+      .channel('risk_radar')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "live_disruption_events",
+          event: 'INSERT',
+          schema: 'public',
+          table: 'live_disruption_events',
         },
         (payload) => {
           const newEvent = payload.new as DisruptionEvent;
           setEvents((prev) => [newEvent, ...prev].slice(0, 10));
-        }
+        },
       )
       .subscribe();
 
@@ -138,7 +137,11 @@ export function RiskRadar() {
   if (loading && events.length === 0) return null;
 
   return (
-    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
+    <Card
+      variant="default"
+      padding="none"
+      className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden"
+    >
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-uber-yellow/12">
@@ -148,7 +151,7 @@ export function RiskRadar() {
         </div>
         {events.length > 0 && (
           <span className="text-[10px] font-medium text-zinc-500 tabular-nums">
-            {events.length} event{events.length !== 1 ? "s" : ""}
+            {events.length} event{events.length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
@@ -165,8 +168,8 @@ export function RiskRadar() {
         <div className="px-3 pb-3 max-h-[280px] overflow-y-auto scrollbar-thin space-y-1.5">
           <AnimatePresence mode="popLayout" initial={false}>
             {events.map((e) => {
-              const iconBg = typeIconBg[e.event_type] ?? "bg-zinc-700/40 text-zinc-400";
-              const borderColor = typeBorderColor[e.event_type] ?? "border-l-zinc-700/40";
+              const iconBg = typeIconBg[e.event_type] ?? 'bg-zinc-700/40 text-zinc-400';
+              const borderColor = typeBorderColor[e.event_type] ?? 'border-l-zinc-700/40';
               const recent = isRecent(e.created_at);
 
               return (
@@ -180,7 +183,9 @@ export function RiskRadar() {
                   className={`flex items-center gap-3 rounded-xl bg-black/40 border border-white/10 border-l-2 ${borderColor} px-3 py-2.5 active:bg-white/5 transition-colors`}
                 >
                   {/* Icon with event-type color */}
-                  <div className={`relative flex items-center justify-center w-8 h-8 rounded-lg shrink-0 [&>svg]:h-4 [&>svg]:w-4 ${iconBg}`}>
+                  <div
+                    className={`relative flex items-center justify-center w-8 h-8 rounded-lg shrink-0 [&>svg]:h-4 [&>svg]:w-4 ${iconBg}`}
+                  >
                     {typeIcons[e.event_type] ?? <MapPin className="h-4 w-4" />}
                     {/* Live pulse for recent events */}
                     {recent && (

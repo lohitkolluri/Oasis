@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { parseLlmJsonWithSchema } from '@/lib/llm/strict-json';
 
 /** Sanitize user-controlled text before LLM to reduce prompt injection risk. */
-export function sanitizeForLlm(text: string, maxLen = 200): string {
+function sanitizeForLlm(text: string, maxLen = 200): string {
   return text
     .replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, ' ')
     .replace(/[{}[\]"'`\\]/g, '')

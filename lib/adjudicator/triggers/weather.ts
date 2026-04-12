@@ -12,7 +12,7 @@ import { toDateString } from '@/lib/utils/date';
 import { clusterKey } from '@/lib/utils/geo';
 import { fetchWithRetry } from '@/lib/utils/retry';
 
-export async function fetchCurrentAqi(
+async function fetchCurrentAqi(
   lat: number,
   lng: number,
   waqiKey: string | undefined,

@@ -43,7 +43,7 @@ export type ReservesCohortsPayload = {
   disclaimer: string;
 };
 
-export function zoneKeyFromProfileGeofence(
+function zoneKeyFromProfileGeofence(
   raw: unknown,
 ): string {
   if (raw == null) return 'Unspecified zone';

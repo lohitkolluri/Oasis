@@ -184,6 +184,6 @@ export async function fetchTextWithRetry(
   throw lastError ?? new Error(`fetchTextWithRetry failed after ${maxAttempts} attempts`);
 }
 
-export function clearApiCache(): void {
+function clearApiCache(): void {
   cache.clear();
 }

@@ -86,4 +86,4 @@ function ButtonLink({
   )
 }
 
-export { Button, ButtonLink, buttonVariants }
+export { Button, ButtonLink }

@@ -37,7 +37,7 @@ export function ZoneMap({
   const mapsHref = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(
     centerLat,
   )}&mlon=${encodeURIComponent(centerLng)}#map=14/${encodeURIComponent(
-  centerLat,
+    centerLat,
   )}/${encodeURIComponent(centerLng)}`;
 
   // Small bounding box for embedded map (roughly a few km around center)

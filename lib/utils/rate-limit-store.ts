@@ -33,7 +33,7 @@ function cleanupInMemory(): void {
 }
 
 /** In-memory store (per instance). */
-export const inMemoryRateLimitStore: RateLimitStore = {
+const inMemoryRateLimitStore: RateLimitStore = {
   async check(key, windowMs, maxRequests) {
     cleanupInMemory();
     const now = Date.now();
@@ -55,7 +55,7 @@ export const inMemoryRateLimitStore: RateLimitStore = {
 };
 
 /** Supabase-backed store (shared across instances). */
-export function createSupabaseRateLimitStore(): RateLimitStore {
+function createSupabaseRateLimitStore(): RateLimitStore {
   const admin = createAdminClient();
   return {
     async check(key, windowMs, maxRequests) {

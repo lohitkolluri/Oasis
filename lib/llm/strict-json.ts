@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export class LlmStructuredOutputError extends Error {
+class LlmStructuredOutputError extends Error {
   name = 'LlmStructuredOutputError' as const;
   constructor(
     message: string,
@@ -18,7 +18,7 @@ export class LlmStructuredOutputError extends Error {
  * Extract the first JSON object from a model response.
  * Designed to be resilient to surrounding prose or code-fences.
  */
-export function extractFirstJsonObject(text: string): string | null {
+function extractFirstJsonObject(text: string): string | null {
   const raw = (text ?? '').trim();
   if (!raw) return null;
 

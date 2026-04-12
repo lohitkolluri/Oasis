@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { isMobileForGps } from "@/lib/utils/device";
-import { useRouter } from "next/navigation";
-import { MapPin, Loader2, CheckCircle, AlertCircle, Smartphone } from "lucide-react";
+import { isMobileForGps } from '@/lib/utils/device';
+import { getDeviceFingerprint } from '@/lib/utils/device-fingerprint';
+import { AlertCircle, CheckCircle, Loader2, MapPin, Smartphone } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface ClaimVerificationPromptProps {
   claimId: string;
@@ -13,10 +14,13 @@ interface ClaimVerificationPromptProps {
 type MotionCaptureResult = {
   imu_variance: number | null;
   samples: number;
-  permission: "granted" | "denied" | "unavailable" | "unknown";
+  permission: 'granted' | 'denied' | 'unavailable' | 'unknown';
 };
 
-export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone" }: ClaimVerificationPromptProps) {
+export function ClaimVerificationPrompt({
+  claimId,
+  zoneName = 'the affected zone',
+}: ClaimVerificationPromptProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -25,40 +29,40 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
   const [autoAttempted, setAutoAttempted] = useState(false);
 
   const onVerifySuccess = (data: { status?: string; payout_initiated?: boolean }) => {
-    if (data.status === "outside_geofence") {
+    if (data.status === 'outside_geofence') {
       setVerifiedOutside(true);
       router.refresh();
       return;
     }
 
-    if (data.status === "already_paid" || data.payout_initiated) {
+    if (data.status === 'already_paid' || data.payout_initiated) {
       router.refresh();
     }
 
-    if (data.status === "inside_geofence" || data.status === "already_paid") {
+    if (data.status === 'inside_geofence' || data.status === 'already_paid') {
       setDone(true);
     }
   };
 
   const captureImuVariance = async (durationMs: number): Promise<MotionCaptureResult> => {
-    if (typeof window === "undefined") {
-      return { imu_variance: null, samples: 0, permission: "unavailable" };
+    if (typeof window === 'undefined') {
+      return { imu_variance: null, samples: 0, permission: 'unavailable' };
     }
 
     const motionEvent = window.DeviceMotionEvent as unknown as {
-      requestPermission?: () => Promise<"granted" | "denied">;
+      requestPermission?: () => Promise<'granted' | 'denied'>;
     };
 
-    let permission: MotionCaptureResult["permission"] = "unknown";
-    if (typeof motionEvent?.requestPermission === "function") {
+    let permission: MotionCaptureResult['permission'] = 'unknown';
+    if (typeof motionEvent?.requestPermission === 'function') {
       try {
         const r = await motionEvent.requestPermission();
         permission = r;
       } catch {
-        permission = "denied";
+        permission = 'denied';
       }
     } else {
-      permission = "unavailable";
+      permission = 'unavailable';
     }
 
     // Even without explicit permission API, many Android browsers allow DeviceMotionEvent.
@@ -74,9 +78,9 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
       if (Number.isFinite(mag)) samples.push(mag);
     };
 
-    window.addEventListener("devicemotion", handler, { passive: true });
+    window.addEventListener('devicemotion', handler, { passive: true });
     await new Promise((r) => setTimeout(r, durationMs));
-    window.removeEventListener("devicemotion", handler);
+    window.removeEventListener('devicemotion', handler);
 
     if (samples.length < 5) {
       return { imu_variance: null, samples: samples.length, permission };
@@ -84,8 +88,7 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
 
     const mean = samples.reduce((s, v) => s + v, 0) / samples.length;
     const variance =
-      samples.reduce((s, v) => s + (v - mean) * (v - mean), 0) /
-      Math.max(1, samples.length - 1);
+      samples.reduce((s, v) => s + (v - mean) * (v - mean), 0) / Math.max(1, samples.length - 1);
 
     return {
       imu_variance: Number.isFinite(variance) ? Number(variance.toFixed(4)) : null,
@@ -109,13 +112,13 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
         : null;
 
     const formData = new FormData();
-    formData.set("claim_id", claimId);
-    formData.set("lat", String(lat));
-    formData.set("lng", String(lng));
-    formData.set("declaration", "true");
-    if (speedKmh != null) formData.set("speed_kmh", String(speedKmh));
+    formData.set('claim_id', claimId);
+    formData.set('lat', String(lat));
+    formData.set('lng', String(lng));
+    formData.set('declaration', 'true');
+    if (speedKmh != null) formData.set('speed_kmh', String(speedKmh));
     if (motion.imu_variance != null) {
-      formData.set("imu_variance", String(motion.imu_variance));
+      formData.set('imu_variance', String(motion.imu_variance));
     }
     // Not available in web PWAs (kept for schema compatibility).
     // formData.set("gnss_snr_variance", ...)
@@ -123,30 +126,35 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
     // formData.set("os_signature_valid", ...)
     // formData.set("rooted_device", ...)
     formData.set(
-      "device_attestation",
+      'device_attestation',
       JSON.stringify({
-        client: "pwa",
+        client: 'pwa',
         motion_permission: motion.permission,
         motion_samples: motion.samples,
-        ua: typeof navigator !== "undefined" ? navigator.userAgent : null,
+        ua: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       }),
     );
-    if (proof) formData.append("proof", proof);
+    if (proof) formData.append('proof', proof);
 
-    const res = await fetch("/api/claims/verify-location", {
-      method: "POST",
+    const deviceFingerprint = await getDeviceFingerprint();
+    if (deviceFingerprint !== 'server') {
+      formData.set('device_fingerprint', deviceFingerprint);
+    }
+
+    const res = await fetch('/api/claims/verify-location', {
+      method: 'POST',
       body: formData,
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error ?? "Verification failed");
+      throw new Error(data.error ?? 'Verification failed');
     }
     onVerifySuccess(data);
   };
 
   const handleVerify = async () => {
-    if (typeof navigator !== "undefined" && !isMobileForGps(navigator.userAgent)) {
-      setError("Use a mobile device for precise location verification.");
+    if (typeof navigator !== 'undefined' && !isMobileForGps(navigator.userAgent)) {
+      setError('Use a mobile device for precise location verification.');
       return;
     }
     setLoading(true);
@@ -157,8 +165,8 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
     } catch (err) {
       const msg =
         (err as { code?: number; message?: string })?.code === 1
-          ? "Location access denied"
-          : (err as { message?: string })?.message ?? "Verification failed";
+          ? 'Location access denied'
+          : ((err as { message?: string })?.message ?? 'Verification failed');
       setError(msg);
     } finally {
       setLoading(false);
@@ -168,9 +176,9 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
   const handleVerifyWithProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (typeof navigator !== "undefined" && !isMobileForGps(navigator.userAgent)) {
-      setError("Use a mobile device for precise location verification.");
-      e.target.value = "";
+    if (typeof navigator !== 'undefined' && !isMobileForGps(navigator.userAgent)) {
+      setError('Use a mobile device for precise location verification.');
+      e.target.value = '';
       return;
     }
     setLoading(true);
@@ -181,12 +189,12 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
     } catch (err) {
       const msg =
         (err as { code?: number; message?: string })?.code === 1
-          ? "Location access denied"
-          : (err as { message?: string })?.message ?? "Verification failed";
+          ? 'Location access denied'
+          : ((err as { message?: string })?.message ?? 'Verification failed');
       setError(msg);
     } finally {
       setLoading(false);
-      e.target.value = "";
+      e.target.value = '';
     }
   };
 
@@ -207,14 +215,19 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
           <div>
             <p className="text-sm font-medium">Location recorded outside event zone</p>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Your claim is under review. Re-verify below (e.g. from the affected area) or contact support for payout.
+              Your claim is under review. Re-verify below (e.g. from the affected area) or contact
+              support for payout.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 pt-1">
           <button
             type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setVerifiedOutside(false); }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setVerifiedOutside(false);
+            }}
             className="inline-flex items-center gap-2 rounded-lg bg-uber-yellow/20 px-3 py-1.5 text-sm font-medium text-uber-yellow/90 hover:bg-amber-500/30"
           >
             <MapPin className="h-4 w-4" />
@@ -226,22 +239,21 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
   }
 
   const fileInputId = `claim-verify-proof-${claimId}`;
-  const isMobile =
-    typeof navigator !== "undefined" ? isMobileForGps(navigator.userAgent) : true;
+  const isMobile = typeof navigator !== 'undefined' ? isMobileForGps(navigator.userAgent) : true;
 
   useEffect(() => {
     if (!isMobile || loading || done || verifiedOutside || autoAttempted) return;
 
     // Try once automatically when the rider opens the dashboard with a pending claim.
     const storageKey = `oasis-auto-verify:${claimId}`;
-    if (typeof window !== "undefined" && window.sessionStorage.getItem(storageKey) === "1") {
+    if (typeof window !== 'undefined' && window.sessionStorage.getItem(storageKey) === '1') {
       setAutoAttempted(true);
       return;
     }
 
     setAutoAttempted(true);
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(storageKey, "1");
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(storageKey, '1');
     }
 
     handleVerify();
@@ -275,7 +287,7 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
         <label
           htmlFor={fileInputId}
           onClick={(e) => e.stopPropagation()}
-          className={`inline-flex items-center gap-2 rounded-lg border border-uber-yellow/40 px-3 py-1.5 text-sm font-medium text-uber-yellow/90 hover:bg-uber-yellow/10 ${isMobile ? "cursor-pointer" : "cursor-not-allowed opacity-50 pointer-events-none"}`}
+          className={`inline-flex items-center gap-2 rounded-lg border border-uber-yellow/40 px-3 py-1.5 text-sm font-medium text-uber-yellow/90 hover:bg-uber-yellow/10 ${isMobile ? 'cursor-pointer' : 'cursor-not-allowed opacity-50 pointer-events-none'}`}
         >
           <input
             id={fileInputId}
@@ -288,12 +300,13 @@ export function ClaimVerificationPrompt({ claimId, zoneName = "the affected zone
             disabled={loading}
             className="hidden"
           />
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Upload proof"}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Upload proof'}
         </label>
       </div>
       {error && <p className="text-xs text-red-400">{error}</p>}
       <p className="text-xs text-zinc-500">
-        I confirm I was actively delivering in {zoneName} during this disruption. (Captured with verification)
+        I confirm I was actively delivering in {zoneName} during this disruption. (Captured with
+        verification)
       </p>
     </div>
   );

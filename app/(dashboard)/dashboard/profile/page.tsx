@@ -1,4 +1,5 @@
 import { ProfileSettingsForm } from '@/components/rider/ProfileSettingsForm';
+import { PushNotificationSettings } from '@/components/rider/PushNotificationSettings';
 import { createClient } from '@/lib/supabase/server';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -33,6 +34,8 @@ export default async function RiderProfilePage() {
         <ArrowLeft className="h-4 w-4" />
         Home
       </Link>
+
+      <PushNotificationSettings />
 
       <ProfileSettingsForm
         key={profile.updated_at}

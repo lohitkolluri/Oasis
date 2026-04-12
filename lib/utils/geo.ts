@@ -46,7 +46,7 @@ export function isWithinCircle(
   return distanceKm(pointLat, pointLng, centerLat, centerLng) <= radiusKm;
 }
 
-export function distanceKm(
+function distanceKm(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -59,7 +59,7 @@ export function distanceKm(
 
 // ── Polygon geofencing ────────────────────────────────────────────────────────
 
-export function isWithinPolygon(
+function isWithinPolygon(
   pointLat: number,
   pointLng: number,
   polygonGeoJson: GeoJSON,
@@ -95,7 +95,7 @@ export function isWithinPolygon(
   }
 }
 
-export function buildCirclePolygon(
+function buildCirclePolygon(
   centerLat: number,
   centerLng: number,
   radiusKm: number,
@@ -107,7 +107,7 @@ export function buildCirclePolygon(
   });
 }
 
-export function zoneBbox(
+function zoneBbox(
   centerLat: number,
   centerLng: number,
   radiusKm: number,

@@ -22,6 +22,7 @@ import type {
 } from '@/lib/adjudicator/types';
 import { addDays, toDateString } from '@/lib/utils/date';
 import { createClaimFromTrigger, getWeeklyClaimCounts } from '@/lib/claims/engine';
+import { dispatchWebPushForRiderNotifications } from '@/lib/notifications/web-push-dispatch';
 
 export interface ProcessClaimsOptions {
   /** When set (demo), only this profile gets the claim/payout; zone check is skipped for them. */
@@ -283,6 +284,8 @@ export async function processClaimsForEvent(
           error: notifErr.message,
         },
       }).then(() => {}, () => {});
+    } else {
+      await dispatchWebPushForRiderNotifications(supabase, pendingNotifications);
     }
   }
 

@@ -25,7 +25,7 @@ export type DisruptionEventForZoneRisk = {
  * Month-based seasonal risk multiplier isolating systematic Indian weather volatility.
  * Aligned against historical empirical metrics for major metropolitan areas.
  */
-export const SEASONAL_RISK_MULTIPLIER: Record<number, number> = {
+const SEASONAL_RISK_MULTIPLIER: Record<number, number> = {
   0: 0.85, // January — winter, low disruption
   1: 0.85, // February — winter
   2: 1.0, // March — transition
@@ -60,7 +60,7 @@ export interface PremiumInput {
  * @param input - Risk factors and platform exposure statistics
  * @returns Adjusted weekly premium in INR
  */
-export function calculateWeeklyPremium(input: PremiumInput): number {
+function calculateWeeklyPremium(input: PremiumInput): number {
   const events = input.historicalEventCount ?? 0;
   const forecastFactor = input.forecastRiskFactor ?? 0;
   const socialFactor = input.socialRiskFactor ?? 0;
@@ -106,7 +106,7 @@ export function calculateWeeklyPremium(input: PremiumInput): number {
  * @param input - Risk factors to be analyzed by the auxiliary model
  * @returns Clamped premium alongside the generated actuarial reasoning string
  */
-export async function calculatePremiumWithLlm(
+async function calculatePremiumWithLlm(
   input: PremiumInput,
 ): Promise<{ premium: number; reasoning: string; source: 'llm' | 'formula' }> {
   const openRouterKey = getOpenRouterApiKey();
@@ -220,7 +220,7 @@ export async function getSocialRiskFactor(
 /**
  * Get historical event count for a zone from the last N weeks.
  */
-export async function getHistoricalEventCount(
+async function getHistoricalEventCount(
   supabase: SupabaseClient,
   zoneLatitude?: number | null,
   zoneLongitude?: number | null,
@@ -279,7 +279,7 @@ export interface HistoricalEventBreakdown {
   social: number;
 }
 
-export function getHistoricalEventBreakdown(
+function getHistoricalEventBreakdown(
   events: DisruptionEventForZoneRisk[],
   zoneLatitude?: number | null,
   zoneLongitude?: number | null,

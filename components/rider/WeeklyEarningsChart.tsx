@@ -39,7 +39,11 @@ export function WeeklyEarningsChart({
   const hasData = total > 0;
 
   return (
-    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden">
+    <Card
+      variant="default"
+      padding="none"
+      className="rounded-2xl border-white/10 bg-surface-1 overflow-hidden"
+    >
       <div className="w-full">
         <div className="px-4 pt-4 pb-1.5 flex items-center justify-between">
           <div>
@@ -130,7 +134,14 @@ export function WeeklyEarningsChart({
                       return (
                         <g key={`dot-${index}`}>
                           <circle cx={cx} cy={cy} r={6} fill="rgba(58,167,109,0.2)" />
-                          <circle cx={cx} cy={cy} r={3} fill="#3AA76D" stroke="#0c0c0c" strokeWidth={1.5} />
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={3}
+                            fill="#3AA76D"
+                            stroke="#0c0c0c"
+                            strokeWidth={1.5}
+                          />
                         </g>
                       );
                     }

@@ -60,7 +60,7 @@ export const logger = {
 };
 
 /** Get correlation ID from request (set by middleware or client). */
-export function getRequestId(request: Request | null | undefined): string | null {
+function getRequestId(request: Request | null | undefined): string | null {
   if (!request) return null;
   return request.headers.get('x-request-id');
 }

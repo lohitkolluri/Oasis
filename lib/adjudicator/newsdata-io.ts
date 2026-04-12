@@ -8,7 +8,7 @@ import { EXTERNAL_APIS } from '@/lib/config/constants';
 import { fetchWithRetry } from '@/lib/utils/retry';
 
 /** Documented base URL for latest/breaking news (past 48h, sorted by publish date). */
-export const NEWSDATA_LATEST_URL = 'https://newsdata.io/api/1/latest';
+const NEWSDATA_LATEST_URL = 'https://newsdata.io/api/1/latest';
 
 export type NewsDataArticle = {
   article_id?: string;
@@ -32,7 +32,7 @@ export type NewsDataApiResponse = {
   code?: string;
 };
 
-export function assertNewsDataResponse(data: NewsDataApiResponse): NewsDataApiResponse {
+function assertNewsDataResponse(data: NewsDataApiResponse): NewsDataApiResponse {
   const s = typeof data?.status === 'string' ? data.status.toLowerCase() : '';
   if (s === 'error') {
     const parts = [data.code, data.message].filter(

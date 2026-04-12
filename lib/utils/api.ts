@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server';
 
 // ── Standardized API error ──────────────────────────────────────────────────
 
-export class ApiError extends Error {
+class ApiError extends Error {
   constructor(
     message: string,
     public statusCode: number = 500,
@@ -25,7 +25,7 @@ export class ApiError extends Error {
  * Human-readable detail for logs and non-production API responses.
  * Razorpay and other SDKs often reject with plain objects, not Error instances.
  */
-export function formatErrorDetail(err: unknown): string {
+function formatErrorDetail(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null) {
     try {

@@ -157,7 +157,7 @@ export interface MarkClaimPaidInput {
  * @param input - Payload binding the source profile, authorized payout configuration, and claim tracker
  * @returns Boolean representing if the closure pipeline resolved completely natively
  */
-export async function markClaimPaid(input: MarkClaimPaidInput): Promise<boolean> {
+async function markClaimPaid(input: MarkClaimPaidInput): Promise<boolean> {
   const { supabase, claimId, profileId, payoutAmountInr } = input;
   const payoutOk = await simulatePayout(supabase, claimId, profileId, payoutAmountInr);
   if (!payoutOk) return false;

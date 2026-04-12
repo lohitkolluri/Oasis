@@ -13,7 +13,7 @@ export function getCoverageWeekRange(referenceDate: Date = new Date()): {
   return coverageWeekRange(referenceDate);
 }
 
-export function getEnrollmentWeekRange(referenceDate: Date = new Date()): {
+function getEnrollmentWeekRange(referenceDate: Date = new Date()): {
   start: string;
   end: string;
 } {

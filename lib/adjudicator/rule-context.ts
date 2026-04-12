@@ -24,7 +24,7 @@ export function getAdjudicatorRuleContext(): AdjudicatorRuleContext {
   );
 }
 
-export function runWithAdjudicatorRules<T>(ctx: AdjudicatorRuleContext, fn: () => T): T {
+function runWithAdjudicatorRules<T>(ctx: AdjudicatorRuleContext, fn: () => T): T {
   return storage.run(ctx, fn);
 }
 

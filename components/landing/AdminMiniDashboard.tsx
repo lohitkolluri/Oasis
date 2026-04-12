@@ -324,7 +324,9 @@ export function AdminMiniDashboard() {
       {/* API & system + 7-day outlook */}
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
-          <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest mb-3">API & system</p>
+          <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest mb-3">
+            API & system
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
               { name: 'Open-Meteo Weather', ok: true },
@@ -349,7 +351,9 @@ export function AdminMiniDashboard() {
           </div>
         </div>
         <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-5">
-          <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest mb-3">7-day outlook</p>
+          <p className="text-[10px] font-semibold text-[#555] uppercase tracking-widest mb-3">
+            7-day outlook
+          </p>
           <div className="space-y-2">
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-lg font-semibold capitalize text-[#22c55e]">low</span>
@@ -388,7 +392,13 @@ export function AdminMiniDashboard() {
               formatter={(v) => [v, 'Events']}
               labelFormatter={(label) => formatShortDate(String(label))}
             />
-            <Bar dataKey="count" fill={NEON.amber} radius={[3, 3, 0, 0]} maxBarSize={24} opacity={0.85} />
+            <Bar
+              dataKey="count"
+              fill={NEON.amber}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={24}
+              opacity={0.85}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -429,8 +439,21 @@ export function AdminMiniDashboard() {
                 }}
                 labelFormatter={(v) => formatShortDate(String(v))}
               />
-              <Bar dataKey="lossRatio" fill={NEON.amber} radius={[3, 3, 0, 0]} maxBarSize={36} opacity={0.85} />
-              <Line type="monotone" dataKey={() => 80} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} dot={false} />
+              <Bar
+                dataKey="lossRatio"
+                fill={NEON.amber}
+                radius={[3, 3, 0, 0]}
+                maxBarSize={36}
+                opacity={0.85}
+              />
+              <Line
+                type="monotone"
+                dataKey={() => 80}
+                stroke="#ef4444"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+                dot={false}
+              />
             </BarChart>
           </ResponsiveContainer>
           <p className="text-[10px] text-[#444] mt-2">Dashed line = 80% threshold</p>
@@ -443,9 +466,18 @@ export function AdminMiniDashboard() {
           </div>
           <div className="flex items-center justify-around">
             <ResponsiveContainer width="55%" height={180}>
-              <BarChart data={triggers} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <BarChart
+                data={triggers}
+                layout="vertical"
+                margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" horizontal={false} />
-                <XAxis type="number" tick={{ fill: '#666666', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fill: '#666666', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis
                   type="category"
                   dataKey="label"
@@ -472,18 +504,33 @@ export function AdminMiniDashboard() {
             <div className="flex flex-col items-center gap-2">
               <ResponsiveContainer width={110} height={110}>
                 <PieChart>
-                  <Pie data={triggers} dataKey="count" cx="50%" cy="50%" innerRadius={32} outerRadius={52} strokeWidth={0}>
+                  <Pie
+                    data={triggers}
+                    dataKey="count"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={32}
+                    outerRadius={52}
+                    strokeWidth={0}
+                  >
                     {triggers.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} opacity={0.85} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
+                    itemStyle={TOOLTIP_ITEM_STYLE}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-1 text-center">
                 {triggers.map((d, i) => (
                   <p key={d.type} className="text-[10px] text-[#666666] flex items-center gap-1.5">
-                    <span className="inline-block w-2 h-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <span
+                      className="inline-block w-2 h-2 rounded-full"
+                      style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
+                    />
                     {d.label}
                   </p>
                 ))}
@@ -495,4 +542,3 @@ export function AdminMiniDashboard() {
     </div>
   );
 }
-

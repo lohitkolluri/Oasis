@@ -569,7 +569,7 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
             claim_created = true;
             claim_accepted = true;
             try {
-              await admin.from('rider_notifications').insert({
+              const notifRow = {
                 profile_id: user.id,
                 title: 'Report verified. Verify location',
                 body: `Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
@@ -579,7 +579,12 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
                   amount_inr: payoutAmount,
                   source: 'self_report',
                 },
-              });
+              };
+              await admin.from('rider_notifications').insert(notifRow);
+              const { dispatchWebPushForRiderNotifications } = await import(
+                '@/lib/notifications/web-push-dispatch'
+              );
+              await dispatchWebPushForRiderNotifications(admin, [notifRow]);
             } catch {
               // optional
             }

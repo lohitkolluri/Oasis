@@ -5,7 +5,7 @@ export interface OpenRouterChatResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
-export function getOpenRouterKey(): string | null {
+function getOpenRouterKey(): string | null {
   return getOpenRouterApiKey();
 }
 

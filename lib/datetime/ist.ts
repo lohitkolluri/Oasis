@@ -3,7 +3,7 @@
  * Policy weeks are Monday 00:00 – Sunday 23:59 IST; DATE columns are interpreted on this calendar.
  */
 
-export const IST_TIMEZONE = 'Asia/Kolkata';
+const IST_TIMEZONE = 'Asia/Kolkata';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -40,7 +40,7 @@ export function getISTDateString(instant: Date = new Date()): string {
 }
 
 /** 0 = Sunday … 6 = Saturday in IST. */
-export function getISTWeekdaySun0(instant: Date = new Date()): number {
+function getISTWeekdaySun0(instant: Date = new Date()): number {
   const w = istWeekdayFormatter.format(instant);
   const v = WEEKDAY_SUN0[w];
   if (v === undefined) throw new Error(`Unknown IST weekday label: ${w}`);

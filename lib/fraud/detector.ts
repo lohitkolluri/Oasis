@@ -97,7 +97,7 @@ export function checkDeviceAttestation(
   return { isFlagged: false };
 }
 
-export async function checkDuplicateClaim(
+async function checkDuplicateClaim(
   supabase: SupabaseClient,
   policyId: string,
   disruptionEventId: string,
@@ -149,7 +149,7 @@ export async function checkRapidClaims(
   return { isFlagged: false };
 }
 
-export function checkWeatherMismatch(
+function checkWeatherMismatch(
   rawApiData: Record<string, unknown> | null,
 ): FraudCheckResult {
   if (!rawApiData) return { isFlagged: false };
@@ -214,7 +214,7 @@ export function checkWeatherMismatch(
   return { isFlagged: false };
 }
 
-export async function checkLocationVerification(
+async function checkLocationVerification(
   supabase: SupabaseClient,
   claimId: string,
 ): Promise<FraudCheckResult> {
@@ -235,7 +235,7 @@ export async function checkLocationVerification(
   return { isFlagged: false };
 }
 
-export async function checkDeviceFingerprint(
+async function checkDeviceFingerprint(
   supabase: SupabaseClient,
   deviceFingerprint: string,
 ): Promise<FraudCheckResult> {
@@ -298,7 +298,7 @@ export async function checkDeviceFingerprint(
   return { isFlagged: false };
 }
 
-export async function checkClusterAnomaly(
+async function checkClusterAnomaly(
   supabase: SupabaseClient,
   disruptionEventId: string,
 ): Promise<FraudCheckResult> {
@@ -328,7 +328,7 @@ export async function checkClusterAnomaly(
   return { isFlagged: false };
 }
 
-export async function checkHistoricalBaseline(
+async function checkHistoricalBaseline(
   supabase: SupabaseClient,
   disruptionEventId: string,
 ): Promise<FraudCheckResult> {
@@ -359,7 +359,7 @@ export async function checkHistoricalBaseline(
   return { isFlagged: false };
 }
 
-export async function checkCrossProfileVelocity(
+async function checkCrossProfileVelocity(
   supabase: SupabaseClient,
   profileId: string,
   disruptionEventId: string,
@@ -478,7 +478,7 @@ export async function checkPayoutDestinationAnomaly(
   return { isFlagged: false };
 }
 
-export async function flagClaimAsFraud(
+async function flagClaimAsFraud(
   supabase: SupabaseClient,
   claimId: string,
   reason: string,

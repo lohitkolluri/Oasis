@@ -7,7 +7,7 @@
 --      psql "postgresql://postgres.[ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres" -f scripts/reset-database-data.sql
 --
 -- This truncates all core app tables in FK-safe order:
---   rider_notifications, payout_ledger, claim_verifications,
+--   rider_notifications, push_subscriptions, payout_ledger, claim_verifications,
 --   parametric_claims, payment_transactions, weekly_policies,
 --   premium_recommendations, plan_pricing_snapshots, rider_delivery_reports, profiles,
 --   live_disruption_events, plan_packages, stripe_webhook_events,
@@ -41,6 +41,7 @@
 
 -- ─── Truncate in dependency order (children first) ────────────
 TRUNCATE TABLE rider_notifications CASCADE;
+TRUNCATE TABLE push_subscriptions CASCADE;
 TRUNCATE TABLE payout_ledger CASCADE;
 TRUNCATE TABLE claim_verifications CASCADE;
 TRUNCATE TABLE parametric_claims CASCADE;
