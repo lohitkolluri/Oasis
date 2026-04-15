@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { ChevronDown, FileText, HelpCircle, ShieldQuestion } from 'lucide-react';
+import Link from 'next/link';
 
 const links = [
   {
@@ -19,7 +19,7 @@ const links = [
     iconBg: 'bg-uber-green/12 text-uber-green group-hover:bg-uber-green/20',
   },
   {
-    href: 'mailto:support@oasisprotocol.in',
+    href: 'mailto:lohitkolluri@gmail.com',
     label: 'Help & support',
     sublabel: 'Get in touch',
     icon: HelpCircle,
@@ -39,9 +39,7 @@ export function QuickLinks() {
         {links.map(({ href, label, sublabel, icon: Icon, iconBg, ...rest }) => {
           const isExternal = 'external' in rest && rest.external;
           const Component = isExternal ? 'a' : Link;
-          const extraProps = isExternal
-            ? { target: '_blank', rel: 'noopener noreferrer' }
-            : {};
+          const extraProps = isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {};
 
           return (
             <Component

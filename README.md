@@ -20,9 +20,9 @@ Weekly billing. Automatic triggers. Zero claim forms.
   <img src="https://img.shields.io/badge/Report%20Bug-ef4444?style=for-the-badge&logo=github&logoColor=white" alt="Report Bug" />
 </a>
 <br />
-<a href="#">
-  <img src="https://img.shields.io/badge/Phase_3_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Phase 3 demo video on YouTube" />
-</a>
+<span title="Phase 3 demo link pending upload">
+  <img src="https://img.shields.io/badge/Phase_3_Demo-Coming_Soon-6b7280?style=for-the-badge&logo=youtube&logoColor=white" alt="Phase 3 demo video link coming soon" />
+</span>
 &nbsp;&nbsp;
 <a href="https://youtu.be/pO56XCf9l0c">
   <img src="https://img.shields.io/badge/Phase_2_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Phase 2 demo video on YouTube" />

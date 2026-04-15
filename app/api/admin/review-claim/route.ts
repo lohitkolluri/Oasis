@@ -17,6 +17,7 @@
 import { simulatePayout } from '@/lib/adjudicator/payouts';
 import { AUDIT } from '@/lib/admin/audit-actions';
 import { insertAdminAuditLog } from '@/lib/admin/audit-log';
+import { logger } from '@/lib/logger';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { reviewClaimSchema } from '@/lib/validations/schemas';
@@ -202,7 +203,11 @@ export const POST = withAdminAuth(async (ctx, request) => {
         },
       });
     } catch (err) {
-      void err;
+      logger.warn('Audit system log insert failed', {
+        claim_id: claimId,
+        action,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     return NextResponse.json({ ok: true, claimId, action, payout_change: payoutChange });

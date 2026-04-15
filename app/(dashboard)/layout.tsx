@@ -21,7 +21,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, platform, full_name, role, government_id_verified, face_verified, deprovisioned_at')
+    .select(
+      'id, platform, full_name, role, government_id_verified, face_verified, deprovisioned_at',
+    )
     .eq('id', user.id)
     .single();
 
@@ -42,7 +44,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Top App Bar — Uber black, safe-area aware */}
       <header className="sticky top-0 z-10 bg-black/95 backdrop-blur-2xl safe-area-top will-change-transform">
         <div className="max-w-xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5 active:opacity-70 transition-opacity">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2.5 active:opacity-70 transition-opacity"
+          >
             <Logo size={30} />
             <span className="text-[15px] font-semibold text-white tracking-tight">Oasis</span>
           </Link>
@@ -56,7 +61,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </Link>
             )}
             <a
-              href="mailto:support@oasisprotocol.in"
+              href="mailto:lohitkolluri@gmail.com"
               className="flex items-center justify-center w-9 h-9 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 active:bg-white/10 transition-colors"
               aria-label="Help & support"
             >

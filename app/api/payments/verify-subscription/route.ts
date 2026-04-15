@@ -8,7 +8,7 @@ import { verifyRazorpaySubscriptionPaymentSignature } from '@/lib/payments/razor
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
-import { NextResponse } from 'next/server';
+import { jsonWithRequestId } from '@/lib/utils/request-response';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'subscription-verify');
-  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20, request });
   if (rateLimited) return rateLimited;
 
   const supabase = await createClient();
@@ -30,19 +30,19 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return jsonWithRequestId(request, { error: 'Unauthorized' }, { status: 401 });
   }
 
   let json: unknown;
   try {
     json = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return jsonWithRequestId(request, { error: 'Invalid JSON' }, { status: 400 });
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    return jsonWithRequestId(request, { error: 'Invalid payload' }, { status: 400 });
   }
 
   const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } = parsed.data;
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       secret,
     )
   ) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    return jsonWithRequestId(request, { error: 'Invalid signature' }, { status: 400 });
   }
 
   let admin: ReturnType<typeof createAdminClient>;
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     logger.error('Razorpay subscription verify: Supabase not configured', {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    return jsonWithRequestId(request, { error: 'Service unavailable' }, { status: 503 });
   }
 
   const razorpay = getRazorpayInstance();
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     logger.warn('Razorpay subscription verify: payments.fetch failed', {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: 'Could not confirm payment' }, { status: 502 });
+    return jsonWithRequestId(request, { error: 'Could not confirm payment' }, { status: 502 });
   }
 
   /**
@@ -97,11 +97,12 @@ export async function POST(request: Request) {
       from_payment: paySubId,
       from_checkout: razorpay_subscription_id,
     });
-    return NextResponse.json({ error: 'Subscription mismatch' }, { status: 400 });
+    return jsonWithRequestId(request, { error: 'Subscription mismatch' }, { status: 400 });
   }
 
   if (payment.status !== 'captured' && payment.status !== 'authorized') {
-    return NextResponse.json(
+    return jsonWithRequestId(
+      request,
       { error: `Payment not completed (status: ${payment.status})` },
       { status: 400 },
     );
@@ -118,7 +119,11 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (pendErr || !pending) {
-    return NextResponse.json({ error: 'No pending subscription policy found' }, { status: 404 });
+    return jsonWithRequestId(
+      request,
+      { error: 'No pending subscription policy found' },
+      { status: 404 },
+    );
   }
 
   const expectedPaise = Math.round(Number(pending.weekly_premium_inr) * 100);
@@ -128,7 +133,7 @@ export async function POST(request: Request) {
       expected: expectedPaise,
       got: payment.amount,
     });
-    return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
+    return jsonWithRequestId(request, { error: 'Amount mismatch' }, { status: 400 });
   }
 
   const method = payment.method != null ? String(payment.method) : null;
@@ -152,11 +157,11 @@ export async function POST(request: Request) {
       error: rpcError.message,
       payment_id: razorpay_payment_id,
     });
-    return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    return jsonWithRequestId(request, { error: rpcError.message }, { status: 500 });
   }
 
   const status = Array.isArray(result) ? result[0] : result;
-  return NextResponse.json({
+  return jsonWithRequestId(request, {
     ok: true,
     alreadyProcessed: status === 'already_processed',
   });

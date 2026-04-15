@@ -483,7 +483,7 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
   let claim_created = false;
   let claim_accepted = false;
   let fraud_blocked = false;
-  let payout_initiated = false;
+  const payout_initiated = false;
 
   if (verified) {
     const today = toDateString(new Date());

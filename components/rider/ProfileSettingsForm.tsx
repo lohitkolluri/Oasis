@@ -1,9 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
-import { cn } from '@/lib/utils';
 import type { PlatformType } from '@/lib/types/database';
+import { cn } from '@/lib/utils';
 import {
   BadgeCheck,
   ChevronRight,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -85,7 +85,9 @@ function StatusPill({ ok, title }: { ok: boolean; title: string }) {
       )}
     >
       <span className="text-zinc-400">{title}</span>
-      <span className={ok ? 'text-uber-green' : 'text-zinc-600'}>{ok ? 'Verified' : 'Pending'}</span>
+      <span className={ok ? 'text-uber-green' : 'text-zinc-600'}>
+        {ok ? 'Verified' : 'Pending'}
+      </span>
     </span>
   );
 }
@@ -175,7 +177,9 @@ export function ProfileSettingsForm({
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 mb-1">
               Your profile
             </p>
-            <h2 className="text-[22px] font-bold text-white tracking-tight truncate">{displayName}</h2>
+            <h2 className="text-[22px] font-bold text-white tracking-tight truncate">
+              {displayName}
+            </h2>
             <p className="text-[14px] text-zinc-500 mt-1 truncate" title={email ?? undefined}>
               {email ?? 'No email on file'}
             </p>
@@ -205,7 +209,10 @@ export function ProfileSettingsForm({
         <Group>
           <div className="px-4 pt-4 pb-1 space-y-4">
             <div>
-              <label htmlFor="profile-full-name" className="text-[11px] font-medium text-zinc-500 block mb-2">
+              <label
+                htmlFor="profile-full-name"
+                className="text-[11px] font-medium text-zinc-500 block mb-2"
+              >
                 Full name
               </label>
               <input
@@ -218,7 +225,10 @@ export function ProfileSettingsForm({
               />
             </div>
             <div>
-              <label htmlFor="profile-phone" className="text-[11px] font-medium text-zinc-500 block mb-2">
+              <label
+                htmlFor="profile-phone"
+                className="text-[11px] font-medium text-zinc-500 block mb-2"
+              >
                 Phone
               </label>
               <input
@@ -233,7 +243,9 @@ export function ProfileSettingsForm({
               />
             </div>
             <div className="pb-2">
-              <span className="text-[11px] font-medium text-zinc-500 block mb-2">Delivery platform</span>
+              <span className="text-[11px] font-medium text-zinc-500 block mb-2">
+                Delivery platform
+              </span>
               <div className="grid grid-cols-2 gap-2">
                 {(['zepto', 'blinkit'] as const).map((p) => (
                   <button
@@ -282,7 +294,10 @@ export function ProfileSettingsForm({
                 </p>
                 <p className="text-[11px] text-zinc-600 mt-2 leading-relaxed">
                   Changes via{' '}
-                  <a href="mailto:support@oasisprotocol.in" className="text-uber-green hover:underline">
+                  <a
+                    href="mailto:lohitkolluri@gmail.com"
+                    className="text-uber-green hover:underline"
+                  >
                     support
                   </a>
                   .
@@ -347,7 +362,7 @@ export function ProfileSettingsForm({
             <ChevronRight className="h-5 w-5 text-zinc-600 shrink-0" />
           </Link>
           <a
-            href="mailto:support@oasisprotocol.in"
+            href="mailto:lohitkolluri@gmail.com"
             className="flex items-center gap-3 px-4 py-4 min-h-[56px] hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors"
           >
             <CircleHelp className="h-5 w-5 text-zinc-500 shrink-0" />

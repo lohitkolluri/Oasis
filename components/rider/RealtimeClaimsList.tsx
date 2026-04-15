@@ -10,10 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PARAMETRIC_RULE_VERSION } from '@/lib/config/constants';
 import { formatPolicyDateShort } from '@/lib/datetime/oasis-time';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Car, Cloud, MapPin, Megaphone } from 'lucide-react';
+import { Car, ChevronDown, ChevronUp, Cloud, MapPin, Megaphone } from 'lucide-react';
 import * as React from 'react';
 
 type DisruptionEvent = {
@@ -40,6 +41,13 @@ interface PolicyInfo {
   planName: string;
 }
 
+export type PayoutLedgerInfo = {
+  id: string;
+  mock_upi_ref: string | null;
+  completed_at: string | null;
+  amount_inr: number | null;
+};
+
 const typeLabels: Record<string, string> = {
   weather: 'Weather',
   traffic: 'Traffic',
@@ -63,10 +71,21 @@ function EventTypeIcon({ type }: { type: string }) {
 interface RealtimeClaimsListProps {
   claims: ClaimRow[];
   policyMap: Record<string, PolicyInfo>;
+  ledgerByClaimId?: Record<string, PayoutLedgerInfo>;
 }
 
-export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProps) {
+function shortId(id: string | null | undefined, len = 8) {
+  if (!id) return '—';
+  return id.length <= len ? id : `${id.slice(0, len)}…`;
+}
+
+export function RealtimeClaimsList({
+  claims,
+  policyMap,
+  ledgerByClaimId = {},
+}: RealtimeClaimsListProps) {
   const { claimStatusUpdates } = useRealtime();
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
   const resolveStatus = (claim: ClaimRow) => {
     const realtimeStatus = claimStatusUpdates.get(claim.id);
@@ -130,6 +149,9 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
               <TableHead className="text-zinc-500 font-medium text-right">Amount</TableHead>
               <TableHead className="text-zinc-500 font-medium whitespace-nowrap">Status</TableHead>
               <TableHead className="text-zinc-500 font-medium">Policy</TableHead>
+              <TableHead className="text-zinc-500 font-medium w-[100px] text-right">
+                Why paid?
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="[&_tr]:border-white/10">
@@ -202,11 +224,94 @@ export function RealtimeClaimsList({ claims, policyMap }: RealtimeClaimsListProp
                       <TableCell className="text-[12px] truncate max-w-[140px] font-medium text-zinc-500 py-3.5 whitespace-nowrap">
                         {policyLabel}
                       </TableCell>
+                      <TableCell className="text-right py-3.5 align-middle">
+                        {status === 'paid' && !claim.is_flagged ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedId((id) => (id === claim.id ? null : claim.id))
+                            }
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-400/90 hover:text-sky-300"
+                          >
+                            {expandedId === claim.id ? (
+                              <>
+                                Hide <ChevronUp className="h-3.5 w-3.5" />
+                              </>
+                            ) : (
+                              <>
+                                Explain <ChevronDown className="h-3.5 w-3.5" />
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-zinc-600 text-[11px]">—</span>
+                        )}
+                      </TableCell>
                     </motion.tr>
+                    {expandedId === claim.id && status === 'paid' && !claim.is_flagged && (
+                      <TableRow className="border-white/10 bg-white/[0.03] hover:bg-white/[0.03]">
+                        <TableCell colSpan={6} className="py-3 px-4 text-left align-top">
+                          <div className="max-w-xl space-y-2 text-[12px] leading-relaxed text-zinc-400">
+                            <p className="font-semibold text-zinc-200">Why this payout</p>
+                            <p>
+                              Oasis covers <strong className="text-zinc-300">loss of income</strong>{' '}
+                              when a verified disruption in your zone meets the parametric rules
+                              (weather, air quality, traffic, or zone restrictions). This is not
+                              health, accident, or vehicle insurance.
+                            </p>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px] text-zinc-500">
+                              <li>
+                                Active rule version:{' '}
+                                <span className="tabular-nums text-zinc-400">
+                                  {PARAMETRIC_RULE_VERSION}
+                                </span>
+                              </li>
+                              <li>
+                                Disruption event:{' '}
+                                <span className="font-mono text-[10px] text-zinc-400">
+                                  {shortId(claim.disruption_event_id)}
+                                </span>
+                              </li>
+                              {ledgerByClaimId[claim.id] && (
+                                <>
+                                  <li>
+                                    Ledger entry:{' '}
+                                    <span className="font-mono text-[10px] text-zinc-400">
+                                      {shortId(ledgerByClaimId[claim.id].id, 12)}
+                                    </span>
+                                  </li>
+                                  {ledgerByClaimId[claim.id].mock_upi_ref && (
+                                    <li>
+                                      Reference:{' '}
+                                      <span className="font-mono text-[10px] text-zinc-400 break-all">
+                                        {ledgerByClaimId[claim.id].mock_upi_ref}
+                                      </span>
+                                    </li>
+                                  )}
+                                  {ledgerByClaimId[claim.id].completed_at && (
+                                    <li>
+                                      Credited:{' '}
+                                      {new Date(
+                                        ledgerByClaimId[claim.id].completed_at!,
+                                      ).toLocaleString('en-IN', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </li>
+                                  )}
+                                </>
+                              )}
+                            </ul>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {claim.is_flagged && claim.flag_reason && (
                       <TableRow className="border-white/10 bg-[#ffc043]/5 hover:bg-[#ffc043]/8">
                         <TableCell
-                          colSpan={5}
+                          colSpan={6}
                           className="text-[11px] text-[#ffc043] py-2.5 px-4 font-medium"
                         >
                           Under review: {claim.flag_reason}. Re-verify your location from the

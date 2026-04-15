@@ -24,9 +24,9 @@ export function RegisterClient() {
     let cancelled = false;
     createClient()
       .auth.getSession()
-      .then((res: { data: { session: unknown } }) => {
+      .then((res) => {
         if (cancelled) return;
-        if (res.data.session) window.location.replace('/dashboard');
+        if (res?.data?.session) window.location.replace('/dashboard');
         else setCheckingSession(false);
       })
       .catch(() => setCheckingSession(false));

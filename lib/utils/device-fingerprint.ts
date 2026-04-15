@@ -12,7 +12,6 @@ export async function getDeviceFingerprint(): Promise<string> {
     nav.userAgent ?? '',
     nav.language ?? '',
     // `platform` is deprecated but still present in most browsers; safe for soft fingerprinting.
-    // eslint-disable-next-line deprecation/deprecation
     (nav as unknown as { platform?: string }).platform ?? '',
     String(nav.hardwareConcurrency ?? ''),
     String((window.screen?.width ?? '') + 'x' + (window.screen?.height ?? '')),

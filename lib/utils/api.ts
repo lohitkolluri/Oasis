@@ -4,8 +4,9 @@
  */
 
 import { RATE_LIMITS } from '@/lib/config/constants';
+import { getOrCreateRequestId, logger } from '@/lib/logger';
 import { getRateLimitStore } from '@/lib/utils/rate-limit-store';
-import { logger } from '@/lib/logger';
+import { jsonWithRequestId } from '@/lib/utils/request-response';
 import { NextResponse } from 'next/server';
 
 // ── Standardized API error ──────────────────────────────────────────────────
@@ -46,24 +47,40 @@ export function sanitizeErrorMessage(err: unknown, genericMessage: string): stri
 export function errorResponse(
   error: unknown,
   fallbackMessage = 'Internal server error',
-  meta?: { requestId?: string | null },
+  meta?: { requestId?: string | null; request?: Request },
 ) {
+  const request = meta?.request;
+  const requestId = request ? getOrCreateRequestId(request) : (meta?.requestId ?? null);
+
   if (error instanceof ApiError) {
     const safeMessage =
       process.env.NODE_ENV === 'production' && error.statusCode >= 500
         ? fallbackMessage
         : error.message;
-    return NextResponse.json(
-      { error: safeMessage, code: error.code },
-      { status: error.statusCode },
-    );
+    const payload: Record<string, unknown> = {
+      error: safeMessage,
+      ...(error.code ? { code: error.code } : {}),
+    };
+    if (request) {
+      return jsonWithRequestId(request, payload, { status: error.statusCode });
+    }
+    if (requestId) payload.requestId = requestId;
+    const headers = new Headers();
+    if (requestId) headers.set('x-request-id', requestId);
+    return NextResponse.json(payload, { status: error.statusCode, headers });
   }
   logger.error('API error', {
-    ...meta,
+    requestId: requestId ?? undefined,
     error: formatErrorDetail(error),
   });
   const clientMessage = sanitizeErrorMessage(error, fallbackMessage);
-  return NextResponse.json({ error: clientMessage }, { status: 500 });
+  if (request) {
+    return jsonWithRequestId(request, { error: clientMessage }, { status: 500 });
+  }
+  return NextResponse.json(
+    { error: clientMessage, ...(requestId ? { requestId } : {}) },
+    { status: 500, headers: requestId ? { 'x-request-id': requestId } : undefined },
+  );
 }
 
 // ── Rate limiter (async; uses in-memory or Supabase store) ───────────────────
@@ -79,7 +96,7 @@ export interface RateLimitOptions {
  */
 export async function checkRateLimit(
   key: string,
-  options?: Partial<RateLimitOptions>,
+  options?: Partial<RateLimitOptions> & { request?: Request },
 ): Promise<NextResponse | null> {
   const maxRequests = options?.maxRequests ?? RATE_LIMITS.DEFAULT_PER_MINUTE;
   const windowMs = options?.windowMs ?? 60_000;
@@ -90,12 +107,17 @@ export async function checkRateLimit(
   if (result.allowed) return null;
 
   const retryAfter = result.retryAfterSec ?? 60;
+  const request = options?.request;
+  const requestId = request ? getOrCreateRequestId(request) : null;
+  const headers = new Headers({ 'Retry-After': String(retryAfter) });
+  if (requestId) headers.set('x-request-id', requestId);
   return NextResponse.json(
-    { error: 'Too many requests', retryAfter },
     {
-      status: 429,
-      headers: { 'Retry-After': String(retryAfter) },
+      error: 'Too many requests',
+      retryAfter,
+      ...(requestId ? { requestId } : {}),
     },
+    { status: 429, headers },
   );
 }
 

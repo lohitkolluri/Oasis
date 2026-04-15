@@ -163,5 +163,5 @@ export function getVapidPrivateKey(): string | null {
  * VAPID subject (mailto: or https: URL). Identifies the sender to push services.
  */
 export function getVapidSubject(): string {
-  return optional('VAPID_SUBJECT', process.env.VAPID_SUBJECT) || 'mailto:support@oasisprotocol.in';
+  return optional('VAPID_SUBJECT', process.env.VAPID_SUBJECT) || 'mailto:lohitkolluri@gmail.com';
 }

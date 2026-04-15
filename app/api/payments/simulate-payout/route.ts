@@ -5,11 +5,11 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { simulatePayoutSchema } from '@/lib/validations/schemas';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
-import { parseWithSchema } from '@/lib/validations/parse';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
-import { NextResponse } from 'next/server';
+import { jsonWithRequestId } from '@/lib/utils/request-response';
+import { parseWithSchema } from '@/lib/validations/parse';
+import { simulatePayoutSchema } from '@/lib/validations/schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,12 +23,12 @@ export const dynamic = 'force-dynamic';
  */
 export const POST = withAdminAuth(async (_ctx, request) => {
   const limitKey = rateLimitKey(request, 'payout');
-  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20, request });
   if (rateLimited) return rateLimited;
 
   try {
     const body = await request.json();
-    const parsed = parseWithSchema(simulatePayoutSchema, body);
+    const parsed = parseWithSchema(simulatePayoutSchema, body, request);
     if (!parsed.success) return parsed.response;
     const { claim_id, profile_id, amount_inr, payout_method } = parsed.data;
 
@@ -42,7 +42,7 @@ export const POST = withAdminAuth(async (_ctx, request) => {
       .single();
 
     if (!claim) {
-      return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+      return jsonWithRequestId(request, { error: 'Claim not found' }, { status: 404 });
     }
 
     const { data: policy } = await admin
@@ -52,7 +52,8 @@ export const POST = withAdminAuth(async (_ctx, request) => {
       .single();
 
     if (!policy || policy.profile_id !== profile_id) {
-      return NextResponse.json(
+      return jsonWithRequestId(
+        request,
         { error: 'Claim does not belong to the provided profile' },
         { status: 400 },
       );
@@ -87,13 +88,14 @@ export const POST = withAdminAuth(async (_ctx, request) => {
       .single();
 
     if (payoutErr) {
-      return NextResponse.json(
+      return jsonWithRequestId(
+        request,
         { error: payoutErr.message ?? 'Failed to create payout' },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({
+    return jsonWithRequestId(request, {
       success: true,
       payout: {
         id: payout?.id,
@@ -107,6 +109,6 @@ export const POST = withAdminAuth(async (_ctx, request) => {
       message: `₹${amount_inr} instantly transferred to rider's wallet via UPI.`,
     });
   } catch (err) {
-    return errorResponse(err, 'Payout simulation failed');
+    return errorResponse(err, 'Payout simulation failed', { request });
   }
 });

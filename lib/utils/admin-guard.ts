@@ -4,12 +4,12 @@
  */
 
 import { RATE_LIMITS } from '@/lib/config/constants';
-import { createClient } from '@/lib/supabase/server';
+import { getOrCreateRequestId, logger } from '@/lib/logger';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitKey, sanitizeErrorMessage } from '@/lib/utils/api';
 import { isAdmin } from '@/lib/utils/auth';
-import { getOrCreateRequestId } from '@/lib/logger';
-import { logger } from '@/lib/logger';
+import { jsonWithRequestId } from '@/lib/utils/request-response';
 import { NextResponse } from 'next/server';
 
 interface AdminContext {
@@ -31,6 +31,7 @@ export function withAdminAuth(
     const limitKey = rateLimitKey(request, 'admin');
     const rateLimited = await checkRateLimit(limitKey, {
       maxRequests: RATE_LIMITS.ADMIN_PER_MINUTE,
+      request,
     });
     if (rateLimited) return rateLimited;
 
@@ -42,10 +43,7 @@ export function withAdminAuth(
         requestId: getOrCreateRequestId(request),
         error: err instanceof Error ? err.message : String(err),
       });
-      return NextResponse.json(
-        { error: 'Service unavailable' },
-        { status: 503 },
-      );
+      return jsonWithRequestId(request, { error: 'Service unavailable' }, { status: 503 });
     }
 
     const {
@@ -53,7 +51,7 @@ export function withAdminAuth(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return jsonWithRequestId(request, { error: 'Unauthorized' }, { status: 401 });
     }
 
     const { data: profile } = await supabase
@@ -63,7 +61,7 @@ export function withAdminAuth(
       .single();
 
     if (!isAdmin(user, profile)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return jsonWithRequestId(request, { error: 'Forbidden' }, { status: 403 });
     }
 
     try {
@@ -75,7 +73,8 @@ export function withAdminAuth(
         requestId,
         error: err instanceof Error ? err.message : String(err),
       });
-      return NextResponse.json(
+      return jsonWithRequestId(
+        request,
         { error: sanitizeErrorMessage(err, 'Internal server error') },
         { status: 500 },
       );

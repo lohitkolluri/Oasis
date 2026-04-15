@@ -23,7 +23,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { isMobileForGps } from '@/lib/utils/device';
 import { isWithinCircle } from '@/lib/utils/geo';
-import { NextResponse } from 'next/server';
+import { jsonWithRequestId } from '@/lib/utils/request-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +33,7 @@ const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function POST(request: Request) {
   const limitKey = rateLimitKey(request, 'verify-location');
-  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 30 });
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 30, request });
   if (rateLimited) return rateLimited;
 
   const supabase = await createClient();
@@ -42,12 +42,13 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return jsonWithRequestId(request, { error: 'Unauthorized' }, { status: 401 });
   }
 
   const userAgent = request.headers.get('user-agent') ?? '';
   if (!isMobileForGps(userAgent)) {
-    return NextResponse.json(
+    return jsonWithRequestId(
+      request,
       { error: 'Use a mobile device for precise location verification.' },
       { status: 403 },
     );
@@ -137,13 +138,17 @@ export async function POST(request: Request) {
   }
 
   if (!claimId || lat == null || !Number.isFinite(lat) || lng == null || !Number.isFinite(lng)) {
-    return NextResponse.json({ error: 'Missing or invalid claim_id, lat, lng' }, { status: 400 });
+    return jsonWithRequestId(
+      request,
+      { error: 'Missing or invalid claim_id, lat, lng' },
+      { status: 400 },
+    );
   }
 
   // GPS accuracy validation: reject readings >100m (likely spoofed)
   const gpsCheck = checkGpsAccuracy(gpsAccuracy);
   if (gpsCheck.isFlagged) {
-    return NextResponse.json({ error: gpsCheck.reason, flagged: true }, { status: 400 });
+    return jsonWithRequestId(request, { error: gpsCheck.reason, flagged: true }, { status: 400 });
   }
 
   const { data: claim } = await supabase
@@ -153,11 +158,11 @@ export async function POST(request: Request) {
     .single();
 
   if (!claim) {
-    return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+    return jsonWithRequestId(request, { error: 'Claim not found' }, { status: 404 });
   }
 
   if (claim.status === 'paid') {
-    return NextResponse.json({
+    return jsonWithRequestId(request, {
       verified: true,
       status: 'already_paid',
       payout_initiated: false,
@@ -168,7 +173,8 @@ export async function POST(request: Request) {
   // Reject verifications submitted outside the allowed window (48h)
   const claimAge = (Date.now() - new Date(claim.created_at).getTime()) / (1000 * 60 * 60);
   if (claimAge > FRAUD.VERIFY_WINDOW_HOURS) {
-    return NextResponse.json(
+    return jsonWithRequestId(
+      request,
       { error: `Verification window expired (${FRAUD.VERIFY_WINDOW_HOURS}h after claim creation)` },
       { status: 410 },
     );
@@ -182,13 +188,17 @@ export async function POST(request: Request) {
     .single();
 
   if (!policy || policy.profile_id !== user.id) {
-    return NextResponse.json({ error: 'Not your claim' }, { status: 403 });
+    return jsonWithRequestId(request, { error: 'Not your claim' }, { status: 403 });
   }
 
   // Impossible travel check: flag if verified at distant location too recently
   const travelCheck = await checkImpossibleTravel(supabase, user.id, lat, lng);
   if (travelCheck.isFlagged) {
-    return NextResponse.json({ error: travelCheck.reason, flagged: true }, { status: 400 });
+    return jsonWithRequestId(
+      request,
+      { error: travelCheck.reason, flagged: true },
+      { status: 400 },
+    );
   }
 
   // Device integrity / sensor plausibility checks (optional but high-signal when present).
@@ -270,7 +280,7 @@ export async function POST(request: Request) {
   );
 
   if (insertErr) {
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    return jsonWithRequestId(request, { error: insertErr.message }, { status: 500 });
   }
 
   const admin = createAdminClient();
@@ -316,7 +326,7 @@ export async function POST(request: Request) {
       facts: deviceCheck.facts,
     });
 
-    return NextResponse.json({
+    return jsonWithRequestId(request, {
       verified: true,
       status,
       payout_initiated: false,
@@ -363,7 +373,7 @@ export async function POST(request: Request) {
         facts: { flag_reason: freshClaim.flag_reason },
       });
 
-      return NextResponse.json({
+      return jsonWithRequestId(request, {
         verified: true,
         status,
         payout_initiated: false,
@@ -401,7 +411,7 @@ export async function POST(request: Request) {
         facts: destinationCheck.facts,
       });
 
-      return NextResponse.json({
+      return jsonWithRequestId(request, {
         verified: true,
         status,
         payout_initiated: false,
@@ -431,7 +441,7 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({
+  return jsonWithRequestId(request, {
     verified: true,
     status,
     payout_initiated: payoutInitiated,

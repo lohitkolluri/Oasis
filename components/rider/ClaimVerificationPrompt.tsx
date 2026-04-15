@@ -4,7 +4,7 @@ import { isMobileForGps } from '@/lib/utils/device';
 import { getDeviceFingerprint } from '@/lib/utils/device-fingerprint';
 import { AlertCircle, CheckCircle, Loader2, MapPin, Smartphone } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ClaimVerificationPromptProps {
   claimId: string;
@@ -198,6 +198,30 @@ export function ClaimVerificationPrompt({
     }
   };
 
+  const fileInputId = `claim-verify-proof-${claimId}`;
+  const isMobile = typeof navigator !== 'undefined' ? isMobileForGps(navigator.userAgent) : true;
+
+  const handleVerifyRef = useRef(handleVerify);
+  handleVerifyRef.current = handleVerify;
+
+  useEffect(() => {
+    if (!isMobile || loading || done || verifiedOutside || autoAttempted) return;
+
+    // Try once automatically when the rider opens the dashboard with a pending claim.
+    const storageKey = `oasis-auto-verify:${claimId}`;
+    if (typeof window !== 'undefined' && window.sessionStorage.getItem(storageKey) === '1') {
+      setAutoAttempted(true);
+      return;
+    }
+
+    setAutoAttempted(true);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(storageKey, '1');
+    }
+
+    void handleVerifyRef.current();
+  }, [autoAttempted, claimId, done, isMobile, loading, verifiedOutside]);
+
   if (done) {
     return (
       <div className="flex items-center gap-2 text-uber-green text-sm">
@@ -237,27 +261,6 @@ export function ClaimVerificationPrompt({
       </div>
     );
   }
-
-  const fileInputId = `claim-verify-proof-${claimId}`;
-  const isMobile = typeof navigator !== 'undefined' ? isMobileForGps(navigator.userAgent) : true;
-
-  useEffect(() => {
-    if (!isMobile || loading || done || verifiedOutside || autoAttempted) return;
-
-    // Try once automatically when the rider opens the dashboard with a pending claim.
-    const storageKey = `oasis-auto-verify:${claimId}`;
-    if (typeof window !== 'undefined' && window.sessionStorage.getItem(storageKey) === '1') {
-      setAutoAttempted(true);
-      return;
-    }
-
-    setAutoAttempted(true);
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(storageKey, '1');
-    }
-
-    handleVerify();
-  }, [autoAttempted, claimId, done, isMobile, loading, verifiedOutside]);
 
   return (
     <div className="rounded-xl border border-uber-yellow/30 bg-uber-yellow/5 p-3 space-y-2">

@@ -11,7 +11,7 @@ export async function updateSession(request: NextRequest) {
   const requestId =
     request.headers.get('x-request-id') ?? crypto.randomUUID();
 
-  let supabaseResponse = NextResponse.next({ request });
+  const supabaseResponse = NextResponse.next({ request });
   supabaseResponse.headers.set('x-request-id', requestId);
 
   try {

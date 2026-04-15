@@ -4,6 +4,7 @@
  * Use as <img src="..."> so the browser displays a valid image.
  */
 import { getGovIdEncryptionKey } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
 import crypto from 'crypto';
@@ -73,7 +74,11 @@ export const GET = withAdminAuth(async (_ctx, request) => {
         buffer = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
       }
     } catch (e) {
-      void e;
+      logger.error('Gov ID decrypt error', {
+        error: e instanceof Error ? e.message : String(e),
+        rider_id: id,
+        path,
+      });
       return NextResponse.json({ error: 'Failed to decrypt government ID' }, { status: 500 });
     }
   }

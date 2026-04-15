@@ -29,6 +29,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
+    if (!cronSecret.trim()) {
+      return jsonResponse({ error: 'CRON_SECRET is not configured' }, 503);
+    }
     const endpoint = new URL('/api/admin/run-adjudicator', appUrl).toString();
     const res = await fetch(endpoint, {
       method: 'POST',

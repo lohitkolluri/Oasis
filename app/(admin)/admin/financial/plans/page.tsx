@@ -542,7 +542,7 @@ export default async function PlansPage() {
     // Render a short forward forecast window (next N weeks) so it's clearly "future",
     // not just a single point that can look like the current price.
     const FORECAST_WEEKS = 4;
-    let carry = new Map<PlanTierKey, number>();
+    const carry = new Map<PlanTierKey, number>();
     for (const t of forecastTiers) {
       const v = predictedByTier.get(t.key);
       if (v != null) carry.set(t.key, v);

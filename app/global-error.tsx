@@ -11,7 +11,6 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     if (typeof window !== 'undefined' && error) {
-      // eslint-disable-next-line no-console
       console.error('[Global Error]', error);
     }
   }, [error]);

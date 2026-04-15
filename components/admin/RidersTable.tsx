@@ -92,7 +92,7 @@ export function RidersTable({ profiles }: RidersTableProps) {
       }
       return true;
     });
-  }, [profiles, platformFilter, query]);
+  }, [profiles, platformFilter, query, roleFilter]);
 
   const totalCount = profiles.length;
   const visibleCount = filtered.length;

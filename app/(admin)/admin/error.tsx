@@ -12,7 +12,6 @@ export default function AdminError({
 }) {
   useEffect(() => {
     if (typeof window !== 'undefined' && error) {
-      // eslint-disable-next-line no-console
       console.error('[Admin Error]', error);
     }
   }, [error]);
