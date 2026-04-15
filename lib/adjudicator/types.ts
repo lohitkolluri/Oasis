@@ -41,6 +41,15 @@ export interface DemoTriggerOptions {
   riderId?: string;
 }
 
+/** Options for `runAdjudicator` when not using the legacy positional demo payload. */
+export interface RunAdjudicatorCallOptions {
+  demoTrigger: DemoTriggerOptions;
+  /** Skip `system_logs` row (batch runner logs one aggregate). */
+  suppressSystemLog?: boolean;
+  /** Merged into `system_logs.metadata` for demo analytics. */
+  demoLogExtras?: Record<string, unknown>;
+}
+
 export interface TriggerCandidate {
   type: 'weather' | 'traffic' | 'social';
   subtype: string;

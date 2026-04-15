@@ -26,7 +26,7 @@ export const POST = withAdminAuth(async (_ctx, request) => {
 
   const parsed = parseWithSchema(demoTriggerSchema, body);
   if (!parsed.success) return parsed.response;
-  const { eventSubtype, lat, lng, radiusKm, severity, riderId } = parsed.data;
+  const { eventSubtype, lat, lng, radiusKm, severity, riderId, runLabel } = parsed.data;
 
   const demoOptions: DemoTriggerOptions = {
     eventSubtype,
@@ -38,7 +38,12 @@ export const POST = withAdminAuth(async (_ctx, request) => {
   };
 
   try {
-    const result = await runAdjudicator(demoOptions);
+    const result = runLabel
+      ? await runAdjudicator({
+          demoTrigger: demoOptions,
+          demoLogExtras: { demo_run_label: runLabel },
+        })
+      : await runAdjudicator(demoOptions);
     return NextResponse.json({ ok: true, demo: true, ...result });
   } catch (err) {
     logger.error("Demo trigger failed", {

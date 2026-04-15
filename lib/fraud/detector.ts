@@ -4,6 +4,11 @@
  */
 
 import { FRAUD } from '@/lib/config/constants';
+import {
+  aggregateExtendedFraudRisk,
+  computeClusterBurstThreshold,
+  persistClaimFraudRisk,
+} from '@/lib/fraud/risk-score';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface FraudCheckResult {
@@ -228,7 +233,7 @@ async function checkDeviceFingerprint(
   supabase: SupabaseClient,
   deviceFingerprint: string,
 ): Promise<FraudCheckResult> {
-  if (!deviceFingerprint) return { isFlagged: false };
+  if (!deviceFingerprint) return { isFlagged: false, checkName: 'device_fingerprint' };
 
   const oneHourAgo = new Date(
     Date.now() - FRAUD.DEVICE_FINGERPRINT_WINDOW_HOURS * 60 * 60 * 1000,
@@ -240,7 +245,9 @@ async function checkDeviceFingerprint(
     .eq('device_fingerprint', deviceFingerprint)
     .gte('created_at', oneHourAgo);
 
-  if (!data || data.length < 2) return { isFlagged: false };
+  if (!data || data.length < 2) {
+    return { isFlagged: false, checkName: 'device_fingerprint' };
+  }
 
   const eventIds = [
     ...new Set((data as Array<{ disruption_event_id: string }>).map((c) => c.disruption_event_id)),
@@ -251,7 +258,9 @@ async function checkDeviceFingerprint(
     .select('geofence_polygon')
     .in('id', eventIds);
 
-  if (!events || events.length < 2) return { isFlagged: false };
+  if (!events || events.length < 2) {
+    return { isFlagged: false, checkName: 'device_fingerprint' };
+  }
 
   const points = (events as Array<{ geofence_polygon: unknown }>)
     .map((e) => {
@@ -260,7 +269,9 @@ async function checkDeviceFingerprint(
     })
     .filter((p): p is { lat: number; lng: number } => p.lat != null && p.lng != null);
 
-  if (points.length < 2) return { isFlagged: false };
+  if (points.length < 2) {
+    return { isFlagged: false, checkName: 'device_fingerprint' };
+  }
 
   let maxDist = 0;
   for (let i = 0; i < points.length; i++) {
@@ -280,12 +291,47 @@ async function checkDeviceFingerprint(
     };
   }
 
-  return { isFlagged: false };
+  return { isFlagged: false, checkName: 'device_fingerprint' };
+}
+
+/** Row shape from `zone_baseline_stats` for normalized burst / baseline checks. */
+export type ZoneBaselineSnapshot = {
+  event_id: string;
+  total_claims: number | null;
+  rolling_avg_claims: number | null;
+};
+
+async function fetchZoneBaselineSnapshot(
+  supabase: SupabaseClient,
+  disruptionEventId: string,
+): Promise<ZoneBaselineSnapshot | null> {
+  try {
+    const { data } = await supabase
+      .from('zone_baseline_stats')
+      .select('event_id, total_claims, rolling_avg_claims')
+      .eq('event_id', disruptionEventId)
+      .maybeSingle();
+
+    if (!data) return null;
+    const row = data as {
+      event_id: string;
+      total_claims: number | null;
+      rolling_avg_claims: number | null;
+    };
+    return {
+      event_id: row.event_id,
+      total_claims: row.total_claims != null ? Number(row.total_claims) : null,
+      rolling_avg_claims: row.rolling_avg_claims != null ? Number(row.rolling_avg_claims) : null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function checkClusterAnomaly(
   supabase: SupabaseClient,
   disruptionEventId: string,
+  baseline: ZoneBaselineSnapshot | null,
 ): Promise<FraudCheckResult> {
   const windowAgo = new Date(
     Date.now() - FRAUD.CLUSTER_ANOMALY_WINDOW_MIN * 60 * 1000,
@@ -297,39 +343,79 @@ async function checkClusterAnomaly(
     .eq('disruption_event_id', disruptionEventId)
     .gte('created_at', windowAgo);
 
-  if ((count ?? 0) >= FRAUD.CLUSTER_ANOMALY_MIN_CLAIMS) {
+  const rolling =
+    baseline?.rolling_avg_claims != null && Number.isFinite(baseline.rolling_avg_claims)
+      ? Number(baseline.rolling_avg_claims)
+      : null;
+  const threshold = computeClusterBurstThreshold(rolling);
+  const n = count ?? 0;
+  const isFlagged = n >= threshold;
+
+  const facts = {
+    count: n,
+    window_minutes: FRAUD.CLUSTER_ANOMALY_WINDOW_MIN,
+    threshold,
+    rolling_avg_claims: rolling,
+  };
+
+  if (isFlagged) {
     return {
       isFlagged: true,
-      reason: `Cluster anomaly: ${count} claims in <${FRAUD.CLUSTER_ANOMALY_WINDOW_MIN} min for same event`,
+      reason: `Cluster anomaly: ${n} claims in <${FRAUD.CLUSTER_ANOMALY_WINDOW_MIN} min (threshold ${threshold})`,
       checkName: 'cluster_anomaly',
-      facts: {
-        count: count ?? 0,
-        window_minutes: FRAUD.CLUSTER_ANOMALY_WINDOW_MIN,
-        threshold: FRAUD.CLUSTER_ANOMALY_MIN_CLAIMS,
-      },
+      facts,
     };
   }
 
-  return { isFlagged: false };
+  return { isFlagged: false, checkName: 'cluster_anomaly', facts };
 }
 
 async function checkHistoricalBaseline(
   supabase: SupabaseClient,
   disruptionEventId: string,
+  baseline: ZoneBaselineSnapshot | null,
 ): Promise<FraudCheckResult> {
   try {
-    const { data } = await supabase
-      .from('zone_baseline_stats')
-      .select('total_claims, rolling_avg_claims')
-      .eq('event_id', disruptionEventId)
-      .single();
+    let row: { total_claims?: unknown; rolling_avg_claims?: unknown } | null = baseline
+      ? { total_claims: baseline.total_claims, rolling_avg_claims: baseline.rolling_avg_claims }
+      : null;
 
-    if (!data) return { isFlagged: false };
+    if (!row) {
+      const { data } = await supabase
+        .from('zone_baseline_stats')
+        .select('total_claims, rolling_avg_claims')
+        .eq('event_id', disruptionEventId)
+        .maybeSingle();
+      row = data ?? null;
+    }
 
-    const avg = Number(data.rolling_avg_claims);
-    const current = Number(data.total_claims);
+    if (!row) {
+      return {
+        isFlagged: false,
+        checkName: 'historical_baseline',
+        facts: { note: 'no_baseline_row' },
+      };
+    }
 
-    if (avg > 0 && current > avg * FRAUD.HISTORICAL_BASELINE_MULTIPLIER) {
+    const avg = row.rolling_avg_claims != null ? Number(row.rolling_avg_claims) : NaN;
+    const current = Number(row.total_claims ?? 0);
+
+    if (!Number.isFinite(avg) || avg <= 0) {
+      return {
+        isFlagged: false,
+        checkName: 'historical_baseline',
+        facts: {
+          current_claims: current,
+          rolling_unavailable: true,
+        },
+      };
+    }
+
+    if (
+      avg > 0 &&
+      current > avg * FRAUD.HISTORICAL_BASELINE_MULTIPLIER &&
+      current >= avg + FRAUD.HISTORICAL_BASELINE_MIN_DELTA
+    ) {
       return {
         isFlagged: true,
         reason: `Historical baseline: ${current} claims vs. ${avg.toFixed(1)} avg (${((current / avg) * 100).toFixed(0)}% above baseline)`,
@@ -338,14 +424,23 @@ async function checkHistoricalBaseline(
           current_claims: current,
           rolling_avg_claims: avg,
           multiplier: FRAUD.HISTORICAL_BASELINE_MULTIPLIER,
+          min_delta: FRAUD.HISTORICAL_BASELINE_MIN_DELTA,
         },
       };
     }
-  } catch {
-    // View may not exist or no historical data yet
-  }
 
-  return { isFlagged: false };
+    return {
+      isFlagged: false,
+      checkName: 'historical_baseline',
+      facts: {
+        current_claims: current,
+        rolling_avg_claims: avg,
+        multiplier: FRAUD.HISTORICAL_BASELINE_MULTIPLIER,
+      },
+    };
+  } catch {
+    return { isFlagged: false, checkName: 'historical_baseline', facts: { error: 'query_failed' } };
+  }
 }
 
 async function checkCrossProfileVelocity(
@@ -361,7 +456,9 @@ async function checkCrossProfileVelocity(
       .eq('id', profileId)
       .single();
 
-    if (!profile?.phone_number) return { isFlagged: false };
+    if (!profile?.phone_number) {
+      return { isFlagged: false, checkName: 'cross_profile_velocity' };
+    }
 
     // Find other profiles with the same phone
     const { data: samePhoneProfiles } = await supabase
@@ -371,7 +468,7 @@ async function checkCrossProfileVelocity(
       .neq('id', profileId);
 
     if (!samePhoneProfiles || samePhoneProfiles.length === 0) {
-      return { isFlagged: false };
+      return { isFlagged: false, checkName: 'cross_profile_velocity' };
     }
 
     // Check if any of those profiles already claimed for this event
@@ -383,7 +480,7 @@ async function checkCrossProfileVelocity(
       .eq('is_active', true);
 
     if (!otherPolicies || otherPolicies.length === 0) {
-      return { isFlagged: false };
+      return { isFlagged: false, checkName: 'cross_profile_velocity' };
     }
 
     const otherPolicyIds = otherPolicies.map((p) => p.id);
@@ -404,7 +501,7 @@ async function checkCrossProfileVelocity(
     // Gracefully degrade
   }
 
-  return { isFlagged: false };
+  return { isFlagged: false, checkName: 'cross_profile_velocity' };
 }
 
 /**
@@ -428,7 +525,9 @@ export async function checkPayoutDestinationAnomaly(
 
     const routingId =
       (p as { payment_routing_id?: string | null } | null)?.payment_routing_id ?? null;
-    if (!routingId) return { isFlagged: false };
+    if (!routingId) {
+      return { isFlagged: false, checkName: 'payout_destination_anomaly' };
+    }
 
     const { data: peers } = await supabase
       .from('profiles')
@@ -438,34 +537,70 @@ export async function checkPayoutDestinationAnomaly(
 
     const peerIds = (peers ?? []).map((row) => (row as { id: string }).id).filter(Boolean);
     const distinctProfiles = new Set(peerIds);
+    const linked = distinctProfiles.size;
 
-    // If more than one profile shares a payout destination, treat as suspicious enough to hold.
-    if (distinctProfiles.size >= 2) {
-      // Also compute recent payout velocity for the destination for explainability.
-      const windowHours = 24;
-      const windowStart = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
-      const { count } = await supabase
-        .from('payout_ledger')
-        .select('id', { count: 'exact', head: true })
-        .in('profile_id', [...distinctProfiles])
-        .gte('initiated_at', windowStart);
+    const windowHours = 24;
+    const windowStart = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from('payout_ledger')
+      .select('id', { count: 'exact', head: true })
+      .in('profile_id', [...distinctProfiles])
+      .gte('initiated_at', windowStart);
 
+    const payout24 = count ?? 0;
+
+    if (linked < 2) {
+      return {
+        isFlagged: false,
+        checkName: 'payout_destination_anomaly',
+        facts: { linked_profiles: linked, payout_count_last_24h: payout24 },
+      };
+    }
+
+    if (linked >= FRAUD.PAYOUT_DEST_FLAG_MIN_PROFILES) {
       return {
         isFlagged: true,
         checkName: 'payout_destination_anomaly',
-        reason: 'Payout destination anomaly: multiple riders linked to the same payout destination',
+        reason:
+          'Payout destination anomaly: several riders share the same payout destination — manual review',
         facts: {
           payment_routing_id: routingId,
-          linked_profiles: distinctProfiles.size,
-          payout_count_last_24h: count ?? 0,
+          linked_profiles: linked,
+          payout_count_last_24h: payout24,
         },
       };
     }
+
+    // Exactly two profiles: hold only if payout velocity suggests stacking or farmed accounts.
+    if (payout24 >= FRAUD.PAYOUT_DEST_2PARTY_MIN_PAYOUTS_24H) {
+      return {
+        isFlagged: true,
+        checkName: 'payout_destination_anomaly',
+        reason:
+          'Payout destination anomaly: shared destination with elevated payout velocity in 24h',
+        facts: {
+          payment_routing_id: routingId,
+          linked_profiles: linked,
+          payout_count_last_24h: payout24,
+        },
+      };
+    }
+
+    return {
+      isFlagged: false,
+      checkName: 'payout_destination_anomaly',
+      facts: {
+        soft_duplicate_destination: true,
+        payment_routing_id: routingId,
+        linked_profiles: linked,
+        payout_count_last_24h: payout24,
+      },
+    };
   } catch {
     // Gracefully degrade (missing columns / RLS / table)
   }
 
-  return { isFlagged: false };
+  return { isFlagged: false, checkName: 'payout_destination_anomaly' };
 }
 
 async function flagClaimAsFraud(
@@ -686,9 +821,11 @@ export async function runExtendedFraudChecks(
   deviceFingerprint?: string,
   profileId?: string,
 ): Promise<FraudCheckResult> {
+  const baseline = await fetchZoneBaselineSnapshot(supabase, disruptionEventId);
+
   const checks: Promise<FraudCheckResult>[] = [
-    checkClusterAnomaly(supabase, disruptionEventId),
-    checkHistoricalBaseline(supabase, disruptionEventId),
+    checkClusterAnomaly(supabase, disruptionEventId, baseline),
+    checkHistoricalBaseline(supabase, disruptionEventId, baseline),
   ];
 
   if (deviceFingerprint) {
@@ -700,6 +837,9 @@ export async function runExtendedFraudChecks(
   }
 
   const results = await Promise.all(checks);
+  const aggregated = aggregateExtendedFraudRisk(results);
+  await persistClaimFraudRisk(supabase, claimId, aggregated);
+
   const flagged = results.find((r) => r.isFlagged);
 
   if (flagged) {

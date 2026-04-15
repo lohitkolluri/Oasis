@@ -1,7 +1,7 @@
 'use client';
 
-import { CopyableId } from '@/components/ui/CopyableId';
 import { Button } from '@/components/ui/Button';
+import { CopyableId } from '@/components/ui/CopyableId';
 import {
   Table,
   TableBody,
@@ -27,6 +27,8 @@ interface Claim {
   payout_amount_inr: number;
   is_flagged: boolean;
   flag_reason: string | null;
+  fraud_risk_score?: number | null;
+  fraud_risk_tier?: string | null;
   created_at: string;
   admin_review_status?: string | null;
   reviewed_by?: string | null;
@@ -35,14 +37,12 @@ interface Claim {
 
 function weeklyPolicyRow(wp: Claim['weekly_policies']): WeeklyPolicyEmbed | null {
   if (!wp) return null;
-  return Array.isArray(wp) ? wp[0] ?? null : wp;
+  return Array.isArray(wp) ? (wp[0] ?? null) : wp;
 }
 
 function payoutCapInr(wp: WeeklyPolicyEmbed | null): number | null {
   if (!wp?.plan_packages) return null;
-  const pkg = Array.isArray(wp.plan_packages)
-    ? wp.plan_packages[0]
-    : wp.plan_packages;
+  const pkg = Array.isArray(wp.plan_packages) ? wp.plan_packages[0] : wp.plan_packages;
   if (pkg?.payout_per_claim_inr == null) return null;
   return Number(pkg.payout_per_claim_inr);
 }
@@ -68,6 +68,41 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function RiskCell({
+  score,
+  tier,
+}: {
+  score: number | null | undefined;
+  tier: string | null | undefined;
+}) {
+  if (score == null && !tier) {
+    return <span className="text-zinc-600">—</span>;
+  }
+  const t = (tier || '—').toLowerCase();
+  const styles =
+    t === 'high'
+      ? 'border-red-500/30 bg-red-500/10 text-red-300'
+      : t === 'elevated'
+        ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+        : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300';
+
+  return (
+    <div className="flex flex-col gap-0.5 items-start">
+      <span
+        className={cn(
+          'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize',
+          styles,
+        )}
+      >
+        {tier || 'scored'}
+      </span>
+      {score != null ? (
+        <span className="text-[10px] tabular-nums text-zinc-500">{score}/100</span>
+      ) : null}
+    </div>
+  );
+}
+
 function AmountCell({ claim }: { claim: Claim }) {
   const payout = Number(claim.payout_amount_inr);
   const wp = weeklyPolicyRow(claim.weekly_policies);
@@ -83,9 +118,7 @@ function AmountCell({ claim }: { claim: Claim }) {
     );
   }
 
-  return (
-    <div className="font-semibold tabular-nums text-[#666]">₹0</div>
-  );
+  return <div className="font-semibold tabular-nums text-[#666]">₹0</div>;
 }
 
 function ActionButtons({
@@ -177,11 +210,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
 
   function handleReviewed(id: string, action: 'approved' | 'rejected') {
     setInteractedIds((prev) => new Set(prev).add(id));
-    setClaims((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, admin_review_status: action } : c,
-      ),
-    );
+    setClaims((prev) => prev.map((c) => (c.id === id ? { ...c, admin_review_status: action } : c)));
   }
 
   const filteredClaims = useMemo(() => {
@@ -202,10 +231,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
   const totalPages = Math.max(1, Math.ceil(visibleCount / pageSize));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
-  const paginated = filteredClaims.slice(
-    startIndex,
-    startIndex + pageSize,
-  );
+  const paginated = filteredClaims.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="flex flex-col gap-3">
@@ -217,10 +243,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
             <span className="font-semibold text-[#e5e7eb]">
               {visibleCount === 0
                 ? 0
-                : `${startIndex + 1}–${Math.min(
-                    startIndex + pageSize,
-                    visibleCount,
-                  )}`}
+                : `${startIndex + 1}–${Math.min(startIndex + pageSize, visibleCount)}`}
             </span>{' '}
             of <span className="tabular-nums">{totalCount}</span> claims
           </p>
@@ -245,11 +268,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                     'bg-[#161616] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.10)] hover:bg-[#161616]',
                 )}
               >
-                {f === 'all'
-                  ? 'All statuses'
-                  : f === 'pending'
-                    ? 'Pending'
-                    : 'Reviewed'}
+                {f === 'all' ? 'All statuses' : f === 'pending' ? 'Pending' : 'Reviewed'}
               </Button>
             ))}
           </div>
@@ -259,12 +278,8 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
       <div className="border-t border-[#2d2d2d]">
         {visibleCount === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-5">
-            <p className="text-sm font-medium text-[#555]">
-              No claims match the current filter
-            </p>
-            <p className="text-xs text-[#444] mt-1">
-              Try a different status filter.
-            </p>
+            <p className="text-sm font-medium text-[#555]">No claims match the current filter</p>
+            <p className="text-xs text-[#444] mt-1">Try a different status filter.</p>
           </div>
         ) : (
           <>
@@ -272,6 +287,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-[#2d2d2d]">
                   <TableHead className="w-[min(200px,22%)]">Status</TableHead>
+                  <TableHead className="w-[100px]">Risk</TableHead>
                   <TableHead className="w-[110px] text-right">Amount</TableHead>
                   <TableHead className="w-[140px]">Rider</TableHead>
                   <TableHead className="w-[140px]">Policy</TableHead>
@@ -287,9 +303,10 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                   return (
                     <TableRow key={c.id} className="border-[#2d2d2d]">
                       <TableCell>
-                        <StatusBadge
-                          status={c.admin_review_status || 'pending'}
-                        />
+                        <StatusBadge status={c.admin_review_status || 'pending'} />
+                      </TableCell>
+                      <TableCell>
+                        <RiskCell score={c.fraud_risk_score} tier={c.fraud_risk_tier} />
                       </TableCell>
                       <TableCell className="text-right">
                         <AmountCell claim={c} />
@@ -392,9 +409,7 @@ export function FraudList({ claims: initialClaims }: { claims: Claim[] }) {
                     aria-label="Next page"
                     title="Next page"
                     disabled={currentPage === totalPages}
-                    onClick={() =>
-                      setPage((p) => Math.min(totalPages, p + 1))
-                    }
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     className={cn(
                       'size-8 p-0 !rounded-full border border-white/20 bg-transparent text-white',
                       'hover:bg-white hover:text-black hover:border-white',

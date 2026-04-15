@@ -18,6 +18,7 @@ import {
   runExtendedFraudChecks,
 } from '@/lib/fraud/detector';
 import { createAutomatedHold } from '@/lib/fraud/holds';
+import { mergePayoutSoftRiskIntoClaim } from '@/lib/fraud/risk-score';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
@@ -419,6 +420,18 @@ export async function POST(request: Request) {
         hold_reason: destinationCheck.reason ?? 'Payout held for manual review',
         message: `Verification received. Payout on hold: ${destinationCheck.reason ?? 'manual review required'}.`,
       });
+    }
+
+    const softDest = Boolean(
+      (destinationCheck.facts as { soft_duplicate_destination?: boolean } | undefined)
+        ?.soft_duplicate_destination,
+    );
+    if (softDest && destinationCheck.facts) {
+      await mergePayoutSoftRiskIntoClaim(
+        admin,
+        claimId,
+        destinationCheck.facts as Record<string, unknown>,
+      );
     }
 
     const { data: updatedRows, error: updateErr } = await admin

@@ -3,9 +3,10 @@
  * Client opens Checkout with subscription_id (not order_id).
  */
 import { getRazorpayInstance } from '@/lib/clients/razorpay';
-import { RATE_LIMITS } from '@/lib/config/constants';
+import { PAYMENTS, RATE_LIMITS } from '@/lib/config/constants';
 import { getRazorpayKeyId } from '@/lib/config/env';
 import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
+import { expireStalePendingWeeklyPolicies } from '@/lib/payments/expire-stale-pending-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
@@ -179,47 +180,153 @@ export async function POST(request: Request) {
     }
 
     /* Razorpay API requires customer_id; SDK types omit it on the create body. */
-    // Create the pending weekly policy row first so a DB unique constraint
-    // prevents duplicate mandates for the same rider/week under concurrency.
-    const { data: policy, error: policyError } = await supabase
+    await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
+
+    const { data: weekRow } = await admin
       .from('weekly_policies')
-      .insert({
-        profile_id: user.id,
-        plan_id: planPackageId || null,
-        week_start_date: weekStart,
-        week_end_date: weekEnd,
-        weekly_premium_inr: amountInr,
-        is_active: false,
-        payment_status: 'pending',
-      })
-      .select('id')
-      .single();
+      .select('id, is_active, payment_status')
+      .eq('profile_id', user.id)
+      .eq('week_start_date', weekStart)
+      .maybeSingle();
 
-    if (policyError || !policy) {
-      if ((policyError as { code?: string } | null)?.code === '23505') {
-        const { data: existing } = await admin
-          .from('weekly_policies')
-          .select('id, is_active, payment_status')
-          .eq('profile_id', user.id)
-          .eq('week_start_date', weekStart)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+    if (weekRow?.is_active) {
+      return NextResponse.json(
+        {
+          error: 'You already have active coverage for this week.',
+          policyId: weekRow.id,
+        },
+        { status: 400 },
+      );
+    }
 
-        if (existing?.id) {
+    if (weekRow?.payment_status === 'pending') {
+      return NextResponse.json(
+        {
+          error: 'You already have a pending mandate/checkout for this week. Complete it first.',
+          policyId: weekRow.id,
+          hint: `If you abandoned checkout, wait ${Math.ceil(PAYMENTS.PENDING_CHECKOUT_TTL_MS / 1000)}s and try again.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (weekRow?.payment_status === 'paid' || weekRow?.payment_status === 'demo') {
+      return NextResponse.json(
+        {
+          error: 'You already have coverage for this week.',
+          policyId: weekRow.id,
+        },
+        { status: 400 },
+      );
+    }
+
+    let policy: { id: string } | undefined;
+
+    if (!weekRow) {
+      const { data: inserted, error: policyError } = await supabase
+        .from('weekly_policies')
+        .insert({
+          profile_id: user.id,
+          plan_id: planPackageId || null,
+          week_start_date: weekStart,
+          week_end_date: weekEnd,
+          weekly_premium_inr: amountInr,
+          is_active: false,
+          payment_status: 'pending',
+        })
+        .select('id')
+        .single();
+
+      if (policyError || !inserted) {
+        if ((policyError as { code?: string } | null)?.code === '23505') {
+          await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
+          const { data: afterRace } = await admin
+            .from('weekly_policies')
+            .select('id, is_active, payment_status')
+            .eq('profile_id', user.id)
+            .eq('week_start_date', weekStart)
+            .maybeSingle();
+
+          if (afterRace?.payment_status === 'failed' && afterRace.id) {
+            const { error: reviveErr } = await admin
+              .from('weekly_policies')
+              .update({
+                payment_status: 'pending',
+                plan_id: planPackageId || null,
+                week_end_date: weekEnd,
+                weekly_premium_inr: amountInr,
+                is_active: false,
+                razorpay_order_id: null,
+                razorpay_payment_id: null,
+                razorpay_subscription_id: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', afterRace.id)
+              .eq('profile_id', user.id)
+              .eq('payment_status', 'failed');
+
+            if (!reviveErr) {
+              policy = { id: afterRace.id };
+            }
+          }
+
+          if (!policy) {
+            return NextResponse.json(
+              {
+                error: afterRace?.is_active
+                  ? 'You already have active coverage for this week.'
+                  : 'You already have a pending mandate/checkout for this week. Complete it first.',
+                policyId: afterRace?.id,
+              },
+              { status: 409 },
+            );
+          }
+        } else {
           return NextResponse.json(
-            {
-              error: existing.is_active
-                ? 'You already have active coverage for this week.'
-                : 'You already have a pending mandate/checkout for this week. Complete it first.',
-              policyId: existing.id,
-            },
-            { status: 409 },
+            { error: policyError?.message ?? 'Failed to create policy' },
+            { status: 500 },
           );
         }
+      } else {
+        policy = inserted;
       }
+    } else if (weekRow.payment_status === 'failed') {
+      const { error: reviveErr } = await admin
+        .from('weekly_policies')
+        .update({
+          payment_status: 'pending',
+          plan_id: planPackageId || null,
+          week_end_date: weekEnd,
+          weekly_premium_inr: amountInr,
+          is_active: false,
+          razorpay_order_id: null,
+          razorpay_payment_id: null,
+          razorpay_subscription_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', weekRow.id)
+        .eq('profile_id', user.id)
+        .eq('payment_status', 'failed');
+
+      if (reviveErr) {
+        return NextResponse.json(
+          { error: reviveErr.message ?? 'Could not restart mandate checkout' },
+          { status: 500 },
+        );
+      }
+      policy = { id: weekRow.id };
+    } else {
       return NextResponse.json(
-        { error: policyError?.message ?? 'Failed to create policy' },
+        { error: 'Unable to start mandate checkout for this coverage week.' },
+        { status: 400 },
+      );
+    }
+
+    if (!policy) {
+      return NextResponse.json(
+        { error: 'Failed to reserve policy row for mandate.' },
         { status: 500 },
       );
     }

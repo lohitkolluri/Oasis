@@ -61,6 +61,8 @@ export interface LogRunInput extends AdjudicatorResult {
   duration_ms: number;
   error?: string;
   is_demo?: boolean;
+  /** Extra fields stored in `system_logs.metadata` (demo subtype, geo, batch steps, etc.). */
+  demo_extras?: Record<string, unknown>;
 }
 
 /**
@@ -89,6 +91,9 @@ export async function logRun(
         error: result.error ?? null,
         payout_failures: result.payout_failures ?? null,
         log_failures: result.log_failures ?? null,
+        ...(result.demo_extras && Object.keys(result.demo_extras).length > 0
+          ? result.demo_extras
+          : {}),
       },
     });
 

@@ -72,7 +72,29 @@ export const FRAUD = {
   RAPID_CLAIMS_WINDOW_HOURS: 24,
   RAPID_CLAIMS_THRESHOLD: 3,
   CLUSTER_ANOMALY_WINDOW_MIN: 10,
+  /** Legacy fixed minimum claims in window when zone baseline is unknown. */
   CLUSTER_ANOMALY_MIN_CLAIMS: 10,
+  /**
+   * Burst threshold scales with `zone_baseline_stats.rolling_avg_claims` (typical event size).
+   * Example: rolling_avg 400 → ceil(400×0.025)=10, clamped between CLUSTER_DYNAMIC_*.
+   */
+  CLUSTER_ROLLING_FRACTION: 0.025,
+  CLUSTER_DYNAMIC_MIN: 8,
+  CLUSTER_DYNAMIC_MAX: 45,
+  HISTORICAL_BASELINE_MIN_DELTA: 3,
+  /** Shared payout destination: ≥ this many profiles on one destination auto-holds. */
+  PAYOUT_DEST_FLAG_MIN_PROFILES: 3,
+  /** With exactly 2 profiles, hold only if this many payouts hit the group in 24h. */
+  PAYOUT_DEST_2PARTY_MIN_PAYOUTS_24H: 2,
+  /** Composite extended-check score weights (summed, capped at 100). */
+  RISK_WEIGHT_CLUSTER: 22,
+  RISK_WEIGHT_BASELINE: 22,
+  RISK_WEIGHT_DEVICE_FP: 28,
+  RISK_WEIGHT_CROSS_PROFILE: 28,
+  RISK_WEIGHT_PAYOUT_HARD: 24,
+  RISK_WEIGHT_PAYOUT_SOFT: 12,
+  RISK_TIER_LOW_MAX: 34,
+  RISK_TIER_ELEVATED_MAX: 64,
   DEVICE_FINGERPRINT_WINDOW_HOURS: 1,
   DEVICE_FINGERPRINT_MIN_DISTANCE_DEG: 0.5,
   HISTORICAL_BASELINE_MULTIPLIER: 3,
@@ -95,6 +117,14 @@ export const RATE_LIMITS = {
   CRON_PER_HOUR: 5,
   ADMIN_PER_MINUTE: 30,
   DEFAULT_PER_MINUTE: 60,
+} as const;
+
+/**
+ * Checkout: `weekly_policies` rows stuck in `pending` (abandoned Razorpay modal, closed tab, etc.)
+ * are marked `failed` after this TTL so the rider can start a new payment attempt.
+ */
+export const PAYMENTS = {
+  PENDING_CHECKOUT_TTL_MS: 30_000,
 } as const;
 
 /**
@@ -130,9 +160,9 @@ export const EXTERNAL_APIS = {
   RETRY_BASE_DELAY_MS: 1000,
   RETRY_MAX_DELAY_MS: 10000,
   CACHE_WEATHER_TTL_MS: 30 * 60 * 1000, // 30 min
-  CACHE_AQI_TTL_MS: 60 * 60 * 1000,     // 1 hour
-  CACHE_NEWS_TTL_MS: 15 * 60 * 1000,     // 15 min
-  CACHE_TRAFFIC_TTL_MS: 15 * 60 * 1000,  // 15 min (TomTom flow segment)
+  CACHE_AQI_TTL_MS: 60 * 60 * 1000, // 1 hour
+  CACHE_NEWS_TTL_MS: 15 * 60 * 1000, // 15 min
+  CACHE_TRAFFIC_TTL_MS: 15 * 60 * 1000, // 15 min (TomTom flow segment)
   /** NewsData.io Latest API: articles per request (`size`; default 5; free tier allows 1–10, paid up to 50). */
   NEWS_DATA_LATEST_SIZE: 5,
   /** Upper bound for `size` (NewsData docs: 50 on paid; free plans must keep NEWS_DATA_LATEST_SIZE ≤ 10). */

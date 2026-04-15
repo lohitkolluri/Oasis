@@ -21,16 +21,31 @@ import type {
   AdjudicatorResult,
   DemoTriggerOptions,
   ParametricLedgerOutcome,
-  TriggerCandidate,
   ProcessTriggerResult,
+  TriggerCandidate,
 } from "@/lib/adjudicator/types";
 import { randomUUID } from "crypto";
 
 export interface AdjudicatorRunOptions {
   demoTrigger?: DemoTriggerOptions;
+  suppressSystemLog?: boolean;
+  demoLogExtras?: Record<string, unknown>;
 }
 
 export type { AdjudicatorResult, DemoTriggerOptions, TriggerCandidate, ProcessTriggerResult };
+
+function demoTelemetryFromTrigger(
+  d: DemoTriggerOptions,
+): Record<string, unknown> {
+  return {
+    demo_event_subtype: d.eventSubtype,
+    demo_lat: d.lat,
+    demo_lng: d.lng,
+    demo_radius_km: d.radiusKm ?? null,
+    demo_severity: d.severity ?? null,
+    demo_rider_id: d.riderId ?? null,
+  };
+}
 
 const BATCH_SIZE = 5;
 
@@ -128,7 +143,7 @@ export async function runAdjudicatorCore(
   supabase = createAdminClient(),
   options: AdjudicatorRunOptions = {},
 ): Promise<AdjudicatorResult & { run_id: string }> {
-  const { demoTrigger } = options;
+  const { demoTrigger, suppressSystemLog, demoLogExtras } = options;
   const runId = randomUUID();
   const startMs = Date.now();
 
@@ -254,13 +269,29 @@ export async function runAdjudicatorCore(
     payout_failures: payoutFailures > 0 ? payoutFailures : undefined,
   };
 
-  const logged = await logRun(supabase, {
-    ...result,
-    duration_ms: durationMs,
-    is_demo: !!demoTrigger,
-    run_id: runId,
-  });
-  if (!logged) result.log_failures = 1;
+  /** Batch demo runs suppress per-step logs; the API writes one aggregate row. */
+  const shouldLog = !(demoTrigger && suppressSystemLog);
+
+  let logged = true;
+  if (shouldLog) {
+    const demo_extras = demoTrigger
+      ? {
+          ...demoTelemetryFromTrigger(demoTrigger),
+          ...(demoLogExtras ?? {}),
+        }
+      : demoLogExtras && Object.keys(demoLogExtras).length > 0
+        ? demoLogExtras
+        : undefined;
+
+    logged = await logRun(supabase, {
+      ...result,
+      duration_ms: durationMs,
+      is_demo: !!demoTrigger,
+      run_id: runId,
+      ...(demo_extras ? { demo_extras } : {}),
+    });
+    if (!logged) result.log_failures = 1;
+  }
 
   logger.info("adjudicator run finished", {
     runId,

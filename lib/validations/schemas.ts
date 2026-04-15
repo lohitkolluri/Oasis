@@ -55,6 +55,27 @@ export const demoTriggerSchema = z.object({
   radiusKm: z.number().min(0.1).max(100).optional(),
   severity: z.number().min(1).max(10).optional(),
   riderId: z.string().uuid().optional(),
+  /** Optional label shown in admin demo run logs. */
+  runLabel: z.string().max(120).optional(),
+});
+
+/** Multi-step demo: runs triggers in order (e.g. rain → traffic) with optional pause. */
+export const demoBatchSchema = z.object({
+  steps: z
+    .array(
+      z.object({
+        eventSubtype: z.enum(demoSubtypes),
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+        radiusKm: z.number().min(0.1).max(100).optional(),
+        severity: z.number().min(1).max(10).optional(),
+      }),
+    )
+    .min(1)
+    .max(8),
+  pauseBetweenMs: z.number().min(0).max(120_000).optional().default(500),
+  riderId: z.string().uuid().optional(),
+  batchLabel: z.string().max(120).optional(),
 });
 
 export const reviewClaimSchema = z.object({
@@ -84,6 +105,7 @@ export type UpdatePolicyInput = z.infer<typeof updatePolicySchema>;
 export type CreateRuleSetInput = z.infer<typeof createRuleSetSchema>;
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 export type DemoTriggerInput = z.infer<typeof demoTriggerSchema>;
+export type DemoBatchInput = z.infer<typeof demoBatchSchema>;
 export type ReviewClaimInput = z.infer<typeof reviewClaimSchema>;
 export type DisruptionWebhookInput = z.infer<typeof disruptionWebhookSchema>;
 export type SimulatePayoutInput = z.infer<typeof simulatePayoutSchema>;

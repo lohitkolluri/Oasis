@@ -80,6 +80,10 @@ export interface ParametricClaim {
   gateway_transaction_id: string | null;
   is_flagged?: boolean;
   flag_reason?: string | null;
+  /** Composite 0–100 after extended fraud checks (see `lib/fraud/risk-score.ts`). */
+  fraud_risk_score?: number | null;
+  fraud_risk_tier?: 'low' | 'elevated' | 'high' | null;
+  fraud_risk_breakdown?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

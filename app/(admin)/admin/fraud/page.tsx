@@ -1,7 +1,9 @@
 import { AdminPageTitle } from '@/components/admin/AdminPageTitle';
 import { FraudList } from '@/components/admin/FraudList';
-import { KPICard } from '@/components/ui/KPICard';
+import { SharedPayoutDestinationsCard } from '@/components/admin/SharedPayoutDestinationsCard';
 import { Card } from '@/components/ui/Card';
+import { KPICard } from '@/components/ui/KPICard';
+import { listSharedPayoutDestinations } from '@/lib/admin/fraud-connections-summary';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ShieldAlert } from 'lucide-react';
 
@@ -17,6 +19,8 @@ export default async function FraudPage() {
       payout_amount_inr,
       is_flagged,
       flag_reason,
+      fraud_risk_score,
+      fraud_risk_tier,
       created_at,
       admin_review_status,
       reviewed_by,
@@ -29,15 +33,23 @@ export default async function FraudPage() {
     .or('is_flagged.eq.true,admin_review_status.in.(approved,rejected)')
     .order('created_at', { ascending: false });
 
-  const pendingCount = (claims ?? []).filter((c) => !c.admin_review_status).length;
-  const reviewedCount = (claims ?? []).filter((c) => c.admin_review_status).length;
+  const queueRows = (claims ?? []) as Array<{ admin_review_status?: string | null }>;
+  const pendingCount = queueRows.filter((c) => !c.admin_review_status).length;
+  const reviewedCount = queueRows.filter((c) => !!c.admin_review_status).length;
+
+  let sharedPayoutRows: Awaited<ReturnType<typeof listSharedPayoutDestinations>> = [];
+  try {
+    sharedPayoutRows = await listSharedPayoutDestinations(supabase);
+  } catch {
+    sharedPayoutRows = [];
+  }
 
   return (
     <div className="space-y-6">
       <AdminPageTitle
         title="Fraud Queue"
         help="Parametric claims that automated rules flagged (e.g. rapid repeats, GPS anomalies) or that already have an admin decision (approved/rejected). Approve or reject after review — product scope is loss of income from external disruptions, not injury or vehicle damage."
-        description="Claims flagged by duplicate, rapid-claims, weather mismatch, or GPS verification"
+        description="Claims flagged by duplicate, rapid-claims, weather mismatch, GPS verification, or payout routing. Risk score reflects weighted extended checks."
       />
 
       {/* Stats row */}
@@ -57,14 +69,14 @@ export default async function FraudPage() {
         />
       </div>
 
+      <SharedPayoutDestinationsCard rows={sharedPayoutRows} />
+
       <Card variant="default" padding="none">
         {(claims ?? []).length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-5">
             <ShieldAlert className="h-10 w-10 text-[#3a3a3a] mb-4 stroke-[1.5]" />
             <p className="text-sm font-medium text-[#555]">No claims in queue</p>
-            <p className="text-xs text-[#444] mt-1">
-              Flagged claims will appear here for review
-            </p>
+            <p className="text-xs text-[#444] mt-1">Flagged claims will appear here for review</p>
           </div>
         ) : (
           <FraudList claims={claims ?? []} />
