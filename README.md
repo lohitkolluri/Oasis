@@ -93,6 +93,7 @@ Traditional insurance was not built for gig schedules. Oasis is a **parametric**
   - [What Oasis Does](#what-oasis-does)
   - [How It Works](#how-it-works)
   - [Machine learning](#machine-learning-baselines)
+  - [LLM APIs vs. legacy trained models](#llm-apis-vs-legacy-trained-models)
 - [Product](#toc-product)
   - [Rider Experience](#rider-experience)
   - [Admin Experience](#admin-experience)
@@ -187,6 +188,49 @@ flowchart TB
 | `impossible_travel.joblib` | GPS jump vs time   | ~95.8% accuracy                      |
 | `trigger_tabular.joblib`   | Trigger mimic      | ~96.1% accuracy                      |
 | `premium_weekly.joblib`    | Premium regression | R² ~0.91, MAE ~₹3.3                  |
+
+<a id="llm-apis-vs-legacy-trained-models"></a>
+
+### LLM APIs vs. legacy trained models
+
+For **vision** (government ID and face checks), **news classification**, and **rider self-report** flows, Oasis standardizes on **hosted LLM APIs** via **OpenRouter**. For those workloads, **API inference is the default**: it wins on **cost, speed to ship, operational burden, and model quality per dollar** compared to training and maintaining a **legacy** custom neural net in-house.
+
+**Why API calls are the right default (pros)**
+
+- **No ML factory:** You don’t fund a GPU farm, training jobs, feature stores, or a permanent “ML platform” team to ship inference.
+- **Usage-aligned pricing:** Pay **per token** (or per request); cost scales **down** when traffic is quiet—no “always-on” GPU burn for idle capacity.
+- **Fast iteration:** Swap a **model slug** in env, tune prompts and guardrails, and ship—**hours**, not a full retrain cycle.
+- **Always-current models:** Providers improve **foundation** weights; you inherit gains without retraining your own checkpoint.
+- **Strong out-of-the-box behavior:** Instruction-tuned models handle **messy** real inputs (IDs, glare, screenshots, varied news wording) without a proprietary labeled corpus the size of a research lab.
+- **Simple security surface:** One **HTTPS** contract and API key rotation; **no** open inference ports on your own servers for giant weights.
+
+**Where legacy “train it yourself” ML hurts (cons)**
+
+- **Up-front and recurring burn:** Data labeling, GPU time, **MLOps** (registry, canaries, rollbacks), and on-call for **training** failures—before you ever beat a hosted baseline.
+- **Stale by default:** A frozen `.pt` / `.onnx` artifact **ages**; document layouts, fraud tactics, and phrasing shift—**without** a retrain budget, accuracy drops in the wild.
+- **Talent tax:** You need people who can **train**, **serve**, and **monitor**—not just call an API from a product engineer.
+- **Capacity risk:** Inference spikes or **cold** GPU pools create latency; **you** own queueing, autoscaling, and regional failover.
+- **Narrow wins only:** A custom model only pays off **if** you have **large, fresh, domain-specific** labels and a long horizon—otherwise you pay for **privilege** you don’t use.
+- **Compliance drift:** Every ID format or policy change can force **new** labels and a **new** validation cycle—API models adapt with **prompt and routing** changes first.
+
+**At a glance:** across **infra, cost, speed, reliability of outcomes, and team focus**, **API calls beat legacy custom training** for the perception-and-language workloads below—unless you are a hyperscaler with endless labels and GPUs.
+
+| Dimension                | Hosted LLM APIs (this stack)                                                                                                                         | Typical “train your own” legacy ML                                                                                                   |
+| :----------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| **Infrastructure**       | Stateless HTTPS; no GPU cluster to provision, patch, or right-size                                                                                   | GPUs, training pipelines, job queues, artifact storage, and **serving** replicas that cost money even when idle                      |
+| **Velocity**             | Change model **slug** in env and deploy; iterate on prompts and guardrails in hours                                                                  | Re-label → retrain → validate → promote: weeks per meaningful cycle                                                                  |
+| **Latency**              | Bounded by provider routing and cold-start; predictable for short prompts                                                                            | **Your** queue depth, batching, and autoscaling on inference hardware                                                                |
+| **Unit economics**       | Pay **per token** (or per request); marginal cost tracks real usage only                                                                             | Up-front **data labeling**, **fixed** GPU burn, and ML engineer time amortized across fewer use cases                                |
+| **Scalability**          | Provider absorbs global load spikes; you add **concurrency** at the API layer                                                                        | **You** shard inference, fight OOMs, and pay for peak-shaped GPU headroom                                                            |
+| **Accuracy in practice** | Strong **zero-shot** behavior on messy real-world inputs (IDs, screenshots, varying lighting) and **provider updates** that improve models over time | Custom models only win when you have **large, fresh, domain-labeled** datasets; otherwise weights **stale-date** as the world shifts |
+| **Governance & audit**   | One vendor integration; change models with config; clear **API** logs                                                                                | Every retrain needs its own **sign-off**, benchmark suite, and rollback story                                                        |
+
+**Illustrative API pricing** (order of magnitude; varies by model and provider): **~US$0.0000088 per inference** for Llama-class calls on a router-style API—on the order of **tens of millions of inferences per dollar** at that band. Legacy pipelines spend more than that **per minute** just keeping **idle** GPUs warm—before anyone opens a document.
+
+**Bottom line:** for **this product’s** AI surfaces, **API LLMs are the profit-preserving choice**: lower **fixed** cost, faster **ship**, fewer **specialists**, and **better** real-world robustness per rupee than betting the roadmap on a home-grown model you must constantly retrain.
+
+> [!NOTE]
+> **Tabular** baselines (zones, premium curves, lightweight fraud heuristics) stay in **sklearn** artifacts under [`models/`](models/)—small, auditable, fast. Anything that looks like **vision or open-ended language** routes through **LLM APIs** so we never pay the **custom-model tax** for problems foundation models already solve.
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 

@@ -1,5 +1,5 @@
-import { getAppUrl, getOpenRouterApiKey } from "@/lib/config/env";
-import { fetchWithRetry } from "@/lib/utils/retry";
+import { getAppUrl, getOpenRouterApiKey } from '@/lib/config/env';
+import { fetchWithRetry } from '@/lib/utils/retry';
 
 export interface OpenRouterChatResponse {
   choices?: Array<{ message?: { content?: string } }>;
@@ -12,11 +12,11 @@ function getOpenRouterKey(): string | null {
 export async function callOpenRouterChat(payload: unknown): Promise<OpenRouterChatResponse> {
   const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY not configured");
+    throw new Error('OPENROUTER_API_KEY not configured');
   }
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
     Authorization: `Bearer ${apiKey}`,
   };
 
@@ -24,16 +24,15 @@ export async function callOpenRouterChat(payload: unknown): Promise<OpenRouterCh
   // runtime if app URL is missing or misconfigured (e.g. in preview envs).
   try {
     const appUrl = getAppUrl();
-    headers["HTTP-Referer"] = appUrl;
-    headers["X-OpenRouter-Title"] = "Oasis - Parametric Income Protection";
+    headers['HTTP-Referer'] = appUrl;
+    headers['X-OpenRouter-Title'] = 'Oasis';
   } catch {
     // Safe to ignore; attribution is nice-to-have only.
   }
 
-  return fetchWithRetry<OpenRouterChatResponse>("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
+  return fetchWithRetry<OpenRouterChatResponse>('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
     headers,
     body: JSON.stringify(payload),
   });
 }
-
