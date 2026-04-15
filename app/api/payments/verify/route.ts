@@ -2,12 +2,13 @@
  * POST /api/payments/verify
  * Validates Razorpay payment signature, confirms payment with Razorpay API, activates policy.
  */
+import { getRazorpayInstance } from '@/lib/clients/razorpay';
+import { getRazorpayKeySecret } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
+import { verifyRazorpayPaymentSignature } from '@/lib/payments/razorpay-crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { getRazorpayKeySecret } from '@/lib/config/env';
-import { getRazorpayInstance } from '@/lib/clients/razorpay';
-import { verifyRazorpayPaymentSignature } from '@/lib/payments/razorpay-crypto';
-import { logger } from '@/lib/logger';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -20,6 +21,10 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limitKey = rateLimitKey(request, 'payment-verify');
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
+  if (rateLimited) return rateLimited;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,7 +49,14 @@ export async function POST(request: Request) {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = parsed.data;
   const secret = getRazorpayKeySecret();
 
-  if (!verifyRazorpayPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature, secret)) {
+  if (
+    !verifyRazorpayPaymentSignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      secret,
+    )
+  ) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -67,9 +79,7 @@ export async function POST(request: Request) {
   };
   let payment: FetchedPayment;
   try {
-    payment = (await razorpay.payments.fetch(
-      razorpay_payment_id,
-    )) as FetchedPayment;
+    payment = (await razorpay.payments.fetch(razorpay_payment_id)) as FetchedPayment;
   } catch (err) {
     logger.warn('Razorpay verify: payments.fetch failed', {
       error: err instanceof Error ? err.message : String(err),

@@ -8,12 +8,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ---
 
-## [Unreleased]
+## [1.0.0] - 2026-04-15
+
+Phase 3 release — **Scale & Optimise**.
+
+### Added
+
+- **Advanced fraud detection:** 11-layer pipeline including GPS spoofing detection (accuracy + impossible travel), device attestation (mock location, developer settings, rooted device, Play Integrity, OS signature), IMU teleportation heuristic, GNSS SNR variance check, historical baseline comparison, cross-profile velocity, cluster anomaly, and payout destination anomaly.
+- **Instant payout system:** Simulated UPI payouts with mock gateway, processing delay, and reference generation. Razorpay one-time and subscription payment verification flows.
+- **Intelligent dashboards:** Rider view with earnings protected, active weekly coverage status, wallet sparkline, predictive risk alerts, and AI-generated insights. Admin view with loss ratios, trigger breakdowns, reserves cohort analysis, plan financials, and 7-day predictive outlook.
+- **Predictive analytics:** Next-week risk forecasting combining weather API forecasts with historical claim baselines for proactive alerting.
+- **Production hardening:** CI workflow (lint + typecheck + vitest), unit tests for fraud detector and payout ladder, error boundaries (global, admin, 404), rate limiting on 6 authenticated routes, RLS privilege restriction on admin RPCs, CSP tightening, query bounds on all unbounded selects, Supabase client memoization, bundle optimization, SEO/OpenGraph metadata, accessibility improvements, and edge function auth fix.
 
 ### Changed
 
 - README: structure, hero, nested TOC, architecture Mermaid diagram, demo video links, project layout, rider/admin walkthroughs, env and Makefile tables.
 - Makefile: Bun-first targets, `docs/` path, `test` and `test-e2e` targets, `configure` / `setup` flow.
+- Docs URL unified to `oasis-docs.vercel.app` across landing page and Astro config.
+- `framer-motion` added to `optimizePackageImports` for smaller bundles.
+
+### Security
+
+- Revoked `authenticated` role access to `admin_window_metrics` and `admin_plan_financials` RPCs (privilege escalation fix).
+- Added rate limiting to rider insight, claims verification, payment verification, subscription verification, rider profile, and platform status endpoints.
+- Removed `unsafe-eval` from Content-Security-Policy `script-src`.
+- Enterprise adjudicator edge function now authenticates with `CRON_SECRET` Bearer token and restricts CORS origin.
+
+### Fixed
+
+- BottomNav missing `aria-label` and `aria-current` attributes.
+- Landing page docs link pointed to wrong hostname.
+- Unbounded database queries in next-week-risk, platform status, and reserves cohorts.
+- Supabase client recreated on every render in login/register forms.
 
 ---
 

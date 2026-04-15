@@ -1,9 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function PATCH(request: Request) {
+  const limitKey = rateLimitKey(request, 'rider-profile');
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 30 });
+  if (rateLimited) return rateLimited;
+
   const supabase = await createClient();
   const {
     data: { user },

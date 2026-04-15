@@ -1,12 +1,13 @@
 /**
  * Verifies Razorpay subscription checkout (mandate) signature and activates the pending weekly policy.
  */
+import { getRazorpayInstance } from '@/lib/clients/razorpay';
+import { getRazorpayKeySecret } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
+import { verifyRazorpaySubscriptionPaymentSignature } from '@/lib/payments/razorpay-crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { getRazorpayKeySecret } from '@/lib/config/env';
-import { getRazorpayInstance } from '@/lib/clients/razorpay';
-import { verifyRazorpaySubscriptionPaymentSignature } from '@/lib/payments/razorpay-crypto';
-import { logger } from '@/lib/logger';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -19,6 +20,10 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limitKey = rateLimitKey(request, 'subscription-verify');
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 20 });
+  if (rateLimited) return rateLimited;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -128,16 +133,19 @@ export async function POST(request: Request) {
 
   const method = payment.method != null ? String(payment.method) : null;
 
-  const { data: result, error: rpcError } = await admin.rpc('process_razorpay_subscription_payment', {
-    p_payment_id: razorpay_payment_id,
-    p_profile_id: pending.profile_id,
-    p_plan_id: pending.plan_id ?? null,
-    p_amount_inr: Number(pending.weekly_premium_inr),
-    p_subscription_id: razorpay_subscription_id,
-    p_week_start: pending.week_start_date,
-    p_week_end: pending.week_end_date,
-    p_payment_method: method,
-  });
+  const { data: result, error: rpcError } = await admin.rpc(
+    'process_razorpay_subscription_payment',
+    {
+      p_payment_id: razorpay_payment_id,
+      p_profile_id: pending.profile_id,
+      p_plan_id: pending.plan_id ?? null,
+      p_amount_inr: Number(pending.weekly_premium_inr),
+      p_subscription_id: razorpay_subscription_id,
+      p_week_start: pending.week_start_date,
+      p_week_end: pending.week_end_date,
+      p_payment_method: method,
+    },
+  );
 
   if (rpcError) {
     logger.error('Razorpay subscription verify: RPC failed', {

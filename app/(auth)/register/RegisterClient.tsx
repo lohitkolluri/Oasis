@@ -7,7 +7,7 @@ import { gooeyToast } from 'goey-toast';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export function RegisterClient() {
   const [email, setEmail] = useState('');
@@ -17,16 +17,16 @@ export function RegisterClient() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Fallback for PWA edge-cases: avoid flashing signup if the session is restored client-side.
   useEffect(() => {
     let cancelled = false;
     createClient()
       .auth.getSession()
-      .then(({ data: { session } }) => {
+      .then((res: { data: { session: unknown } }) => {
         if (cancelled) return;
-        if (session) window.location.replace('/dashboard');
+        if (res.data.session) window.location.replace('/dashboard');
         else setCheckingSession(false);
       })
       .catch(() => setCheckingSession(false));
@@ -39,8 +39,7 @@ export function RegisterClient() {
     e.preventDefault();
     setLoading(true);
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -152,4 +151,3 @@ export function RegisterClient() {
     </main>
   );
 }
-

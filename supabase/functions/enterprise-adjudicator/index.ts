@@ -28,11 +28,13 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'NEXT_PUBLIC_APP_URL is not configured' }, 503);
     }
 
+    const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
     const endpoint = new URL('/api/admin/run-adjudicator', appUrl).toString();
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${cronSecret}`,
         'x-supabase-function': 'enterprise-adjudicator',
       },
     });
@@ -65,8 +67,9 @@ Deno.serve(async (req: Request) => {
 });
 
 function corsHeaders() {
+  const origin = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? '';
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': origin || 'https://oasis-app.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   };

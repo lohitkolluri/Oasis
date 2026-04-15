@@ -30,10 +30,7 @@ const DISCLAIMER =
 
 export const GET = withAdminAuth(async (_ctx, request) => {
   const url = new URL(request.url);
-  const weeks = Math.min(
-    52,
-    Math.max(1, parseInt(url.searchParams.get('weeks') ?? '8', 10) || 8),
-  );
+  const weeks = Math.min(52, Math.max(1, parseInt(url.searchParams.get('weeks') ?? '8', 10) || 8));
   const extraTriggerDays = Math.min(
     14,
     Math.max(0, parseInt(url.searchParams.get('extraDays') ?? '0', 10) || 0),
@@ -59,34 +56,40 @@ export const GET = withAdminAuth(async (_ctx, request) => {
     `,
     )
     .gte('week_start_date', cutoffWeekStart)
-    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]);
+    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
+    .limit(2000);
 
   if (polErr) {
     return NextResponse.json({ error: polErr.message }, { status: 500 });
   }
 
   const policiesNormalized = (policiesRaw ?? []).map((row) => ({
-      id: row.id as string,
-      week_start_date: row.week_start_date as string,
-      week_end_date: (row.week_end_date as string | null) ?? null,
-      weekly_premium_inr: row.weekly_premium_inr as number | string | null,
-      profiles: firstOrNull(row.profiles as { primary_zone_geofence: unknown } | { primary_zone_geofence: unknown }[] | null),
-      plan_packages: firstOrNull(
-        row.plan_packages as
-          | {
-              payout_per_claim_inr: number | string | null;
-              max_claims_per_week: number | string | null;
-            }
-          | {
-              payout_per_claim_inr: number | string | null;
-              max_claims_per_week: number | string | null;
-            }[]
-          | null,
-      ) as {
-        payout_per_claim_inr: number | string | null;
-        max_claims_per_week: number | string | null;
-      } | null,
-    }));
+    id: row.id as string,
+    week_start_date: row.week_start_date as string,
+    week_end_date: (row.week_end_date as string | null) ?? null,
+    weekly_premium_inr: row.weekly_premium_inr as number | string | null,
+    profiles: firstOrNull(
+      row.profiles as
+        | { primary_zone_geofence: unknown }
+        | { primary_zone_geofence: unknown }[]
+        | null,
+    ),
+    plan_packages: firstOrNull(
+      row.plan_packages as
+        | {
+            payout_per_claim_inr: number | string | null;
+            max_claims_per_week: number | string | null;
+          }
+        | {
+            payout_per_claim_inr: number | string | null;
+            max_claims_per_week: number | string | null;
+          }[]
+        | null,
+    ) as {
+      payout_per_claim_inr: number | string | null;
+      max_claims_per_week: number | string | null;
+    } | null,
+  }));
 
   const policyIds = policiesNormalized.map((p) => p.id);
 
@@ -102,7 +105,8 @@ export const GET = withAdminAuth(async (_ctx, request) => {
         live_disruption_events ( event_type )
       `,
       )
-      .in('policy_id', policyIds);
+      .in('policy_id', policyIds)
+      .limit(5000);
 
     if (clErr) {
       return NextResponse.json({ error: clErr.message }, { status: 500 });
@@ -112,7 +116,10 @@ export const GET = withAdminAuth(async (_ctx, request) => {
       policy_id: c.policy_id as string,
       payout_amount_inr: c.payout_amount_inr as number | string | null,
       live_disruption_events: firstOrNull(
-        c.live_disruption_events as { event_type: string | null } | { event_type: string | null }[] | null,
+        c.live_disruption_events as
+          | { event_type: string | null }
+          | { event_type: string | null }[]
+          | null,
       ),
     }));
   }

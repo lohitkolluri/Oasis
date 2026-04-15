@@ -8,43 +8,48 @@
  * Extended fraud checks run BEFORE the payout decision so that cluster,
  * baseline, and device-fingerprint signals can block disbursement.
  */
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { simulatePayout } from "@/lib/adjudicator/payouts";
-import { isMobileForGps } from "@/lib/utils/device";
-import { isWithinCircle } from "@/lib/utils/geo";
-import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from "@/lib/config/constants";
+import { simulatePayout } from '@/lib/adjudicator/payouts';
+import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
 import {
-  runExtendedFraudChecks,
   checkDeviceAttestation,
   checkGpsAccuracy,
   checkImpossibleTravel,
   checkPayoutDestinationAnomaly,
-} from "@/lib/fraud/detector";
-import { createAutomatedHold } from "@/lib/fraud/holds";
+  runExtendedFraudChecks,
+} from '@/lib/fraud/detector';
+import { createAutomatedHold } from '@/lib/fraud/holds';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
+import { isMobileForGps } from '@/lib/utils/device';
+import { isWithinCircle } from '@/lib/utils/geo';
+import { NextResponse } from 'next/server';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-const BUCKET = "rider-reports";
+const BUCKET = 'rider-reports';
 const MAX_PROOF_SIZE = 5 * 1024 * 1024;
-const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function POST(request: Request) {
+  const limitKey = rateLimitKey(request, 'verify-location');
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 30 });
+  if (rateLimited) return rateLimited;
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userAgent = request.headers.get("user-agent") ?? "";
+  const userAgent = request.headers.get('user-agent') ?? '';
   if (!isMobileForGps(userAgent)) {
     return NextResponse.json(
-      { error: "Use a mobile device for precise location verification." },
-      { status: 403 }
+      { error: 'Use a mobile device for precise location verification.' },
+      { status: 403 },
     );
   }
 
@@ -65,44 +70,39 @@ export async function POST(request: Request) {
   let rootedDevice: boolean | null = null;
   let deviceAttestation: Record<string, unknown> | null = null;
 
-  const contentType = request.headers.get("content-type") ?? "";
-  if (contentType.includes("multipart/form-data")) {
+  const contentType = request.headers.get('content-type') ?? '';
+  if (contentType.includes('multipart/form-data')) {
     const formData = await request.formData();
-    claimId = formData.get("claim_id") as string | null;
-    const latS = formData.get("lat");
-    const lngS = formData.get("lng");
+    claimId = formData.get('claim_id') as string | null;
+    const latS = formData.get('lat');
+    const lngS = formData.get('lng');
     lat = latS != null ? parseFloat(String(latS)) : null;
     lng = lngS != null ? parseFloat(String(lngS)) : null;
-    declaration = formData.get("declaration") === "true" || formData.get("declaration") === "1";
-    proof = formData.get("proof") as File | null;
-    deviceFingerprint = formData.get("device_fingerprint") as string | null;
-    const accS = formData.get("accuracy");
+    declaration = formData.get('declaration') === 'true' || formData.get('declaration') === '1';
+    proof = formData.get('proof') as File | null;
+    deviceFingerprint = formData.get('device_fingerprint') as string | null;
+    const accS = formData.get('accuracy');
     gpsAccuracy = accS != null ? parseFloat(String(accS)) : null;
 
-    const speedS = formData.get("speed_kmh");
+    const speedS = formData.get('speed_kmh');
     speedKmh = speedS != null ? parseFloat(String(speedS)) : null;
-    const imuS = formData.get("imu_variance");
+    const imuS = formData.get('imu_variance');
     imuVariance = imuS != null ? parseFloat(String(imuS)) : null;
-    const snrS = formData.get("gnss_snr_variance");
+    const snrS = formData.get('gnss_snr_variance');
     gnssSnrVariance = snrS != null ? parseFloat(String(snrS)) : null;
 
-    const devS = formData.get("dev_settings_enabled");
-    devSettingsEnabled =
-      devS == null ? null : String(devS) === "true" || String(devS) === "1";
-    const mockS = formData.get("is_mock_location");
-    isMockLocation =
-      mockS == null ? null : String(mockS) === "true" || String(mockS) === "1";
-    const playS = formData.get("play_integrity_pass");
-    playIntegrityPass =
-      playS == null ? null : String(playS) === "true" || String(playS) === "1";
-    const osS = formData.get("os_signature_valid");
-    osSignatureValid =
-      osS == null ? null : String(osS) === "true" || String(osS) === "1";
-    const rootS = formData.get("rooted_device");
-    rootedDevice =
-      rootS == null ? null : String(rootS) === "true" || String(rootS) === "1";
+    const devS = formData.get('dev_settings_enabled');
+    devSettingsEnabled = devS == null ? null : String(devS) === 'true' || String(devS) === '1';
+    const mockS = formData.get('is_mock_location');
+    isMockLocation = mockS == null ? null : String(mockS) === 'true' || String(mockS) === '1';
+    const playS = formData.get('play_integrity_pass');
+    playIntegrityPass = playS == null ? null : String(playS) === 'true' || String(playS) === '1';
+    const osS = formData.get('os_signature_valid');
+    osSignatureValid = osS == null ? null : String(osS) === 'true' || String(osS) === '1';
+    const rootS = formData.get('rooted_device');
+    rootedDevice = rootS == null ? null : String(rootS) === 'true' || String(rootS) === '1';
 
-    const attestationS = formData.get("device_attestation");
+    const attestationS = formData.get('device_attestation');
     if (attestationS != null) {
       try {
         deviceAttestation = JSON.parse(String(attestationS));
@@ -115,98 +115,80 @@ export async function POST(request: Request) {
     claimId = body.claim_id ?? null;
     lat = body.lat != null ? parseFloat(body.lat) : null;
     lng = body.lng != null ? parseFloat(body.lng) : null;
-    declaration = body.declaration === true || body.declaration === "true";
+    declaration = body.declaration === true || body.declaration === 'true';
     deviceFingerprint = body.device_fingerprint ?? null;
     gpsAccuracy = body.accuracy != null ? parseFloat(body.accuracy) : null;
 
     speedKmh = body.speed_kmh != null ? parseFloat(body.speed_kmh) : null;
-    imuVariance =
-      body.imu_variance != null ? parseFloat(body.imu_variance) : null;
-    gnssSnrVariance =
-      body.gnss_snr_variance != null
-        ? parseFloat(body.gnss_snr_variance)
-        : null;
+    imuVariance = body.imu_variance != null ? parseFloat(body.imu_variance) : null;
+    gnssSnrVariance = body.gnss_snr_variance != null ? parseFloat(body.gnss_snr_variance) : null;
 
     devSettingsEnabled =
       body.dev_settings_enabled == null ? null : Boolean(body.dev_settings_enabled);
-    isMockLocation =
-      body.is_mock_location == null ? null : Boolean(body.is_mock_location);
-    playIntegrityPass =
-      body.play_integrity_pass == null ? null : Boolean(body.play_integrity_pass);
-    osSignatureValid =
-      body.os_signature_valid == null ? null : Boolean(body.os_signature_valid);
-    rootedDevice =
-      body.rooted_device == null ? null : Boolean(body.rooted_device);
+    isMockLocation = body.is_mock_location == null ? null : Boolean(body.is_mock_location);
+    playIntegrityPass = body.play_integrity_pass == null ? null : Boolean(body.play_integrity_pass);
+    osSignatureValid = body.os_signature_valid == null ? null : Boolean(body.os_signature_valid);
+    rootedDevice = body.rooted_device == null ? null : Boolean(body.rooted_device);
 
     deviceAttestation =
-      body.device_attestation && typeof body.device_attestation === "object"
+      body.device_attestation && typeof body.device_attestation === 'object'
         ? (body.device_attestation as Record<string, unknown>)
         : null;
   }
 
   if (!claimId || lat == null || !Number.isFinite(lat) || lng == null || !Number.isFinite(lng)) {
-    return NextResponse.json(
-      { error: "Missing or invalid claim_id, lat, lng" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Missing or invalid claim_id, lat, lng' }, { status: 400 });
   }
 
   // GPS accuracy validation: reject readings >100m (likely spoofed)
   const gpsCheck = checkGpsAccuracy(gpsAccuracy);
   if (gpsCheck.isFlagged) {
-    return NextResponse.json(
-      { error: gpsCheck.reason, flagged: true },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: gpsCheck.reason, flagged: true }, { status: 400 });
   }
 
   const { data: claim } = await supabase
-    .from("parametric_claims")
-    .select("id, policy_id, disruption_event_id, created_at, status, payout_amount_inr")
-    .eq("id", claimId)
+    .from('parametric_claims')
+    .select('id, policy_id, disruption_event_id, created_at, status, payout_amount_inr')
+    .eq('id', claimId)
     .single();
 
   if (!claim) {
-    return NextResponse.json({ error: "Claim not found" }, { status: 404 });
+    return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
   }
 
-  if (claim.status === "paid") {
+  if (claim.status === 'paid') {
     return NextResponse.json({
       verified: true,
-      status: "already_paid",
+      status: 'already_paid',
       payout_initiated: false,
-      message: "This claim has already been verified and paid.",
+      message: 'This claim has already been verified and paid.',
     });
   }
 
   // Reject verifications submitted outside the allowed window (48h)
-  const claimAge =
-    (Date.now() - new Date(claim.created_at).getTime()) / (1000 * 60 * 60);
+  const claimAge = (Date.now() - new Date(claim.created_at).getTime()) / (1000 * 60 * 60);
   if (claimAge > FRAUD.VERIFY_WINDOW_HOURS) {
     return NextResponse.json(
       { error: `Verification window expired (${FRAUD.VERIFY_WINDOW_HOURS}h after claim creation)` },
-      { status: 410 }
+      { status: 410 },
     );
   }
 
   // OWNERSHIP CHECK — must come before any DB mutation to prevent TOCTOU attacks.
   const { data: policy } = await supabase
-    .from("weekly_policies")
-    .select("profile_id")
-    .eq("id", claim.policy_id)
+    .from('weekly_policies')
+    .select('profile_id')
+    .eq('id', claim.policy_id)
     .single();
 
   if (!policy || policy.profile_id !== user.id) {
-    return NextResponse.json({ error: "Not your claim" }, { status: 403 });
+    return NextResponse.json({ error: 'Not your claim' }, { status: 403 });
   }
 
   // Impossible travel check: flag if verified at distant location too recently
   const travelCheck = await checkImpossibleTravel(supabase, user.id, lat, lng);
   if (travelCheck.isFlagged) {
-    return NextResponse.json(
-      { error: travelCheck.reason, flagged: true },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: travelCheck.reason, flagged: true }, { status: 400 });
   }
 
   // Device integrity / sensor plausibility checks (optional but high-signal when present).
@@ -222,26 +204,33 @@ export async function POST(request: Request) {
   });
 
   const { data: event } = await supabase
-    .from("live_disruption_events")
-    .select("geofence_polygon, raw_api_data")
-    .eq("id", claim.disruption_event_id)
+    .from('live_disruption_events')
+    .select('geofence_polygon, raw_api_data')
+    .eq('id', claim.disruption_event_id)
     .single();
 
-  const gf = event?.geofence_polygon as { lat?: number; lng?: number; radius_km?: number } | undefined;
+  const gf = event?.geofence_polygon as
+    | { lat?: number; lng?: number; radius_km?: number }
+    | undefined;
   const centerLat = gf?.lat ?? DEFAULT_ZONE.lat;
   const centerLng = gf?.lng ?? DEFAULT_ZONE.lng;
   const radiusKm = gf?.radius_km ?? 10;
   const raw = event?.raw_api_data as { demo?: boolean; source?: string } | undefined;
-  const isDemoEvent = raw?.demo === true || raw?.source === "admin_demo_mode";
+  const isDemoEvent = raw?.demo === true || raw?.source === 'admin_demo_mode';
 
   const inside = isWithinCircle(lat, lng, centerLat, centerLng, radiusKm);
-  const status = inside ? "inside_geofence" : "outside_geofence";
+  const status = inside ? 'inside_geofence' : 'outside_geofence';
 
   let proofUrl: string | null = null;
-  if (proof && proof.size > 0 && proof.size <= MAX_PROOF_SIZE && ALLOWED_PROOF_TYPES.includes(proof.type)) {
+  if (
+    proof &&
+    proof.size > 0 &&
+    proof.size <= MAX_PROOF_SIZE &&
+    ALLOWED_PROOF_TYPES.includes(proof.type)
+  ) {
     try {
       const admin = createAdminClient();
-      const ext = proof.name.split(".").pop() ?? "jpg";
+      const ext = proof.name.split('.').pop() ?? 'jpg';
       const path = `claim-proofs/${claimId}/${user.id}_${Date.now()}.${ext}`;
       const buf = await proof.arrayBuffer();
       const { error } = await admin.storage.from(BUCKET).upload(path, buf, {
@@ -255,7 +244,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString();
-  const { error: insertErr } = await supabase.from("claim_verifications").upsert(
+  const { error: insertErr } = await supabase.from('claim_verifications').upsert(
     {
       claim_id: claimId,
       profile_id: user.id,
@@ -277,7 +266,7 @@ export async function POST(request: Request) {
       rooted_device: rootedDevice,
       device_attestation: deviceAttestation,
     },
-    { onConflict: "claim_id,profile_id" }
+    { onConflict: 'claim_id,profile_id' },
   );
 
   if (insertErr) {
@@ -287,43 +276,43 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   if (isDemoEvent) {
     await admin
-      .from("parametric_claims")
+      .from('parametric_claims')
       .update({ is_flagged: false, flag_reason: null })
-      .eq("id", claimId);
+      .eq('id', claimId);
   } else if (inside) {
     await admin
-      .from("parametric_claims")
+      .from('parametric_claims')
       .update({ is_flagged: false, flag_reason: null })
-      .eq("id", claimId);
-  } else if (status === "outside_geofence") {
+      .eq('id', claimId);
+  } else if (status === 'outside_geofence') {
     await admin
-      .from("parametric_claims")
+      .from('parametric_claims')
       .update({
         is_flagged: true,
-        flag_reason: "Location verification: rider GPS outside event geofence",
+        flag_reason: 'Location verification: rider GPS outside event geofence',
       })
-      .eq("id", claimId);
+      .eq('id', claimId);
   }
 
   // If device integrity checks flagged the session, hold payout (but keep verification record).
   if (inside && deviceCheck.isFlagged) {
     await admin
-      .from("parametric_claims")
+      .from('parametric_claims')
       .update({
         is_flagged: true,
-        flag_reason: deviceCheck.reason ?? "Device integrity checks flagged this verification",
+        flag_reason: deviceCheck.reason ?? 'Device integrity checks flagged this verification',
       })
-      .eq("id", claimId);
+      .eq('id', claimId);
 
     await createAutomatedHold({
       supabase: admin,
-      stage: "pre_payout",
+      stage: 'pre_payout',
       profileId: user.id,
       claimId,
       policyId: claim.policy_id,
       disruptionEventId: claim.disruption_event_id,
-      reason: deviceCheck.reason ?? "Device integrity checks flagged this verification",
-      checkName: deviceCheck.checkName ?? "device_integrity",
+      reason: deviceCheck.reason ?? 'Device integrity checks flagged this verification',
+      checkName: deviceCheck.checkName ?? 'device_integrity',
       facts: deviceCheck.facts,
     });
 
@@ -332,8 +321,8 @@ export async function POST(request: Request) {
       status,
       payout_initiated: false,
       held: true,
-      hold_reason: deviceCheck.reason ?? "Held for manual review",
-      message: `Verification received. Payout on hold: ${deviceCheck.reason ?? "manual review required"}.`,
+      hold_reason: deviceCheck.reason ?? 'Held for manual review',
+      message: `Verification received. Payout on hold: ${deviceCheck.reason ?? 'manual review required'}.`,
     });
   }
 
@@ -351,26 +340,26 @@ export async function POST(request: Request) {
 
   // Re-read the claim after extended checks — they may have set is_flagged = true.
   const { data: freshClaim } = await admin
-    .from("parametric_claims")
-    .select("id, status, is_flagged, flag_reason, payout_amount_inr")
-    .eq("id", claimId)
+    .from('parametric_claims')
+    .select('id, status, is_flagged, flag_reason, payout_amount_inr')
+    .eq('id', claimId)
     .single();
 
   const claimFlagged = freshClaim?.is_flagged === true;
 
   let payoutInitiated = false;
-  if (inside && freshClaim?.status === "pending_verification" && policy?.profile_id) {
+  if (inside && freshClaim?.status === 'pending_verification' && policy?.profile_id) {
     // Block payout when extended fraud flagged the claim
     if (claimFlagged) {
       await createAutomatedHold({
         supabase: admin,
-        stage: "pre_payout",
+        stage: 'pre_payout',
         profileId: user.id,
         claimId,
         policyId: claim.policy_id,
         disruptionEventId: claim.disruption_event_id,
-        reason: freshClaim.flag_reason ?? "Extended fraud checks flagged this claim",
-        checkName: "extended_fraud_hold",
+        reason: freshClaim.flag_reason ?? 'Extended fraud checks flagged this claim',
+        checkName: 'extended_fraud_hold',
         facts: { flag_reason: freshClaim.flag_reason },
       });
 
@@ -379,33 +368,36 @@ export async function POST(request: Request) {
         status,
         payout_initiated: false,
         held: true,
-        hold_reason: freshClaim.flag_reason ?? "Held for review",
-        message: `Verification received. Payout on hold: ${freshClaim.flag_reason ?? "manual review required"}.`,
+        hold_reason: freshClaim.flag_reason ?? 'Held for review',
+        message: `Verification received. Payout on hold: ${freshClaim.flag_reason ?? 'manual review required'}.`,
       });
     }
 
-    const amountInr = freshClaim.payout_amount_inr != null ? Number(freshClaim.payout_amount_inr) : PAYOUT_FALLBACK_INR;
+    const amountInr =
+      freshClaim.payout_amount_inr != null
+        ? Number(freshClaim.payout_amount_inr)
+        : PAYOUT_FALLBACK_INR;
     const txId = `oasis_verify_${Date.now()}_${claimId.slice(0, 8)}_${Math.random().toString(36).slice(2, 8)}`;
 
     const destinationCheck = await checkPayoutDestinationAnomaly(admin, user.id);
     if (destinationCheck.isFlagged) {
       await admin
-        .from("parametric_claims")
+        .from('parametric_claims')
         .update({
           is_flagged: true,
-          flag_reason: destinationCheck.reason ?? "Payout held for manual review",
+          flag_reason: destinationCheck.reason ?? 'Payout held for manual review',
         })
-        .eq("id", claimId);
+        .eq('id', claimId);
 
       await createAutomatedHold({
         supabase: admin,
-        stage: "pre_payout",
+        stage: 'pre_payout',
         profileId: user.id,
         claimId,
         policyId: claim.policy_id,
         disruptionEventId: claim.disruption_event_id,
-        reason: destinationCheck.reason ?? "Payout held for manual review",
-        checkName: destinationCheck.checkName ?? "payout_destination_anomaly",
+        reason: destinationCheck.reason ?? 'Payout held for manual review',
+        checkName: destinationCheck.checkName ?? 'payout_destination_anomaly',
         facts: destinationCheck.facts,
       });
 
@@ -414,17 +406,17 @@ export async function POST(request: Request) {
         status,
         payout_initiated: false,
         held: true,
-        hold_reason: destinationCheck.reason ?? "Payout held for manual review",
-        message: `Verification received. Payout on hold: ${destinationCheck.reason ?? "manual review required"}.`,
+        hold_reason: destinationCheck.reason ?? 'Payout held for manual review',
+        message: `Verification received. Payout on hold: ${destinationCheck.reason ?? 'manual review required'}.`,
       });
     }
 
     const { data: updatedRows, error: updateErr } = await admin
-      .from("parametric_claims")
-      .update({ status: "paid", gateway_transaction_id: txId })
-      .eq("id", claimId)
-      .eq("status", "pending_verification")
-      .select("id");
+      .from('parametric_claims')
+      .update({ status: 'paid', gateway_transaction_id: txId })
+      .eq('id', claimId)
+      .eq('status', 'pending_verification')
+      .select('id');
 
     if (!updateErr && updatedRows && updatedRows.length > 0) {
       const payoutOk = await simulatePayout(admin, claimId, policy.profile_id, amountInr);
@@ -432,9 +424,9 @@ export async function POST(request: Request) {
         payoutInitiated = true;
       } else {
         await admin
-          .from("parametric_claims")
-          .update({ status: "pending_verification", gateway_transaction_id: null })
-          .eq("id", claimId);
+          .from('parametric_claims')
+          .update({ status: 'pending_verification', gateway_transaction_id: null })
+          .eq('id', claimId);
       }
     }
   }
@@ -445,8 +437,8 @@ export async function POST(request: Request) {
     payout_initiated: payoutInitiated,
     message: inside
       ? payoutInitiated
-        ? "Location verified. Payout credited to your wallet."
-        : "Location verified inside zone"
-      : "Location recorded (outside zone)",
+        ? 'Location verified. Payout credited to your wallet.'
+        : 'Location verified inside zone'
+      : 'Location recorded (outside zone)',
   });
 }

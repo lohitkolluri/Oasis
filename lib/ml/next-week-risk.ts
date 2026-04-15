@@ -112,7 +112,8 @@ export async function getNextWeekPrediction(
     .from('parametric_claims')
     .select('id, created_at')
     .gte('created_at', new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .limit(1000);
 
   const all = recentClaims ?? [];
   const avgPerWeek = all.length / 3;

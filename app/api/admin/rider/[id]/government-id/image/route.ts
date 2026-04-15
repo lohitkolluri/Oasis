@@ -3,11 +3,11 @@
  * Admin-only. Returns the rider's government ID image (decrypted if stored encrypted).
  * Use as <img src="..."> so the browser displays a valid image.
  */
-import { createAdminClient } from '@/lib/supabase/admin';
 import { getGovIdEncryptionKey } from '@/lib/config/env';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
-import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { NextResponse } from 'next/server';
 
 const BUCKET = 'government-ids';
 
@@ -49,9 +49,7 @@ export const GET = withAdminAuth(async (_ctx, request) => {
     return NextResponse.json({ error: 'No government ID on file' }, { status: 404 });
   }
 
-  const { data: blob, error: downloadError } = await supabase.storage
-    .from(BUCKET)
-    .download(path);
+  const { data: blob, error: downloadError } = await supabase.storage.from(BUCKET).download(path);
 
   if (downloadError || !blob) {
     return NextResponse.json(
@@ -72,17 +70,11 @@ export const GET = withAdminAuth(async (_ctx, request) => {
         const ciphertext = buffer.subarray(IV_LEN + TAG_LEN);
         const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
         decipher.setAuthTag(tag);
-        buffer = Buffer.concat([
-          decipher.update(ciphertext),
-          decipher.final(),
-        ]);
+        buffer = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
       }
     } catch (e) {
-      console.error('Gov ID decrypt error:', e);
-      return NextResponse.json(
-        { error: 'Failed to decrypt government ID' },
-        { status: 500 },
-      );
+      void e;
+      return NextResponse.json({ error: 'Failed to decrypt government ID' }, { status: 500 });
     }
   }
 

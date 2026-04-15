@@ -14,7 +14,7 @@ const enableD2 = process.env.VERCEL !== '1';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://oasis-docs.vercel.app',
+  site: 'https://oasisdocs.vercel.app',
   integrations: [
     enableD2 && d2({}),
     mermaid({
@@ -47,7 +47,8 @@ export default defineConfig({
         starlightUtils(),
         starlightLlmsTxt({
           projectName: 'Oasis',
-          description: "AI-powered parametric wage protection for India's Q-commerce delivery partners. Covers loss of income only from weather, zone lockdowns, and traffic gridlock.",
+          description:
+            "AI-powered parametric wage protection for India's Q-commerce delivery partners. Covers loss of income only from weather, zone lockdowns, and traffic gridlock.",
         }),
         starlightOpenAPI([
           {
@@ -109,9 +110,7 @@ export default defineConfig({
           ],
         },
       ],
-      customCss: [
-        './src/styles/custom.css',
-      ],
+      customCss: ['./src/styles/custom.css'],
       components: {
         // Use Starlight defaults
       },

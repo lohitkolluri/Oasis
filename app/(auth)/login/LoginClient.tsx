@@ -7,7 +7,7 @@ import { gooeyToast } from 'goey-toast';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -15,16 +15,16 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Fallback for PWA edge-cases: if cookies were restored on the client, redirect without flashing the form.
   useEffect(() => {
     let cancelled = false;
     createClient()
       .auth.getSession()
-      .then(({ data: { session } }) => {
+      .then((res: { data: { session: unknown } }) => {
         if (cancelled) return;
-        if (session) window.location.replace('/dashboard');
+        if (res.data.session) window.location.replace('/dashboard');
         else setCheckingSession(false);
       })
       .catch(() => setCheckingSession(false));
@@ -159,4 +159,3 @@ export function LoginClient() {
     </Suspense>
   );
 }
-

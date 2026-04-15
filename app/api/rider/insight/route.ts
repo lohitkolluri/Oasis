@@ -3,13 +3,18 @@
  *
  * Fix: all 5 Supabase queries now run in parallel via Promise.all (was sequential).
  */
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
 import { callOpenRouterChat } from '@/lib/clients/openrouter';
+import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const limitKey = rateLimitKey(request, 'rider-insight');
+  const rateLimited = await checkRateLimit(limitKey, { maxRequests: 10 });
+  if (rateLimited) return rateLimited;
+
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) {
     return NextResponse.json({ insight: null });
@@ -110,8 +115,7 @@ export async function GET() {
     content = content.replace(/[.!?]+$/g, '').trim();
 
     return NextResponse.json({ insight: content });
-  } catch (err) {
-    console.error('Rider insight generation failed:', err);
+  } catch {
     return NextResponse.json({ insight: null });
   }
 }

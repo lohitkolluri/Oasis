@@ -14,8 +14,13 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Oasis',
-  description: "AI-powered parametric wage protection for India's Q-commerce delivery partners.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://oasis-app.vercel.app'),
+  title: {
+    default: 'Oasis — AI-Powered Income Protection for Delivery Partners',
+    template: '%s | Oasis',
+  },
+  description:
+    "Weekly parametric wage protection for India's Q-commerce delivery partners. Automated payouts when disruptions strike — no claims paperwork.",
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
@@ -31,6 +36,28 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    siteName: 'Oasis',
+    title: 'Oasis — AI-Powered Income Protection for Delivery Partners',
+    description:
+      "Weekly parametric wage protection for India's Q-commerce delivery partners. Automated payouts when disruptions strike.",
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Oasis — Income Protection for Delivery Partners',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Oasis — AI-Powered Income Protection',
+    description: "Weekly parametric wage protection for India's Q-commerce delivery partners.",
+    images: ['/og-image.png'],
   },
 };
 
