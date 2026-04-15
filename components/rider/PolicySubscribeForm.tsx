@@ -2,13 +2,13 @@
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import type { DynamicPlanQuote } from '@/lib/ml/resolve-dynamic-plan-quotes';
-import { getCoverageWeekRange } from '@/lib/utils/policy-week';
+import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import { cn } from '@/lib/utils';
+import { getCoverageWeekRange } from '@/lib/utils/policy-week';
 import { Check, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { SubscriptionDetails } from './SubscriptionDetails';
 
 function loadRazorpayScript(): Promise<void> {
@@ -21,7 +21,8 @@ function loadRazorpayScript(): Promise<void> {
       const start = Date.now();
       const tick = () => {
         if ((window as any).Razorpay) return resolve();
-        if (Date.now() - start > ms) return reject(new Error('Razorpay script loaded but global was not available.'));
+        if (Date.now() - start > ms)
+          return reject(new Error('Razorpay script loaded but global was not available.'));
         setTimeout(tick, 50);
       };
       tick();
@@ -52,7 +53,11 @@ function loadRazorpayScript(): Promise<void> {
       };
       const onError = () => {
         cleanup();
-        reject(new Error('Failed to load Razorpay Checkout. It may be blocked by an ad blocker or network policy.'));
+        reject(
+          new Error(
+            'Failed to load Razorpay Checkout. It may be blocked by an ad blocker or network policy.',
+          ),
+        );
       };
 
       // If it already loaded but global isn't set yet, just wait briefly.
@@ -67,7 +72,11 @@ function loadRazorpayScript(): Promise<void> {
       // Timeout to avoid hanging forever.
       setTimeout(() => {
         cleanup();
-        reject(new Error('Timed out loading Razorpay Checkout. Check ad blockers or corporate network filtering.'));
+        reject(
+          new Error(
+            'Timed out loading Razorpay Checkout. Check ad blockers or corporate network filtering.',
+          ),
+        );
       }, 8000);
     });
 
@@ -119,7 +128,10 @@ interface PolicySubscribeFormProps {
   dynamicQuotesBySlug?: Record<string, DynamicPlanQuote>;
 }
 
-function quoteForPlan(plan: PlanPackage, dynamicQuotesBySlug?: Record<string, DynamicPlanQuote>): DynamicPlanQuote {
+function quoteForPlan(
+  plan: PlanPackage,
+  dynamicQuotesBySlug?: Record<string, DynamicPlanQuote>,
+): DynamicPlanQuote {
   const q = dynamicQuotesBySlug?.[plan.slug];
   if (q) return q;
   return {
@@ -188,7 +200,9 @@ export function PolicySubscribeForm({
 
     try {
       const wantsMandate = weeklyAutoRenew && !autoRenewEnabled;
-      const endpoint = wantsMandate ? '/api/payments/create-subscription' : '/api/payments/create-checkout';
+      const endpoint = wantsMandate
+        ? '/api/payments/create-subscription'
+        : '/api/payments/create-checkout';
       const createRes = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,11 +218,15 @@ export function PolicySubscribeForm({
 
       if (!createRes.ok) {
         if (createRes.status === 503) {
+          const looksLikeMissingKeys =
+            typeof err === 'string' &&
+            (err.includes('NEXT_PUBLIC_RAZORPAY_KEY_ID') || err.includes('Payment not configured'));
           setMessage({
             type: 'error',
-            text:
-              err ??
-              'Payment not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (test mode).',
+            text: looksLikeMissingKeys
+              ? (err ??
+                'Payment not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (test mode).')
+              : (err ?? 'Service temporarily unavailable. Try again.'),
           });
           setLoading(false);
           return;
@@ -216,13 +234,18 @@ export function PolicySubscribeForm({
         throw new Error(err ?? 'Failed to create checkout');
       }
 
+      if (raw.ok === true && raw.policyActivated === true) {
+        window.location.href = '/dashboard/policy?success=1';
+        setLoading(false);
+        return;
+      }
+
       await loadRazorpayScript();
       const RazorpayCtor = window.Razorpay;
       if (!RazorpayCtor) {
         setMessage({
           type: 'error',
-          text:
-            'Razorpay failed to load. Disable ad blockers / tracking protection for this site and try again.',
+          text: 'Razorpay failed to load. Disable ad blockers / tracking protection for this site and try again.',
         });
         setLoading(false);
         return;
@@ -381,31 +404,51 @@ export function PolicySubscribeForm({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`font-bold text-[15px] ${isSelected ? 'text-white' : 'text-zinc-200'}`}>{plan.name}</span>
+                        <span
+                          className={`font-bold text-[15px] ${isSelected ? 'text-white' : 'text-zinc-200'}`}
+                        >
+                          {plan.name}
+                        </span>
                         {isSelected && <Check className="h-4 w-4 text-uber-green shrink-0" />}
                       </div>
                       {plan.description && (
-                        <p className={`text-[12px] leading-relaxed ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>{plan.description}</p>
+                        <p
+                          className={`text-[12px] leading-relaxed ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}
+                        >
+                          {plan.description}
+                        </p>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`text-xl font-bold tabular-nums tracking-tight ${isSelected ? 'text-uber-green' : 'text-white'}`}>
+                      <p
+                        className={`text-xl font-bold tabular-nums tracking-tight ${isSelected ? 'text-uber-green' : 'text-white'}`}
+                      >
                         ₹{premium.toLocaleString('en-IN')}
                       </p>
-                      <p className={`text-[11px] mt-0.5 ${isSelected ? 'text-uber-green/70' : 'text-zinc-500'}`}>per week</p>
+                      <p
+                        className={`text-[11px] mt-0.5 ${isSelected ? 'text-uber-green/70' : 'text-zinc-500'}`}
+                      >
+                        per week
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
-                    <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                    <span
+                      className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}
+                    >
                       ₹{quote.payout_per_claim_inr.toLocaleString('en-IN')}/payout
                     </span>
                     <span className="text-zinc-600">·</span>
-                    <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                    <span
+                      className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}
+                    >
                       up to {quote.max_claims_per_week}{' '}
                       {quote.max_claims_per_week === 1 ? 'payout' : 'payouts'}/week
                     </span>
                     <span className="text-zinc-600">·</span>
-                    <span className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                    <span
+                      className={`text-[12px] font-medium tabular-nums ${isSelected ? 'text-zinc-400' : 'text-zinc-500'}`}
+                    >
                       ₹{dailyCost}/day
                     </span>
                   </div>
@@ -418,11 +461,16 @@ export function PolicySubscribeForm({
       <Card variant="elevated" padding="lg">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">This week</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              This week
+            </p>
             <p className="mt-1 text-sm text-zinc-300 tabular-nums font-medium">
               {formatDate(start)} – {formatDate(end)}
               {hasPlans && activePlan ? (
-                <span className="text-zinc-500"> · <span className="text-white">{activePlan.name}</span></span>
+                <span className="text-zinc-500">
+                  {' '}
+                  · <span className="text-white">{activePlan.name}</span>
+                </span>
               ) : null}
             </p>
           </div>
@@ -465,7 +513,9 @@ export function PolicySubscribeForm({
                   try {
                     setLoading(true);
                     setMessage(null);
-                    const res = await fetch('/api/payments/cancel-subscription', { method: 'POST' });
+                    const res = await fetch('/api/payments/cancel-subscription', {
+                      method: 'POST',
+                    });
                     const j = (await res.json()) as { ok?: boolean; error?: string };
                     if (!res.ok || !j.ok) {
                       throw new Error(j.error ?? 'Could not cancel auto-renewal');
@@ -532,7 +582,10 @@ export function PolicySubscribeForm({
 
         {!activePolicy && (
           <p className="mt-4 text-center text-[10px] leading-relaxed text-zinc-600">
-            <Link href="/dashboard/policy/docs" className="text-zinc-500 hover:text-uber-green underline-offset-2">
+            <Link
+              href="/dashboard/policy/docs"
+              className="text-zinc-500 hover:text-uber-green underline-offset-2"
+            >
               Policy terms
             </Link>{' '}
             apply. Income protection only (not health, life, accident, or vehicle cover).

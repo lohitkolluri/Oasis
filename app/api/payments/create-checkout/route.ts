@@ -7,6 +7,7 @@ import { PAYMENTS, RATE_LIMITS } from '@/lib/config/constants';
 import { getRazorpayKeyId } from '@/lib/config/env';
 import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import { expireStalePendingWeeklyPolicies } from '@/lib/payments/expire-stale-pending-checkout';
+import { resolvePendingOrderCheckout } from '@/lib/payments/resolve-pending-order-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
@@ -37,9 +38,8 @@ export async function POST(request: Request) {
     if (!parsed.success) return parsed.response;
     const { planId } = parsed.data;
     const admin = createAdminClient();
+    const razorpay = getRazorpayInstance();
     const { start: weekStart, end: weekEnd } = getCoverageWeekRange();
-
-    await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
 
     let amountInr: number;
     if (planId) {
@@ -64,29 +64,82 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    const { data: weekRow } = await admin
-      .from('weekly_policies')
-      .select('id, is_active, payment_status, created_at')
-      .eq('profile_id', user.id)
-      .eq('week_start_date', weekStart)
-      .maybeSingle();
+    let weekRow: {
+      id: string;
+      is_active: boolean | null;
+      payment_status: string | null;
+      created_at: string;
+      razorpay_order_id: string | null;
+      weekly_premium_inr: number | string | null;
+    } | null = null;
 
-    if (weekRow?.is_active) {
-      return NextResponse.json(
-        {
-          error: 'You already have active coverage for this week.',
-          policyId: weekRow.id,
-        },
-        { status: 400 },
-      );
+    for (let pass = 0; pass < 3; pass++) {
+      await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
+
+      const { data: wr } = await admin
+        .from('weekly_policies')
+        .select(
+          'id, is_active, payment_status, created_at, razorpay_order_id, weekly_premium_inr, profile_id',
+        )
+        .eq('profile_id', user.id)
+        .eq('week_start_date', weekStart)
+        .maybeSingle();
+
+      weekRow = wr;
+
+      if (weekRow?.is_active) {
+        return NextResponse.json(
+          {
+            error: 'You already have active coverage for this week.',
+            policyId: weekRow.id,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (weekRow?.payment_status === 'pending') {
+        const pending = await resolvePendingOrderCheckout({
+          admin,
+          razorpay,
+          user,
+          weekRow: {
+            id: weekRow.id,
+            profile_id: user.id,
+            razorpay_order_id: weekRow.razorpay_order_id,
+            weekly_premium_inr: weekRow.weekly_premium_inr,
+          },
+          expectedAmountInr: amountInr,
+          weekStart,
+          weekEnd,
+        });
+
+        if (pending.kind === 'resume') {
+          return NextResponse.json(pending.body);
+        }
+        if (pending.kind === 'synced') {
+          return NextResponse.json({ ok: true, policyActivated: true });
+        }
+        if (pending.kind === 'sync_failed') {
+          return NextResponse.json(
+            {
+              error:
+                'Your payment may already be complete, but we could not activate coverage automatically. Refresh the policy page or contact support.',
+            },
+            { status: 503 },
+          );
+        }
+        continue;
+      }
+
+      break;
     }
 
     if (weekRow?.payment_status === 'pending') {
       return NextResponse.json(
         {
-          error: 'You already have a pending checkout for this week. Complete payment first.',
+          error: 'Could not start checkout right now. Try again in a few seconds.',
           policyId: weekRow.id,
-          hint: `If you did not finish paying, wait ${Math.ceil(PAYMENTS.PENDING_CHECKOUT_TTL_MS / 1000)}s and try again.`,
+          hint: `If payment is still open, complete it or wait ${Math.ceil(PAYMENTS.PENDING_CHECKOUT_TTL_MS / 1000)}s and retry.`,
         },
         { status: 409 },
       );
@@ -124,10 +177,42 @@ export async function POST(request: Request) {
           await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
           const { data: afterRace } = await admin
             .from('weekly_policies')
-            .select('id, is_active, payment_status')
+            .select('id, is_active, payment_status, razorpay_order_id, weekly_premium_inr')
             .eq('profile_id', user.id)
             .eq('week_start_date', weekStart)
             .maybeSingle();
+
+          if (afterRace?.payment_status === 'pending' && afterRace.id) {
+            const raced = await resolvePendingOrderCheckout({
+              admin,
+              razorpay,
+              user,
+              weekRow: {
+                id: afterRace.id,
+                profile_id: user.id,
+                razorpay_order_id: afterRace.razorpay_order_id,
+                weekly_premium_inr: afterRace.weekly_premium_inr,
+              },
+              expectedAmountInr: amountInr,
+              weekStart,
+              weekEnd,
+            });
+            if (raced.kind === 'resume') {
+              return NextResponse.json(raced.body);
+            }
+            if (raced.kind === 'synced') {
+              return NextResponse.json({ ok: true, policyActivated: true });
+            }
+            if (raced.kind === 'sync_failed') {
+              return NextResponse.json(
+                {
+                  error:
+                    'Your payment may already be complete, but we could not activate coverage automatically. Refresh the policy page or contact support.',
+                },
+                { status: 503 },
+              );
+            }
+          }
 
           if (afterRace?.payment_status === 'failed' && afterRace.id) {
             const { error: reviveErr } = await admin
@@ -216,8 +301,6 @@ export async function POST(request: Request) {
     const amountPaise = Math.round(amountInr * 100);
 
     getRazorpayKeyId();
-
-    const razorpay = getRazorpayInstance();
     const receipt = `oasis_${policyId.replace(/-/g, '').slice(0, 32)}`;
 
     const order = await razorpay.orders.create({

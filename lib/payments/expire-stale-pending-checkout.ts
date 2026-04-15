@@ -4,6 +4,7 @@
  */
 import { getRazorpayInstance } from '@/lib/clients/razorpay';
 import { PAYMENTS } from '@/lib/config/constants';
+import { logger } from '@/lib/logger';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export async function expireStalePendingWeeklyPolicies(
@@ -38,7 +39,7 @@ export async function expireStalePendingWeeklyPolicies(
       }
     }
 
-    await admin
+    const { error: wpErr } = await admin
       .from('weekly_policies')
       .update({
         payment_status: 'failed',
@@ -50,10 +51,25 @@ export async function expireStalePendingWeeklyPolicies(
       .eq('id', row.id)
       .eq('payment_status', 'pending');
 
-    await admin
+    if (wpErr) {
+      logger.warn('expireStalePendingWeeklyPolicies: failed to mark weekly_policy stale', {
+        policyId: row.id,
+        message: wpErr.message,
+      });
+      continue;
+    }
+
+    const { error: ptErr } = await admin
       .from('payment_transactions')
       .update({ status: 'failed' })
       .eq('weekly_policy_id', row.id)
       .eq('status', 'pending');
+
+    if (ptErr) {
+      logger.warn('expireStalePendingWeeklyPolicies: failed to mark payment_transaction stale', {
+        policyId: row.id,
+        message: ptErr.message,
+      });
+    }
   }
 }

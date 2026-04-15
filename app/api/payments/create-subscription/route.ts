@@ -7,6 +7,7 @@ import { PAYMENTS, RATE_LIMITS } from '@/lib/config/constants';
 import { getRazorpayKeyId } from '@/lib/config/env';
 import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import { expireStalePendingWeeklyPolicies } from '@/lib/payments/expire-stale-pending-checkout';
+import { resolvePendingSubscriptionCheckout } from '@/lib/payments/resolve-pending-subscription-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
@@ -180,31 +181,65 @@ export async function POST(request: Request) {
     }
 
     /* Razorpay API requires customer_id; SDK types omit it on the create body. */
-    await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
+    let weekRow: {
+      id: string;
+      is_active: boolean | null;
+      payment_status: string | null;
+      razorpay_subscription_id: string | null;
+    } | null = null;
 
-    const { data: weekRow } = await admin
-      .from('weekly_policies')
-      .select('id, is_active, payment_status')
-      .eq('profile_id', user.id)
-      .eq('week_start_date', weekStart)
-      .maybeSingle();
+    for (let pass = 0; pass < 3; pass++) {
+      await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
 
-    if (weekRow?.is_active) {
-      return NextResponse.json(
-        {
-          error: 'You already have active coverage for this week.',
-          policyId: weekRow.id,
-        },
-        { status: 400 },
-      );
+      const { data: wr } = await admin
+        .from('weekly_policies')
+        .select('id, is_active, payment_status, razorpay_subscription_id')
+        .eq('profile_id', user.id)
+        .eq('week_start_date', weekStart)
+        .maybeSingle();
+
+      weekRow = wr;
+
+      if (weekRow?.is_active) {
+        return NextResponse.json(
+          {
+            error: 'You already have active coverage for this week.',
+            policyId: weekRow.id,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (weekRow?.payment_status === 'pending') {
+        const subRes = await resolvePendingSubscriptionCheckout({
+          admin,
+          razorpay,
+          user,
+          weekRow,
+          amountInr,
+          weekStart,
+          weekEnd,
+          profile: {
+            full_name: profile.full_name,
+            phone_number: profile.phone_number,
+          },
+        });
+
+        if (subRes.kind === 'resume') {
+          return NextResponse.json(subRes.body);
+        }
+        continue;
+      }
+
+      break;
     }
 
     if (weekRow?.payment_status === 'pending') {
       return NextResponse.json(
         {
-          error: 'You already have a pending mandate/checkout for this week. Complete it first.',
+          error: 'Could not resume mandate checkout. Try again in a few seconds.',
           policyId: weekRow.id,
-          hint: `If you abandoned checkout, wait ${Math.ceil(PAYMENTS.PENDING_CHECKOUT_TTL_MS / 1000)}s and try again.`,
+          hint: `If checkout is still open, complete it or wait ${Math.ceil(PAYMENTS.PENDING_CHECKOUT_TTL_MS / 1000)}s and retry.`,
         },
         { status: 409 },
       );
@@ -242,10 +277,29 @@ export async function POST(request: Request) {
           await expireStalePendingWeeklyPolicies(admin, user.id, weekStart);
           const { data: afterRace } = await admin
             .from('weekly_policies')
-            .select('id, is_active, payment_status')
+            .select('id, is_active, payment_status, razorpay_subscription_id')
             .eq('profile_id', user.id)
             .eq('week_start_date', weekStart)
             .maybeSingle();
+
+          if (afterRace?.payment_status === 'pending' && afterRace.id) {
+            const raced = await resolvePendingSubscriptionCheckout({
+              admin,
+              razorpay,
+              user,
+              weekRow: afterRace,
+              amountInr,
+              weekStart,
+              weekEnd,
+              profile: {
+                full_name: profile.full_name,
+                phone_number: profile.phone_number,
+              },
+            });
+            if (raced.kind === 'resume') {
+              return NextResponse.json(raced.body);
+            }
+          }
 
           if (afterRace?.payment_status === 'failed' && afterRace.id) {
             const { error: reviveErr } = await admin
