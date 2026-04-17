@@ -16,6 +16,10 @@ Weekly billing. Automatic triggers. Zero claim forms.
   <img src="https://img.shields.io/badge/Documentation-6366f1?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation" />
 </a>
 &nbsp;&nbsp;
+<a href="./Pitch%20Deck.pdf">
+  <img src="https://img.shields.io/badge/Pitch%20Deck-0ea5e9?style=for-the-badge&logo=microsoftpowerpoint&logoColor=white" alt="Pitch Deck" />
+</a>
+&nbsp;&nbsp;
 <a href="https://github.com/lohitkolluri/Oasis/issues">
   <img src="https://img.shields.io/badge/Report%20Bug-ef4444?style=for-the-badge&logo=github&logoColor=white" alt="Report Bug" />
 </a>
@@ -172,9 +176,6 @@ Traditional insurance was not built for gig schedules. Oasis is a **parametric**
   - [Running Tests](#running-tests)
   - [Deploying](#deploying)
   - [API Surface](#api-surface)
-- [Roadmap](#roadmap)
-  - [Shipped](#shipped)
-  - [Coming Later](#coming-later)
 - [Legal & references](#toc-legal)
 - [License](#license)
   - [References](#references)
@@ -710,39 +711,6 @@ Full OpenAPI spec: [`docs/openapi.yaml`](./docs/openapi.yaml) | Interactive refe
 | Webhooks   | `/api/webhooks/*`   | Inbound disruption data         |
 | Geo        | `/api/geo/*`        | Zone search, coordinates        |
 | Health     | `/api/health`       | Liveness check                  |
-
-<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-<h2 id="roadmap">📋 Roadmap</h2>
-
-<h3 id="shipped">Shipped</h3>
-
-- [x] Multi-signal disruption engine (weather, AQI, traffic, news)
-- [x] Dynamic weekly pricing with per-zone ML risk scoring
-- [x] Razorpay payment collection (UPI, cards, wallets)
-- [x] AI-assisted KYC (government ID + face verification)
-- [x] Fully automated parametric claims pipeline
-- [x] Fraud controls: geo validation, velocity caps, cluster detection
-- [x] Payment safety: DB-level weekly policy uniqueness + webhook retry logging
-- [x] Cron mutual exclusion via Postgres advisory locks
-- [x] Append-only trigger ledger with versioned rule governance
-- [x] Admin console: analytics, fraud monitoring, financial dashboards
-- [x] Rider console: coverage, claims, wallet with realtime updates
-- [x] Role-based access control (rider vs admin)
-- [x] Multi-platform and multi-insurer support
-- [x] Progressive Web App with offline support
-- [x] Starlight documentation site with OpenAPI reference
-
-<h3 id="coming-later">Coming Later</h3>
-
-- [ ] Embeddable partner widget for white-label integration
-- [ ] Warehouse and hub IoT sensors for hyper-local indices
-- [ ] Production observability (structured logging, tracing, uptime)
-- [ ] Reinsurance workflows at scale
-- [ ] Regional language support (Hindi, Kannada, Tamil, Telugu)
-- [ ] Rider appeals workflow for edge-case disputes
-- [ ] Load testing and capacity planning
-- [ ] Kubernetes packaging via Helm charts
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
