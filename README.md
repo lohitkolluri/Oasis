@@ -20,9 +20,9 @@ Weekly billing. Automatic triggers. Zero claim forms.
   <img src="https://img.shields.io/badge/Report%20Bug-ef4444?style=for-the-badge&logo=github&logoColor=white" alt="Report Bug" />
 </a>
 <br />
-<span title="Phase 3 demo link pending upload">
-  <img src="https://img.shields.io/badge/Phase_3_Demo-Coming_Soon-6b7280?style=for-the-badge&logo=youtube&logoColor=white" alt="Phase 3 demo video link coming soon" />
-</span>
+<a href="https://youtu.be/UUzpdJyqzHc">
+  <img src="https://img.shields.io/badge/Phase_3_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Phase 3 demo video on YouTube" />
+</a>
 &nbsp;&nbsp;
 <a href="https://youtu.be/pO56XCf9l0c">
   <img src="https://img.shields.io/badge/Phase_2_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Phase 2 demo video on YouTube" />
@@ -41,6 +41,71 @@ Weekly billing. Automatic triggers. Zero claim forms.
 <img src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" />
 
 </div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+## Project Title
+
+**Oasis - AI Parametric Income Shield for Delivery Riders**
+
+## About the Project
+
+Oasis was inspired by a simple pattern we kept seeing in Indian quick-commerce logistics: riders can perform well all week and still lose meaningful income in a single bad shift because of weather shocks, AQI spikes, sudden traffic standstills, or local disruption orders. Traditional insurance products are usually paperwork-heavy, claim-driven, and too slow for gig workers who live on weekly cash flow. We built Oasis to flip that experience from "prove your loss later" to "get protected proactively."
+
+The core USP is a **parametric wage-protection model** that triggers from real-world external signals instead of manual claim forms. Riders subscribe weekly, the system continuously monitors disruption feeds, and eligible incidents can auto-create claims with fraud and location checks in the loop. This design creates a fast path to trust: **low premium, automated detection, transparent rules, and near real-time payout visibility**.
+
+From a market strategy perspective, Oasis is positioned as a **B2B2C embedded protection layer**:
+
+- **Rider value proposition (B2C pull):** affordable weekly plans, zero-paper claims experience, predictable protection against income shocks.
+- **Platform value proposition (B2B push):** lower churn, better rider retention, and differentiated employer brand without running a manual claims operation.
+- **Distribution strategy:** partner with delivery platforms, dark-store operators, and insurer/MGA channels; launch city-wise pilots in high-disruption clusters.
+- **Monetization strategy:** weekly subscription premiums, platform co-pay/sponsorship options, and enterprise analytics for disruption-risk planning.
+- **Defensibility:** zone-level trigger governance, payout ledgers, fraud controls, and operational data flywheels that improve pricing and trigger quality over time.
+
+How we built it:
+
+- A Next.js + TypeScript production app with rider and admin surfaces.
+- Supabase for Postgres, Auth, Realtime, and storage-backed operational workflows.
+- Parametric trigger engine across weather, AQI, traffic, and news data pipelines.
+- Razorpay-based weekly billing and payout-linked wallet workflows.
+- AI-assisted verification and classification through OpenRouter-enabled flows.
+- Fraud checks, geospatial validation, and rule-versioned adjudication pipelines.
+
+What we learned:
+
+- In this domain, **operational reliability and explainability matter as much as model accuracy**.
+- Weekly subscription economics are highly sensitive to trigger precision, false positives, and payout latency.
+- API-first LLM workflows can dramatically reduce infra overhead versus training and serving large custom models for vision/language-heavy tasks.
+- Trust is a product feature: clear policy scope and visible event trails improve adoption.
+
+Challenges we faced:
+
+- Designing trigger thresholds that stay fair across city zones with different baseline conditions.
+- Balancing automatic payout speed with anti-fraud guardrails and geolocation confidence.
+- Maintaining clean data pipelines across heterogeneous external APIs with variable latency and schema drift.
+- Keeping weekly unit economics healthy while still delivering meaningful rider protection.
+
+Business efficiency framing used in Oasis planning:
+
+$$
+\text{Contribution Margin per Rider per Week} = P - E[\text{Payout}] - C_{\text{ops}} - C_{\text{payments}}
+$$
+
+$$
+\text{LTV:CAC} = \frac{\text{ARPU}_{\text{weekly}} \times \text{Gross Margin} \times \text{Avg. Retention Weeks}}{\text{Customer Acquisition Cost}}
+$$
+
+Success depends on improving trigger precision and retention so that expected payout quality rises while operating cost per protected rider declines.
+
+## Built With
+
+Next.js 15, React 18, TypeScript, Tailwind CSS, shadcn/ui, Supabase (Postgres/Auth/Realtime/Storage), Razorpay, OpenRouter, MapLibre GL, Turf.js, Recharts, Vitest, Playwright, Astro Starlight, Vercel
+
+## Phase Videos
+
+- Phase 1 Video: [https://youtu.be/y7WI73mMNIc](https://youtu.be/y7WI73mMNIc)
+- Phase 2 Video: [https://youtu.be/pO56XCf9l0c](https://youtu.be/pO56XCf9l0c)
+- Phase 3 Video: [https://youtu.be/UUzpdJyqzHc](https://youtu.be/UUzpdJyqzHc)
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
@@ -487,6 +552,7 @@ cp .env.local.example .env.local
 
 |         | Link                                                 |
 | :------ | :--------------------------------------------------- |
+| Phase 3 | [youtu.be/UUzpdJyqzHc](https://youtu.be/UUzpdJyqzHc) |
 | Phase 2 | [youtu.be/pO56XCf9l0c](https://youtu.be/pO56XCf9l0c) |
 | Phase 1 | [youtu.be/y7WI73mMNIc](https://youtu.be/y7WI73mMNIc) |
 
