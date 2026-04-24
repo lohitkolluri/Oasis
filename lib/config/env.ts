@@ -120,9 +120,19 @@ export function getTomorrowApiKey(): string | null {
   return optional('TOMORROW_IO_API_KEY', process.env.TOMORROW_IO_API_KEY);
 }
 
+/** WAQI API key for ground-station air-quality data. */
+export function getWaqiApiKey(): string | null {
+  return optional('WAQI_API_KEY', process.env.WAQI_API_KEY);
+}
+
 /** TomTom API key for traffic data. */
 export function getTomTomApiKey(): string | null {
   return optional('TOMTOM_API_KEY', process.env.TOMTOM_API_KEY);
+}
+
+/** NewsData.io API key for optional disruption news fallback. */
+export function getNewsDataApiKey(): string | null {
+  return optional('NEWSDATA_IO_API_KEY', process.env.NEWSDATA_IO_API_KEY);
 }
 
 /** Optional encryption keys for KYC media. Must be 32-byte base64 in production. */

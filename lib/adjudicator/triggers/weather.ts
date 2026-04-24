@@ -37,6 +37,29 @@ function buildTomorrowUrl(path: '/realtime' | '/forecast', params: Record<string
   return `https://api.tomorrow.io/v4/weather${path}?${search.toString()}`;
 }
 
+function extractHourlyTemperatures(raw: Record<string, unknown>): number[] {
+  const hourly = raw.hourly;
+
+  if (Array.isArray(hourly)) {
+    return hourly
+      .map((interval) => {
+        if (!interval || typeof interval !== 'object') return null;
+        const values = (interval as { values?: { temperature?: unknown } }).values;
+        return typeof values?.temperature === 'number' ? values.temperature : null;
+      })
+      .filter((v): v is number => v != null);
+  }
+
+  if (hourly && typeof hourly === 'object') {
+    const temps = (hourly as { temperature_2m?: unknown }).temperature_2m;
+    if (Array.isArray(temps)) {
+      return temps.filter((v): v is number => typeof v === 'number');
+    }
+  }
+
+  return [];
+}
+
 async function fetchCurrentAqi(
   lat: number,
   lng: number,
@@ -214,14 +237,7 @@ export async function checkWeatherTriggers(
     // Tier 2 (severity 9): threshold met for 2x sustained hours (prolonged heatwave)
     const hourlyTemps: number[] = [];
     if (heatRawData && typeof heatRawData === 'object') {
-      const hourly = (heatRawData as Record<string, unknown>).hourly as
-        | { temperature_2m?: (number | null)[] }
-        | undefined;
-      if (hourly?.temperature_2m) {
-        for (const v of hourly.temperature_2m) {
-          if (v != null && typeof v === 'number') hourlyTemps.push(v);
-        }
-      }
+      hourlyTemps.push(...extractHourlyTemperatures(heatRawData));
     }
 
     let consecutiveHot = 0;
