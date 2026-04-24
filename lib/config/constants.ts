@@ -16,6 +16,19 @@ export const DEFAULT_ZONE = {
 /** Safest fallback payout (Basic tier) when plan_packages data is missing */
 export const PAYOUT_FALLBACK_INR = 300;
 
+/**
+ * Payout balance guardrails:
+ * keep claim payouts proportionate to the rider's purchased weekly premium.
+ * This prevents extreme severity multipliers from creating outsized payouts
+ * that are disconnected from plan economics.
+ */
+export const PAYOUT_BALANCE = {
+  /** Hard ceiling for one claim as a multiple of weekly premium. */
+  MAX_PER_CLAIM_PREMIUM_MULTIPLIER: 2.5,
+  /** Hard ceiling for all claims in a week as a multiple of weekly premium. */
+  MAX_WEEKLY_PREMIUM_MULTIPLIER: 6,
+} as const;
+
 /** Premium pricing bounds (INR) — actuarially modeled for ₹7K/week rider income */
 export const PREMIUM = {
   BASE: 49,

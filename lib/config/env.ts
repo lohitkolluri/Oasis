@@ -151,7 +151,12 @@ export function getAppUrl(): string {
 
 /** VAPID public key (safe in browser). Optional — without it, Web Push opt-in is disabled. */
 export function getVapidPublicKey(): string | null {
-  return optional('NEXT_PUBLIC_VAPID_PUBLIC_KEY', process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+  // Support both canonical and legacy names so existing deployments don't silently
+  // look "unconfigured" in the UI.
+  return (
+    optional('NEXT_PUBLIC_VAPID_PUBLIC_KEY', process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) ??
+    optional('VAPID_PUBLIC_KEY', process.env.VAPID_PUBLIC_KEY)
+  );
 }
 
 /** VAPID private key (server-only). */

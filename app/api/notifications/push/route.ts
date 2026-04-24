@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { getVapidPrivateKey, getVapidPublicKey } from '@/lib/config/env';
 import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +15,17 @@ export async function GET() {
   return NextResponse.json({
     configured: ready,
     publicKey: ready && pub ? pub : null,
+    // Helpful diagnostics for local/staging setups.
+    ...(ready
+      ? {}
+      : {
+          reason:
+            !pub && !getVapidPrivateKey()
+              ? 'Missing VAPID public and private keys'
+              : !pub
+                ? 'Missing VAPID public key'
+                : 'Missing VAPID private key',
+        }),
   });
 }
 

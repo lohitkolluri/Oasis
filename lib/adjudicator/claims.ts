@@ -9,7 +9,7 @@ import type {
   TriggerCandidate,
 } from '@/lib/adjudicator/types';
 import { createClaimFromTrigger, getWeeklyClaimCounts } from '@/lib/claims/engine';
-import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
+import { DEFAULT_ZONE, FRAUD, PAYOUT_BALANCE, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
 import { preloadFraudData, runAllFraudChecks, runExtendedFraudChecks } from '@/lib/fraud/detector';
 import { createAutomatedHold } from '@/lib/fraud/holds';
 import { dispatchWebPushForRiderNotifications } from '@/lib/notifications/web-push-dispatch';
@@ -20,6 +20,32 @@ import { isWithinCircle } from '@/lib/utils/geo';
 export interface ProcessClaimsOptions {
   /** When set (demo), only this profile gets the claim/payout; zone check is skipped for them. */
   restrictToProfileId?: string;
+}
+
+function applyPlanBalanceCap(args: {
+  basePayoutInr: number;
+  severityPayoutInr: number;
+  weeklyPremiumInr: number | null;
+  maxClaimsPerWeek: number;
+}): number {
+  const { basePayoutInr, severityPayoutInr, weeklyPremiumInr, maxClaimsPerWeek } = args;
+  if (weeklyPremiumInr == null || !Number.isFinite(weeklyPremiumInr) || weeklyPremiumInr <= 0) {
+    return severityPayoutInr;
+  }
+
+  const safeMaxClaims = Math.max(1, Math.floor(maxClaimsPerWeek));
+  const perClaimCapByPremium = Math.round(
+    weeklyPremiumInr * PAYOUT_BALANCE.MAX_PER_CLAIM_PREMIUM_MULTIPLIER,
+  );
+  const perClaimCapByWeeklyBudget = Math.round(
+    (weeklyPremiumInr * PAYOUT_BALANCE.MAX_WEEKLY_PREMIUM_MULTIPLIER) / safeMaxClaims,
+  );
+
+  const balancedCap = Math.max(
+    basePayoutInr,
+    Math.min(perClaimCapByPremium, perClaimCapByWeeklyBudget),
+  );
+  return Math.min(severityPayoutInr, balancedCap);
 }
 
 /**
@@ -47,7 +73,9 @@ export async function processClaimsForEvent(
 
   let query = supabase
     .from('weekly_policies')
-    .select('id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)')
+    .select(
+      'id, profile_id, plan_id, weekly_premium_inr, plan_packages(payout_per_claim_inr, max_claims_per_week)',
+    )
     .eq('is_active', true)
     .lte('week_start_date', weekStartUpper)
     .gte('week_end_date', today);
@@ -117,8 +145,15 @@ export async function processClaimsForEvent(
     } | null;
     const basePayout =
       plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : PAYOUT_FALLBACK_INR;
-    const payoutAmount = payoutForSeverity(basePayout, candidate.severity, ladder);
     const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
+    const severityPayout = payoutForSeverity(basePayout, candidate.severity, ladder);
+    const payoutAmount = applyPlanBalanceCap({
+      basePayoutInr: basePayout,
+      severityPayoutInr: severityPayout,
+      weeklyPremiumInr:
+        policyRow.weekly_premium_inr != null ? Number(policyRow.weekly_premium_inr) : null,
+      maxClaimsPerWeek,
+    });
 
     const profile = profileMap.get(policyRow.profile_id);
     if (!restrictToProfileId) {
