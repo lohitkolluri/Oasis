@@ -17,9 +17,9 @@ import {
 import { parseLlmJsonWithSchema } from '@/lib/llm/strict-json';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { z } from 'zod';
 
 const BUCKET = 'face-photos';
@@ -201,9 +201,9 @@ export async function POST(request: Request) {
                 '- Exactly one real human face is clearly visible',
                 '- The requested gesture is unmistakably performed',
                 '- Photo looks like a live selfie (not screen/print/screenshot)',
+                '- Environment/background can be anything (indoor or outdoor) as long as the face and gesture are clearly visible',
                 '',
                 'Reject if any are true:',
-                '- Indoor scene or unclear setting',
                 '- Multiple faces',
                 '- Face too obscured to judge gesture',
                 '- Signs of screen/print/screenshot or AI/deepfake',
