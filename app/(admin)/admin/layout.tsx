@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 
+/** Admin pages load live DB data; skip static prerender at build time (avoids Supabase 522/timeouts during `next build`). */
+export const dynamic = 'force-dynamic';
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const {

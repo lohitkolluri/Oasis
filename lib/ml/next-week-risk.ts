@@ -108,23 +108,33 @@ export async function getNextWeekPrediction(
   }
 
   // --- Historical fallback ---
-  const { data: recentClaims } = await supabase
-    .from('parametric_claims')
-    .select('id, created_at')
-    .gte('created_at', new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
-    .order('created_at', { ascending: true })
-    .limit(1000);
+  // Use exact-count HEAD queries instead of reading up to 1000 claim rows.
+  const nowMs = Date.now();
+  const twentyOneDaysAgo = new Date(nowMs - 21 * 24 * 60 * 60 * 1000).toISOString();
+  const fourteenDaysAgo = new Date(nowMs - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(nowMs - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const all = recentClaims ?? [];
-  const avgPerWeek = all.length / 3;
+  const [totalRes, week1Res, week3Res] = await Promise.all([
+    supabase
+      .from('parametric_claims')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', twentyOneDaysAgo),
+    supabase
+      .from('parametric_claims')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', twentyOneDaysAgo)
+      .lt('created_at', fourteenDaysAgo),
+    supabase
+      .from('parametric_claims')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgo),
+  ]);
 
-  const week1 = all.filter(
-    (c) => new Date(c.created_at) < new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-  ).length;
-  const week3 = all.filter(
-    (c) => new Date(c.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  ).length;
-  const weeklyTrend = all.length >= 3 ? (week3 - week1) / 2 : 0;
+  const totalClaims = totalRes.count ?? 0;
+  const avgPerWeek = totalClaims / 3;
+  const week1 = week1Res.count ?? 0;
+  const week3 = week3Res.count ?? 0;
+  const weeklyTrend = totalClaims >= 3 ? (week3 - week1) / 2 : 0;
   const adjusted = Math.max(0, Math.round(avgPerWeek + weeklyTrend));
   const low = Math.max(0, adjusted - 2);
   const high = adjusted + 2;
@@ -133,7 +143,7 @@ export async function getNextWeekPrediction(
     expectedClaimsRange: `${low}–${high}`,
     riskLevel: avgPerWeek >= 5 ? 'high' : avgPerWeek >= 2 ? 'medium' : 'low',
     source: 'historical',
-    details: `Based on ${all.length} claims over the last 21 days`,
+    details: `Based on ${totalClaims} claims over the last 21 days`,
   };
 }
 

@@ -45,6 +45,8 @@ COMMENT ON VIEW rider_wallet IS 'Aggregated payout wallet per rider — fixed jo
 --    Rolling 4-week average claim rate per disruption event zone.
 --    Used by checkHistoricalBaseline() in fraud/detector.ts.
 -- ──────────────────────────────────────────────────────────────
+DROP VIEW IF EXISTS zone_baseline_stats;
+
 CREATE OR REPLACE VIEW zone_baseline_stats AS
 WITH event_claims AS (
   SELECT

@@ -15,6 +15,7 @@ import {
 import { parseLlmJsonWithSchema } from '@/lib/llm/strict-json';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { removeOtherUserStorageObjects } from '@/lib/supabase/storage-cleanup';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
@@ -229,9 +230,8 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  // Store a single canonical object per user; new uploads replace the old one
-  const path = `${user.id}/government-id.${ext}`;
+  // Store a single canonical object per user; new uploads replace the old one.
+  const path = `${user.id}/government-id`;
 
   // Read once (avoid double arrayBuffer) and reuse for LLM + optional encryption/upload.
   const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -385,6 +385,17 @@ export async function POST(request: Request) {
     if (uploadErr) {
       return NextResponse.json(
         { error: 'Failed to upload. Ensure the government-ids bucket exists in Supabase Storage.' },
+        { status: 500 },
+      );
+    }
+
+    const cleanup = await removeOtherUserStorageObjects(admin, BUCKET, user.id, path);
+    if (cleanup.error) {
+      return NextResponse.json(
+        {
+          error:
+            'Government ID uploaded, but old government IDs could not be deleted. Please retry.',
+        },
         { status: 500 },
       );
     }

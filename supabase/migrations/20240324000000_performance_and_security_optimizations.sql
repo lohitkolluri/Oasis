@@ -134,6 +134,8 @@ AS
     AND raw_api_data->>'current_aqi' IS NOT NULL
   GROUP BY zone_lat, zone_lng, cluster_lat, cluster_lng;
 
+DROP VIEW IF EXISTS zone_baseline_stats;
+
 CREATE OR REPLACE VIEW zone_baseline_stats
   WITH (security_invoker = true)
 AS

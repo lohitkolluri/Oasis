@@ -1,6 +1,6 @@
 /**
- * Rate limit store: in-memory (single instance) or Supabase (shared across instances).
- * When SUPABASE_SERVICE_ROLE_KEY is set, uses Supabase for distributed rate limiting.
+ * Rate limit store: in-memory (default) or Supabase (shared across instances).
+ * Set SUPABASE_RATE_LIMIT_STORE=true to use Supabase for distributed rate limiting.
  *
  * Failure mode: for sensitive keys (`payments:`, `auth:`, `cron:`, `webhook:`) we fail
  * CLOSED on RPC errors to avoid an accidental outage exposing expensive or abusable paths.
@@ -99,9 +99,19 @@ function createSupabaseRateLimitStore(): RateLimitStore {
 
 let defaultStore: RateLimitStore | null = null;
 
-/** Default store: Supabase if admin client available, else in-memory. */
+function shouldUseSupabaseStore(): boolean {
+  return ['1', 'true', 'yes'].includes(
+    (process.env.SUPABASE_RATE_LIMIT_STORE ?? '').trim().toLowerCase(),
+  );
+}
+
+/** Default store: in-memory unless Supabase-backed limits are explicitly enabled. */
 export function getRateLimitStore(): RateLimitStore {
   if (defaultStore) return defaultStore;
+  if (!shouldUseSupabaseStore()) {
+    defaultStore = inMemoryRateLimitStore;
+    return defaultStore;
+  }
   try {
     defaultStore = createSupabaseRateLimitStore();
   } catch {

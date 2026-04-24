@@ -3,11 +3,11 @@
  *
  * Manually trigger log rotation. Calls the DB-level rotate_logs() function
  * which cleans up system_logs, read notifications, expired rate limits,
- * and old payment idempotency records (legacy Stripe + Razorpay).
+ * old payment idempotency records, and bounded governance ledgers.
  */
 
-import { createAdminClient } from '@/lib/supabase/admin';
 import { LOG_ROTATION } from '@/lib/config/constants';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { withAdminAuth } from '@/lib/utils/admin-guard';
 import { NextResponse } from 'next/server';
 
@@ -21,6 +21,9 @@ export const POST = withAdminAuth(async () => {
     p_read_notifications_days: LOG_ROTATION.READ_NOTIFICATIONS_DAYS,
     p_unread_notifications_days: LOG_ROTATION.UNREAD_NOTIFICATIONS_DAYS,
     p_razorpay_payment_events_days: LOG_ROTATION.RAZORPAY_PAYMENT_EVENTS_DAYS,
+    p_parametric_ledger_days: LOG_ROTATION.PARAMETRIC_LEDGER_DAYS,
+    p_dry_run_ledger_days: LOG_ROTATION.DRY_RUN_LEDGER_DAYS,
+    p_admin_audit_days: LOG_ROTATION.ADMIN_AUDIT_DAYS,
   });
 
   if (error) {
@@ -37,6 +40,9 @@ export const POST = withAdminAuth(async () => {
       read_notifications: `${LOG_ROTATION.READ_NOTIFICATIONS_DAYS} days`,
       unread_notifications: `${LOG_ROTATION.UNREAD_NOTIFICATIONS_DAYS} days`,
       razorpay_payment_events: `${LOG_ROTATION.RAZORPAY_PAYMENT_EVENTS_DAYS} days`,
+      parametric_ledger: `${LOG_ROTATION.PARAMETRIC_LEDGER_DAYS} days`,
+      dry_run_ledger: `${LOG_ROTATION.DRY_RUN_LEDGER_DAYS} days`,
+      admin_audit: `${LOG_ROTATION.ADMIN_AUDIT_DAYS} days`,
     },
     deleted_counts: data,
   });

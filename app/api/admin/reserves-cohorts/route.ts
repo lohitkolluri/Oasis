@@ -28,6 +28,12 @@ const DISCLAIMER =
   'Scenario stress is illustrative liquidity math only — not statutory IBNR or audited reserves. ' +
   'Extra days apply linearly to remaining weekly headroom (max exposure minus realized payouts).';
 
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 export const GET = withAdminAuth(async (_ctx, request) => {
   const url = new URL(request.url);
   const weeks = Math.min(52, Math.max(1, parseInt(url.searchParams.get('weeks') ?? '8', 10) || 8));
@@ -96,23 +102,34 @@ export const GET = withAdminAuth(async (_ctx, request) => {
   let claimsNormalized: Parameters<typeof buildWeeklyCohorts>[0]['claims'] = [];
 
   if (policyIds.length > 0) {
-    const { data: claimsRaw, error: clErr } = await admin
-      .from('parametric_claims')
-      .select(
-        `
-        policy_id,
-        payout_amount_inr,
-        live_disruption_events ( event_type )
-      `,
-      )
-      .in('policy_id', policyIds)
-      .limit(5000);
+    const claimsRaw: Array<{
+      policy_id: string;
+      payout_amount_inr: number | string | null;
+      live_disruption_events:
+        | { event_type: string | null }
+        | { event_type: string | null }[]
+        | null;
+    }> = [];
 
-    if (clErr) {
-      return NextResponse.json({ error: clErr.message }, { status: 500 });
+    for (const policyBatch of chunks(policyIds, 200)) {
+      const { data, error: clErr } = await admin
+        .from('parametric_claims')
+        .select(
+          `
+          policy_id,
+          payout_amount_inr,
+          live_disruption_events ( event_type )
+        `,
+        )
+        .in('policy_id', policyBatch);
+
+      if (clErr) {
+        return NextResponse.json({ error: clErr.message }, { status: 500 });
+      }
+      claimsRaw.push(...((data ?? []) as typeof claimsRaw));
     }
 
-    claimsNormalized = (claimsRaw ?? []).map((c) => ({
+    claimsNormalized = claimsRaw.map((c) => ({
       policy_id: c.policy_id as string,
       payout_amount_inr: c.payout_amount_inr as number | string | null,
       live_disruption_events: firstOrNull(

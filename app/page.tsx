@@ -9,8 +9,10 @@ import { LandingNav } from '@/components/landing/LandingNav';
 import { LandingShell } from '@/components/landing/LandingShell';
 import { MiddleSection } from '@/components/landing/MiddleSection';
 import { PrinciplesSection } from '@/components/landing/PrinciplesSection';
+import { hasSupabaseAuthCookie } from '@/lib/supabase/auth-cookies';
 import { createClient } from '@/lib/supabase/server';
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
@@ -20,12 +22,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const hasAuthCookie = hasSupabaseAuthCookie(cookieStore);
+  const session = hasAuthCookie ? (await (await createClient()).auth.getSession()).data.session : null;
 
-  if (user) {
+  if (session) {
     redirect('/dashboard');
   }
 

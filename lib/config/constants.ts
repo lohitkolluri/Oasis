@@ -166,11 +166,16 @@ export const ADJUDICATOR = {
 
 /** Log rotation retention periods (days) */
 export const LOG_ROTATION = {
-  SYSTEM_LOGS_DAYS: 30,
-  READ_NOTIFICATIONS_DAYS: 7,
-  UNREAD_NOTIFICATIONS_DAYS: 30,
+  SYSTEM_LOGS_DAYS: 14,
+  READ_NOTIFICATIONS_DAYS: 3,
+  UNREAD_NOTIFICATIONS_DAYS: 14,
   /** Retention for `razorpay_payment_events` idempotency rows. */
-  RAZORPAY_PAYMENT_EVENTS_DAYS: 90,
+  RAZORPAY_PAYMENT_EVENTS_DAYS: 60,
+  /** Append-only trigger evaluation ledger; dry-run rows expire faster. */
+  PARAMETRIC_LEDGER_DAYS: 60,
+  DRY_RUN_LEDGER_DAYS: 7,
+  /** Admin audit is retained longer for governance while still bounded. */
+  ADMIN_AUDIT_DAYS: 180,
 } as const;
 
 /** External API config */

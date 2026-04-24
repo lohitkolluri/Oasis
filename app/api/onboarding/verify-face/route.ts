@@ -17,6 +17,7 @@ import {
 import { parseLlmJsonWithSchema } from '@/lib/llm/strict-json';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { removeOtherUserStorageObjects } from '@/lib/supabase/storage-cleanup';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
@@ -145,8 +146,7 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const path = `${user.id}/face-verification.${ext}`;
+  const path = `${user.id}/face-verification`;
 
   const encKeyBase64 = getFacePhotoEncryptionKey() || getGovIdEncryptionKey();
 
@@ -263,6 +263,14 @@ export async function POST(request: Request) {
     if (uploadErr) {
       return NextResponse.json(
         { error: 'Failed to upload. Ensure the face-photos bucket exists in Supabase Storage.' },
+        { status: 500 },
+      );
+    }
+
+    const cleanup = await removeOtherUserStorageObjects(admin, BUCKET, user.id, path);
+    if (cleanup.error) {
+      return NextResponse.json(
+        { error: 'Face photo uploaded, but old face photos could not be deleted. Please retry.' },
         { status: 500 },
       );
     }

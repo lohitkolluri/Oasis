@@ -157,7 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_claims_flagged_created
 -- ──────────────────────────────────────────────────────────────
 CREATE OR REPLACE VIEW rider_wallet AS
 SELECT
-  p.profile_id,
+  wp.profile_id                                        AS profile_id,
   wp.profile_id                                        AS rider_id,
   COALESCE(SUM(p.payout_amount_inr), 0)                AS total_earned_inr,
   COUNT(p.id)                                          AS total_claims,
@@ -179,7 +179,7 @@ SELECT
     )     AS this_week_claims
 FROM   parametric_claims p
 JOIN   weekly_policies    wp ON wp.id = p.policy_id
-GROUP  BY p.profile_id, wp.profile_id;
+GROUP  BY wp.profile_id;
 
 -- RLS: riders see only their own wallet row
 ALTER VIEW rider_wallet SET (security_invoker = true);

@@ -20,6 +20,12 @@ export const dynamic = 'force-dynamic';
 
 type PlanPackage = Record<string, any>;
 
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 /** Monday YYYY-MM-DD (IST) for the policy week containing `date`. */
 function istPolicyWeekMondayYmd(date: Date): string {
   return getISTDateString(getISTCurrentCoverageWeekMondayStart(date));
@@ -225,7 +231,9 @@ export default async function PlansPage() {
   try {
     const { data } = await supabase
       .from('plan_packages')
-      .select('*')
+      .select(
+        'id, slug, name, label, tier, sort_order, weekly_premium_inr, weekly_price_inr, price_inr',
+      )
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
     plans = (data ?? []) as PlanPackage[];
@@ -352,18 +360,20 @@ export default async function PlansPage() {
   // Payouts across policies in the rolling window
   if (paidPolicies.length > 0) {
     const policyIds = paidPolicies.map((p) => p.id);
-    const { data: payoutRows } = await supabase
-      .from('parametric_claims')
-      .select('policy_id, payout_amount_inr')
-      .in('policy_id', policyIds);
-    for (const row of (payoutRows ?? []) as Array<{
-      policy_id: string;
-      payout_amount_inr: number;
-    }>) {
-      payoutsByPlan.set(
-        row.policy_id,
-        (payoutsByPlan.get(row.policy_id) ?? 0) + Number(row.payout_amount_inr ?? 0),
-      );
+    for (const policyBatch of chunks(policyIds, 200)) {
+      const { data: payoutRows } = await supabase
+        .from('parametric_claims')
+        .select('policy_id, payout_amount_inr')
+        .in('policy_id', policyBatch);
+      for (const row of (payoutRows ?? []) as Array<{
+        policy_id: string;
+        payout_amount_inr: number;
+      }>) {
+        payoutsByPlan.set(
+          row.policy_id,
+          (payoutsByPlan.get(row.policy_id) ?? 0) + Number(row.payout_amount_inr ?? 0),
+        );
+      }
     }
   }
 

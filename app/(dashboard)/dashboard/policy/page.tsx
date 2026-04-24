@@ -33,7 +33,9 @@ export default async function PolicyPage({
     await Promise.all([
       supabase
         .from('weekly_policies')
-        .select('*, plan_packages(name)')
+        .select(
+          'id, profile_id, plan_id, week_start_date, week_end_date, weekly_premium_inr, is_active, payment_status, razorpay_payment_method, created_at, updated_at, plan_packages(name)',
+        )
         .eq('profile_id', user.id)
         .gte('week_start_date', policySince)
         .order('week_start_date', { ascending: false })
@@ -47,7 +49,9 @@ export default async function PolicyPage({
         .single(),
       supabase
         .from('plan_packages')
-        .select('*')
+        .select(
+          'id, slug, name, description, weekly_premium_inr, payout_per_claim_inr, max_claims_per_week, is_active, sort_order',
+        )
         .eq('is_active', true)
         .order('sort_order', { ascending: true }),
       computeDynamicPlanQuotesForProfile(supabase, user.id, weekStart),
