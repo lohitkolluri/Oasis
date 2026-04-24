@@ -1,7 +1,17 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 interface ClaimEvent {
   id: string;
@@ -45,6 +55,8 @@ interface RealtimeProviderProps {
  * (RealtimeWallet, WalletBalanceCard, claims page) into one shared channel.
  */
 export function RealtimeProvider({ profileId, policyIds, children }: RealtimeProviderProps) {
+  const router = useRouter();
+  const refreshTimerRef = useRef<number | null>(null);
   const [state, setState] = useState<RealtimeState>({
     lastClaimEvent: null,
     lastPolicyChange: null,
@@ -52,6 +64,17 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
   });
 
   const supabase = useMemo(() => createClient(), []);
+  const policyIdsKey = useMemo(() => [...policyIds].sort().join(','), [policyIds]);
+
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current != null) {
+      window.clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null;
+      router.refresh();
+    }, 350);
+  }, [router]);
 
   const subscribeToClaimStatus = useCallback((claimId: string) => {
     setState((prev) => {
@@ -62,38 +85,21 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
   }, []);
 
   useEffect(() => {
-    if (policyIds.length === 0) return;
-
-    const channel = supabase
+    const activePolicyIds = policyIdsKey ? policyIdsKey.split(',') : [];
+    let channel = supabase
       .channel(`rider_${profileId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'parametric_claims',
-          filter: `policy_id=in.(${policyIds.join(',')})`,
+          table: 'weekly_policies',
+          filter: `profile_id=eq.${profileId}`,
         },
         (payload) => {
-          const claim = payload.new as ClaimEvent;
-          setState((prev) => ({ ...prev, lastClaimEvent: claim }));
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'parametric_claims',
-          filter: `policy_id=in.(${policyIds.join(',')})`,
-        },
-        (payload) => {
-          const claim = payload.new as ClaimEvent;
-          setState((prev) => {
-            const next = new Map(prev.claimStatusUpdates);
-            next.set(claim.id, claim.status);
-            return { ...prev, lastClaimEvent: claim, claimStatusUpdates: next };
-          });
+          const policy = payload.new as { id: string; is_active: boolean };
+          setState((prev) => ({ ...prev, lastPolicyChange: policy }));
+          scheduleRefresh();
         },
       )
       .on(
@@ -107,14 +113,66 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
         (payload) => {
           const policy = payload.new as { id: string; is_active: boolean };
           setState((prev) => ({ ...prev, lastPolicyChange: policy }));
+          scheduleRefresh();
         },
-      )
-      .subscribe();
+      );
+
+    for (const policyId of activePolicyIds) {
+      channel = channel
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'parametric_claims',
+            filter: `policy_id=eq.${policyId}`,
+          },
+          (payload) => {
+            const claim = payload.new as ClaimEvent;
+            setState((prev) => ({ ...prev, lastClaimEvent: claim }));
+            scheduleRefresh();
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'parametric_claims',
+            filter: `policy_id=eq.${policyId}`,
+          },
+          (payload) => {
+            const claim = payload.new as ClaimEvent;
+            setState((prev) => {
+              const next = new Map(prev.claimStatusUpdates);
+              next.set(claim.id, claim.status);
+              return { ...prev, lastClaimEvent: claim, claimStatusUpdates: next };
+            });
+            scheduleRefresh();
+          },
+        );
+    }
+
+    channel.subscribe();
 
     return () => {
+      if (refreshTimerRef.current != null) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
       supabase.removeChannel(channel);
     };
-  }, [supabase, profileId, policyIds]);
+  }, [supabase, profileId, policyIdsKey, scheduleRefresh]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        router.refresh();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [router]);
 
   const value = useMemo(
     () => ({ ...state, subscribeToClaimStatus }),
