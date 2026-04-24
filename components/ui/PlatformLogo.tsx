@@ -1,4 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 
 /**
  * Brandfetch CDN URLs (dark theme icons). Loaded via native <img> so the request
@@ -40,14 +43,23 @@ export function PlatformLogo({
 }: PlatformLogoProps) {
   const key = (platform ?? '').toLowerCase().trim();
   const logoSrc = key ? PLATFORM_LOGO[key] : null;
-  const color = key ? PLATFORM_COLOR[key] ?? '#666' : '#555';
+  const color = key ? (PLATFORM_COLOR[key] ?? '#666') : '#555';
   const label = platform ?? 'Platform';
   const initial = key ? key.charAt(0).toUpperCase() : '—';
+  const [logoFailed, setLogoFailed] = useState(false);
 
-  if (logoSrc) {
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [logoSrc]);
+
+  if (logoSrc && !logoFailed) {
     return (
       <span
-        className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#1e1e1e]', className)}
+        className={cn(
+          'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#1e1e1e]',
+          className,
+        )}
+        style={{ width: size, height: size }}
         title={showName ? label : undefined}
         aria-hidden={!showName}
         role={showName ? 'img' : undefined}
@@ -62,6 +74,7 @@ export function PlatformLogo({
           className="object-contain"
           loading="lazy"
           decoding="async"
+          onError={() => setLogoFailed(true)}
         />
       </span>
     );
@@ -71,7 +84,7 @@ export function PlatformLogo({
     <span
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-lg border text-xs font-semibold',
-        className
+        className,
       )}
       style={{
         width: size,
