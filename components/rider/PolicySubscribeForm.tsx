@@ -181,24 +181,29 @@ export function PolicySubscribeForm({
   const hasPlans = plans.length > 0;
 
   useEffect(() => {
+    let timeoutId: number | undefined;
+
     if (paymentSuccess) {
       setMessage({ type: 'success', text: 'Payment successful. Policy activated.' });
       // Server props were often stale (RSC cache / same-route return). Refresh before
       // stripping the query so coverage state matches the DB.
       router.refresh();
-      const t = window.setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         window.history.replaceState({}, '', '/dashboard/policy');
       }, 0);
-      return () => window.clearTimeout(t);
-    }
-    if (paymentCanceled) {
+    } else if (paymentCanceled) {
       setMessage({ type: 'error', text: 'Payment was canceled.' });
       router.refresh();
-      const t = window.setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         window.history.replaceState({}, '', '/dashboard/policy');
       }, 0);
-      return () => window.clearTimeout(t);
     }
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, [paymentSuccess, paymentCanceled, router]);
 
   async function handleSubscribe(e: React.FormEvent) {
