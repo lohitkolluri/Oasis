@@ -55,6 +55,10 @@ interface RealtimeProviderProps {
  * Single Realtime channel for all rider dashboard subscriptions.
  * Consolidates what was previously 3 separate subscriptions
  * (RealtimeWallet, WalletBalanceCard, claims page) into one shared channel.
+ *
+ * Wallet UI reads `rider_wallet` (a view — no Realtime). Payouts write to
+ * `payout_ledger` and `rider_notifications`; we subscribe on `profile_id` so
+ * wallet/activity update without a tab switch.
  */
 export function RealtimeProvider({ profileId, policyIds, children }: RealtimeProviderProps) {
   const router = useRouter();
@@ -92,6 +96,42 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
       : [];
     let channel = supabase
       .channel(`rider_${profileId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'payout_ledger',
+          filter: `profile_id=eq.${profileId}`,
+        },
+        () => {
+          scheduleRefresh();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'payout_ledger',
+          filter: `profile_id=eq.${profileId}`,
+        },
+        () => {
+          scheduleRefresh();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'rider_notifications',
+          filter: `profile_id=eq.${profileId}`,
+        },
+        () => {
+          scheduleRefresh();
+        },
+      )
       .on(
         'postgres_changes',
         {

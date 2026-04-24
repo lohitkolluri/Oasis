@@ -9,6 +9,9 @@ import { ArrowLeft, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+/** Always refetch after Razorpay return; avoids stale RSC for policy/coverage. */
+export const dynamic = 'force-dynamic';
+
 export default async function PolicyPage({
   searchParams,
 }: {

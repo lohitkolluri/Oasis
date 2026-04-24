@@ -12,6 +12,7 @@ import {
 } from '@/lib/utils/policy-week';
 import { Check, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SubscriptionDetails } from './SubscriptionDetails';
 
@@ -165,6 +166,7 @@ export function PolicySubscribeForm({
   const defaultPlan =
     plans.length > 0 ? (plans.find((p) => p.slug === 'standard') ?? plans[0]) : null;
   const [selectedPlan, setSelectedPlan] = useState<PlanPackage | null>(defaultPlan);
+  const router = useRouter();
 
   const { start, end } = getCoverageWeekRange();
   const activePlan = selectedPlan ?? defaultPlan;
@@ -181,12 +183,23 @@ export function PolicySubscribeForm({
   useEffect(() => {
     if (paymentSuccess) {
       setMessage({ type: 'success', text: 'Payment successful. Policy activated.' });
-      window.history.replaceState({}, '', '/dashboard/policy');
-    } else if (paymentCanceled) {
-      setMessage({ type: 'error', text: 'Payment was canceled.' });
-      window.history.replaceState({}, '', '/dashboard/policy');
+      // Server props were often stale (RSC cache / same-route return). Refresh before
+      // stripping the query so coverage state matches the DB.
+      router.refresh();
+      const t = window.setTimeout(() => {
+        window.history.replaceState({}, '', '/dashboard/policy');
+      }, 0);
+      return () => window.clearTimeout(t);
     }
-  }, [paymentSuccess, paymentCanceled]);
+    if (paymentCanceled) {
+      setMessage({ type: 'error', text: 'Payment was canceled.' });
+      router.refresh();
+      const t = window.setTimeout(() => {
+        window.history.replaceState({}, '', '/dashboard/policy');
+      }, 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [paymentSuccess, paymentCanceled, router]);
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
@@ -243,7 +256,7 @@ export function PolicySubscribeForm({
       }
 
       if (raw.ok === true && raw.policyActivated === true) {
-        window.location.href = '/dashboard/policy?success=1';
+        window.location.href = `/dashboard/policy?success=1&_cb=${Date.now()}`;
         setLoading(false);
         return;
       }
@@ -292,7 +305,7 @@ export function PolicySubscribeForm({
               if (!verifyRes.ok || !verifyJson.ok) {
                 throw new Error(verifyJson.error ?? 'Payment verification failed');
               }
-              window.location.href = '/dashboard/policy?success=1';
+              window.location.href = `/dashboard/policy?success=1&_cb=${Date.now()}`;
             } catch (e) {
               setMessage({
                 type: 'error',
@@ -341,7 +354,7 @@ export function PolicySubscribeForm({
             if (!verifyRes.ok || !verifyJson.ok) {
               throw new Error(verifyJson.error ?? 'Payment verification failed');
             }
-            window.location.href = '/dashboard/policy?success=1';
+            window.location.href = `/dashboard/policy?success=1&_cb=${Date.now()}`;
           } catch (e) {
             setMessage({
               type: 'error',
