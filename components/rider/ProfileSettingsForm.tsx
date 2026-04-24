@@ -1,11 +1,7 @@
 'use client';
 
 import { Avatar } from '@/components/ui/Avatar';
-import {
-  RIDER_LANGUAGE_OPTIONS,
-  RIDER_LOCALE_COOKIE,
-  type RiderLocale,
-} from '@/lib/i18n/rider';
+import { RIDER_LANGUAGE_OPTIONS, RIDER_LOCALE_COOKIE, type RiderLocale } from '@/lib/i18n/rider';
 import type { PlatformType } from '@/lib/types/database';
 import { cn } from '@/lib/utils';
 import {
@@ -142,10 +138,11 @@ export function ProfileSettingsForm({
         platform?: PlatformType;
         preferred_language?: RiderLocale;
       } = {};
+      const languageChanged = preferredLanguage !== (initial.preferred_language ?? 'en');
       if (fullName !== (initial.full_name ?? '')) payload.full_name = trimmedName;
       if (phone !== (initial.phone_number ?? '')) payload.phone_number = phone.trim() || null;
       if (platform !== initial.platform && platform) payload.platform = platform;
-      if (preferredLanguage !== (initial.preferred_language ?? 'en')) {
+      if (languageChanged) {
         payload.preferred_language = preferredLanguage;
       }
 
@@ -162,23 +159,17 @@ export function ProfileSettingsForm({
       document.cookie = `${RIDER_LOCALE_COOKIE}=${preferredLanguage}; path=/; max-age=31536000; samesite=lax`;
       setLocale(preferredLanguage);
       toast.success(messages.profile.updated);
-      router.refresh();
+      if (languageChanged) {
+        window.setTimeout(() => window.location.reload(), 150);
+      } else {
+        router.refresh();
+      }
     } catch {
       toast.error(messages.profile.wentWrong);
     } finally {
       setSaving(false);
     }
-  }, [
-    dirty,
-    fullName,
-    phone,
-    platform,
-    preferredLanguage,
-    initial,
-    messages,
-    router,
-    setLocale,
-  ]);
+  }, [dirty, fullName, phone, platform, preferredLanguage, initial, messages, router, setLocale]);
 
   const zoneLabel = zoneDisplayName(initial.primary_zone_geofence);
 
@@ -308,7 +299,10 @@ export function ProfileSettingsForm({
         </Group>
       </Section>
 
-      <Section title={messages.profile.languageTitle} description={messages.profile.languageDescription}>
+      <Section
+        title={messages.profile.languageTitle}
+        description={messages.profile.languageDescription}
+      >
         <Group>
           <div className="px-4 py-4">
             <label
@@ -373,7 +367,10 @@ export function ProfileSettingsForm({
                   {messages.profile.verification}
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusPill ok={!!initial.government_id_verified} title={messages.profile.govId} />
+                  <StatusPill
+                    ok={!!initial.government_id_verified}
+                    title={messages.profile.govId}
+                  />
                   <StatusPill ok={!!initial.face_verified} title={messages.profile.faceCheck} />
                 </div>
                 <p className="text-[11px] text-zinc-600">
@@ -408,7 +405,10 @@ export function ProfileSettingsForm({
       </Section>
 
       {/* Navigation rows — chevrons, single group */}
-      <Section title={messages.profile.helpLegal} description={messages.profile.helpLegalDescription}>
+      <Section
+        title={messages.profile.helpLegal}
+        description={messages.profile.helpLegalDescription}
+      >
         <Group>
           <Link
             href="/dashboard/policy/docs"
