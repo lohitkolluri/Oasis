@@ -7,6 +7,7 @@ export interface Profile {
   full_name: string | null;
   phone_number: string | null;
   platform: PlatformType | null;
+  preferred_language?: 'en' | 'hi' | 'ta' | 'te' | null;
   /** Razorpay Customer id when using subscriptions / mandates */
   razorpay_customer_id?: string | null;
   /** Active or last subscription id (cleared when auto-renew cancelled) */

@@ -14,6 +14,7 @@ import { ReportDeliveryImpact } from './ReportDeliveryImpact';
 import { RiderInsightCard } from './RiderInsightCard';
 import { RiderSk } from './RiderSkeleton';
 import { WalletBalanceCard } from './WalletBalanceCard';
+import { useRiderI18n } from './RiderI18nProvider';
 
 type ClaimWithType = ParametricClaim & {
   live_disruption_events?: { event_type?: string } | null;
@@ -77,11 +78,11 @@ const RiskRadar = dynamic(() => import('./RiskRadar').then((m) => m.RiskRadar), 
   ),
 });
 
-function getGreeting(): string {
+function getGreeting(messages: ReturnType<typeof useRiderI18n>['messages']): string {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return messages.dashboard.morning;
+  if (h < 17) return messages.dashboard.afternoon;
+  return messages.dashboard.evening;
 }
 
 export function DashboardContent({
@@ -98,6 +99,7 @@ export function DashboardContent({
   planName,
   claimIdsNeedingVerification,
 }: DashboardContentProps) {
+  const { messages } = useRiderI18n();
   const firstName = profile?.full_name?.split(' ')[0] ?? '';
 
   return (
@@ -112,7 +114,7 @@ export function DashboardContent({
         <m.section variants={item} className="space-y-3">
           <div className="pt-0.5">
             <h2 className="text-lg font-bold text-white tracking-tight">
-              {getGreeting()}
+              {getGreeting(messages)}
               {firstName ? `, ${firstName}` : ''}
             </h2>
           </div>
@@ -170,10 +172,10 @@ export function DashboardContent({
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-left min-h-[52px] hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green/35 focus-visible:ring-inset rounded-t-2xl">
               <div className="min-w-0">
                 <span className="text-[13px] font-semibold text-zinc-200">
-                  Week chart & zone risk
+                  {messages.dashboard.chartTitle}
                 </span>
                 <p className="text-[11px] text-zinc-500 mt-0.5">
-                  Tap to show earnings trend and live zone activity
+                  {messages.dashboard.chartHint}
                 </p>
               </div>
               <ChevronDown

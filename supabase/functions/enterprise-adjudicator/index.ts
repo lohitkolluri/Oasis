@@ -72,7 +72,7 @@ Deno.serve(async (req: Request) => {
 function corsHeaders() {
   const origin = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? '';
   return {
-    'Access-Control-Allow-Origin': origin || 'https://oasis-app.vercel.app',
+    'Access-Control-Allow-Origin': origin || 'https://oasis-murex-omega.vercel.app/',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   };

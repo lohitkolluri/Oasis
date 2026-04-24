@@ -14,7 +14,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
-  title: 'Oasis — AI-Powered Income Protection for Delivery Partners',
+  title: 'Oasis',
   description:
     "Weekly parametric wage protection for India's Q-commerce delivery partners. Automated payouts when disruptions strike — zero claims paperwork.",
 };

@@ -1,11 +1,12 @@
 'use client';
 
+import { useRealtime } from '@/components/rider/RealtimeProvider';
 import { Card } from '@/components/ui/Card';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { ChevronRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { useRealtime } from '@/components/rider/RealtimeProvider';
+import { useRiderI18n } from './RiderI18nProvider';
 
 interface WalletBalanceCardProps {
   initialBalance: number;
@@ -32,11 +33,7 @@ function GradientSparkline({ values }: { values: number[] }) {
   const lastPoint = points[points.length - 1];
 
   return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="w-full h-10"
-      preserveAspectRatio="none"
-    >
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-10" preserveAspectRatio="none">
       <defs>
         <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(58,167,109,0.3)" />
@@ -69,9 +66,7 @@ function GradientSparkline({ values }: { values: number[] }) {
 
 function AnimatedBalance({ value, justUpdated }: { value: number; justUpdated: boolean }) {
   const motionValue = useMotionValue(value);
-  const display = useTransform(motionValue, (v) =>
-    `₹${Math.round(v).toLocaleString('en-IN')}`
-  );
+  const display = useTransform(motionValue, (v) => `₹${Math.round(v).toLocaleString('en-IN')}`);
 
   useEffect(() => {
     const controls = animate(motionValue, value, {
@@ -99,6 +94,7 @@ export function WalletBalanceCard({
   sparklineData,
   showAction = false,
 }: WalletBalanceCardProps) {
+  const { messages } = useRiderI18n();
   const [balance, setBalance] = useState(initialBalance);
   const [justUpdated, setJustUpdated] = useState(false);
   const seenClaimIds = useRef(new Set<string>());
@@ -129,7 +125,9 @@ export function WalletBalanceCard({
       variant="default"
       padding="none"
       className={`overflow-hidden rounded-2xl border transition-all duration-500 ${
-        justUpdated ? 'border-uber-green/40 shadow-[0_0_24px_rgba(58,167,109,0.15)]' : 'border-white/10'
+        justUpdated
+          ? 'border-uber-green/40 shadow-[0_0_24px_rgba(58,167,109,0.15)]'
+          : 'border-white/10'
       } bg-[#0c0c0c]`}
     >
       <div className="relative">
@@ -152,7 +150,7 @@ export function WalletBalanceCard({
               </div>
               <div>
                 <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                  Payout balance
+                  {messages.dashboard.payoutBalance}
                 </p>
                 <AnimatedBalance value={balance} justUpdated={justUpdated} />
               </div>
@@ -162,7 +160,7 @@ export function WalletBalanceCard({
                 href="/dashboard/wallet"
                 className="shrink-0 flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-sm px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white transition-all min-h-[36px]"
               >
-                Details
+                {messages.dashboard.details}
                 <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             )}
@@ -178,7 +176,7 @@ export function WalletBalanceCard({
                   ↑ {changePercent}%
                 </span>
               )}
-              <span className="text-[11px] text-zinc-500">this week</span>
+              <span className="text-[11px] text-zinc-500">{messages.dashboard.thisWeek}</span>
             </div>
           )}
 

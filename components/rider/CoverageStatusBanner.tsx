@@ -6,6 +6,7 @@ import { coverageWindowStatus, formatPolicyDateShort } from '@/lib/datetime/oasi
 import type { WeeklyPolicy } from '@/lib/types/database';
 import { CalendarClock, Shield, ShieldOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useRiderI18n } from './RiderI18nProvider';
 
 interface CoverageStatusBannerProps {
   policy: WeeklyPolicy | null;
@@ -17,6 +18,7 @@ function formatShortDate(d: string) {
 }
 
 export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerProps) {
+  const { messages } = useRiderI18n();
   const [hydrated, setHydrated] = useState(false);
   const [windowStatus, setWindowStatus] = useState<{
     status: 'upcoming' | 'active' | 'expired';
@@ -46,13 +48,15 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold text-amber-300">No active coverage</span>
+              <span className="text-[13px] font-semibold text-amber-300">
+                {messages.dashboard.noActiveCoverage}
+              </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                Unprotected
+                {messages.dashboard.unprotected}
               </span>
             </div>
             <p className="text-[11px] text-amber-400/60 mt-0.5">
-              Subscribe to a weekly plan to enable automatic payouts
+              {messages.dashboard.subscribeWeekly}
             </p>
           </div>
         </div>
@@ -62,7 +66,7 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
           size="sm"
           className="w-full justify-center mt-3"
         >
-          Get coverage →
+          {messages.dashboard.getCoverage} →
         </ButtonLink>
       </div>
     );
@@ -124,7 +128,9 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold text-white">
-                {planName ?? 'Active coverage'}
+                {planName === 'Standard'
+                  ? messages.dashboard.standardPlan
+                  : (planName ?? messages.dashboard.activeCoverage)}
               </span>
               <span
                 className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
@@ -133,7 +139,7 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
                     : 'text-uber-green bg-uber-green/15'
                 }`}
               >
-                {isExpiringSoon ? 'Expiring' : 'Covered'}
+                {isExpiringSoon ? messages.dashboard.expiring : messages.dashboard.covered}
               </span>
             </div>
             <div className="flex items-center gap-1.5 mt-1">
@@ -153,18 +159,24 @@ export function CoverageStatusBanner({ policy, planName }: CoverageStatusBannerP
                 isExpiringSoon ? 'text-amber-400' : 'text-uber-green'
               }`}
             >
-              {remaining.days}d
+              {remaining.days}
+              {messages.dashboard.dayShort}
             </span>
             <span
               className={`text-[13px] font-semibold tabular-nums ${
                 isExpiringSoon ? 'text-amber-400/70' : 'text-uber-green/70'
               }`}
             >
-              {remaining.hours}h
+              {remaining.hours}
+              {messages.dashboard.hourShort}
             </span>
           </div>
           <p className="text-[10px] text-zinc-500 font-medium">
-            {isUpcoming ? 'starts in' : remaining.status === 'expired' ? 'ended' : 'remaining'}
+            {isUpcoming
+              ? messages.dashboard.startsIn
+              : remaining.status === 'expired'
+                ? messages.dashboard.ended
+                : messages.dashboard.remaining}
           </p>
         </div>
       </div>

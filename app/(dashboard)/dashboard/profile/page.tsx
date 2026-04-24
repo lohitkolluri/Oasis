@@ -1,7 +1,9 @@
 import { ProfileSettingsForm } from '@/components/rider/ProfileSettingsForm';
 import { PushNotificationSettings } from '@/components/rider/PushNotificationSettings';
+import { DEFAULT_RIDER_LOCALE, normalizeRiderLocale } from '@/lib/i18n/rider';
 import { createClient } from '@/lib/supabase/server';
 import { ArrowLeft } from 'lucide-react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -16,7 +18,7 @@ export default async function RiderProfilePage() {
   const { data: profile, error } = await supabase
     .from('profiles')
     .select(
-      'full_name, phone_number, platform, primary_zone_geofence, government_id_verified, face_verified, auto_renew_enabled, updated_at',
+      'full_name, phone_number, platform, primary_zone_geofence, government_id_verified, face_verified, auto_renew_enabled, preferred_language, updated_at',
     )
     .eq('id', user.id)
     .single();
@@ -24,6 +26,13 @@ export default async function RiderProfilePage() {
   if (error || !profile) {
     redirect('/dashboard');
   }
+
+  const cookieLocale = (await cookies()).get('oasis_rider_locale')?.value;
+  const preferredLanguage = normalizeRiderLocale(
+    (profile as { preferred_language?: string | null }).preferred_language ??
+      cookieLocale ??
+      DEFAULT_RIDER_LOCALE,
+  );
 
   return (
     <div className="space-y-6 pb-4">
@@ -48,6 +57,7 @@ export default async function RiderProfilePage() {
           government_id_verified: profile.government_id_verified,
           face_verified: profile.face_verified,
           auto_renew_enabled: profile.auto_renew_enabled,
+          preferred_language: preferredLanguage,
         }}
         email={user.email ?? null}
       />

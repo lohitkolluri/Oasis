@@ -2,26 +2,27 @@
 
 import { ChevronDown, FileText, HelpCircle, ShieldQuestion } from 'lucide-react';
 import Link from 'next/link';
+import { useRiderI18n } from './RiderI18nProvider';
 
 const links = [
   {
     href: '/dashboard/policy/docs',
-    label: 'Policy docs',
-    sublabel: 'Terms & coverage',
+    labelKey: 'policyDocs',
+    sublabelKey: 'termsCoverage',
     icon: FileText,
     iconBg: 'bg-sky-500/12 text-sky-400 group-hover:bg-sky-500/20',
   },
   {
     href: '/policy-summary',
-    label: 'Coverage FAQ',
-    sublabel: 'What\u2019s covered',
+    labelKey: 'coverageFaq',
+    sublabelKey: 'whatsCovered',
     icon: ShieldQuestion,
     iconBg: 'bg-uber-green/12 text-uber-green group-hover:bg-uber-green/20',
   },
   {
     href: 'mailto:lohitkolluri@gmail.com',
-    label: 'Help & support',
-    sublabel: 'Get in touch',
+    labelKey: 'helpSupport',
+    sublabelKey: 'getInTouch',
     icon: HelpCircle,
     iconBg: 'bg-amber-500/12 text-amber-400 group-hover:bg-amber-500/20',
     external: true,
@@ -29,17 +30,23 @@ const links = [
 ] as const;
 
 export function QuickLinks() {
+  const { messages } = useRiderI18n();
+
   return (
     <details className="group rounded-2xl border border-white/10 bg-surface-1 overflow-hidden open:pb-0">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3.5 text-left hover:bg-white/[0.03] transition-colors [&::-webkit-details-marker]:hidden">
-        <span className="text-[12px] font-medium text-zinc-500">Help & policy links</span>
+        <span className="text-[12px] font-medium text-zinc-500">
+          {messages.dashboard.helpPolicyLinks}
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-zinc-600 transition-transform duration-200 group-open:rotate-180" />
       </summary>
       <div className="divide-y divide-white/[0.06] border-t border-white/[0.06]">
-        {links.map(({ href, label, sublabel, icon: Icon, iconBg, ...rest }) => {
+        {links.map(({ href, labelKey, sublabelKey, icon: Icon, iconBg, ...rest }) => {
           const isExternal = 'external' in rest && rest.external;
           const Component = isExternal ? 'a' : Link;
           const extraProps = isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+          const label = messages.dashboard[labelKey];
+          const sublabel = messages.dashboard[sublabelKey];
 
           return (
             <Component

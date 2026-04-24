@@ -1,22 +1,23 @@
 'use client';
 
 import { Card } from '@/components/ui/Card';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
+import type { ParametricClaim } from '@/lib/types/database';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+  AlertTriangle,
   Car,
   ChevronRight,
+  Clock,
   Cloud,
   FileCheck,
   Megaphone,
-  TrendingUp,
   Shield,
-  AlertTriangle,
-  Clock,
+  TrendingUp,
   Zap,
 } from 'lucide-react';
-import type { ParametricClaim } from '@/lib/types/database';
+import Link from 'next/link';
 import { ClaimVerificationPrompt } from './ClaimVerificationPrompt';
+import { useRiderI18n } from './RiderI18nProvider';
 
 type ClaimWithType = ParametricClaim & {
   live_disruption_events?: { event_type?: string } | null;
@@ -41,7 +42,12 @@ const statConfig = {
   riskHigh: { gradient: 'from-red-500/10 to-red-500/5', accent: 'text-red-400' },
 };
 
-function CompactStats({ totalPayouts, claimsPaid, hasActiveCoverage, riskLevel }: CompactStatsProps) {
+function CompactStats({
+  totalPayouts,
+  claimsPaid,
+  hasActiveCoverage,
+  riskLevel,
+}: CompactStatsProps) {
   const riskLabel = riskLevel === 'high' ? 'High' : riskLevel === 'medium' ? 'Med' : 'Low';
   const riskStyle =
     riskLevel === 'high'
@@ -124,20 +130,28 @@ const eventTypeBorderColor: Record<string, string> = {
 
 function eventTypeIcon(type: string) {
   switch (type) {
-    case 'weather': return Cloud;
-    case 'traffic': return Car;
-    case 'social': return Megaphone;
-    default: return FileCheck;
+    case 'weather':
+      return Cloud;
+    case 'traffic':
+      return Car;
+    case 'social':
+      return Megaphone;
+    default:
+      return FileCheck;
   }
 }
 
 function plainLanguageStatus(claim: ClaimWithType): { label: string; step: number; total: number } {
   if (claim.is_flagged) return { label: 'Under review', step: 2, total: 3 };
   switch (claim.status) {
-    case 'paid': return { label: 'Paid', step: 3, total: 3 };
-    case 'pending_verification': return { label: 'Verifying zone', step: 2, total: 3 };
-    case 'triggered': return { label: 'Triggered', step: 1, total: 3 };
-    default: return { label: 'Processing', step: 1, total: 3 };
+    case 'paid':
+      return { label: 'Paid', step: 3, total: 3 };
+    case 'pending_verification':
+      return { label: 'Verifying zone', step: 2, total: 3 };
+    case 'triggered':
+      return { label: 'Triggered', step: 1, total: 3 };
+    default:
+      return { label: 'Processing', step: 1, total: 3 };
   }
 }
 
@@ -199,10 +213,15 @@ export function ActivityTimeline({
   claimIdsNeedingVerification = [],
   showCompactStats = true,
 }: ActivityTimelineProps) {
+  const { messages } = useRiderI18n();
   const list = claims.slice(0, 5);
 
   return (
-    <Card variant="default" padding="none" className="rounded-2xl border-white/10 bg-[#0c0c0c] overflow-hidden">
+    <Card
+      variant="default"
+      padding="none"
+      className="rounded-2xl border-white/10 bg-[#0c0c0c] overflow-hidden"
+    >
       {showCompactStats && (
         <CompactStats
           totalPayouts={totalPayouts}
@@ -220,13 +239,13 @@ export function ActivityTimeline({
           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-uber-green/12">
             <Clock className="h-3.5 w-3.5 text-uber-green" />
           </div>
-          <h3 className="text-[13px] font-semibold text-zinc-200">Activity</h3>
+          <h3 className="text-[13px] font-semibold text-zinc-200">{messages.dashboard.activity}</h3>
         </div>
         <Link
           href="/dashboard/claims"
           className="text-[11px] font-semibold text-uber-green hover:underline active:opacity-70 flex items-center gap-0.5 min-h-[36px] px-1"
         >
-          View all
+          {messages.dashboard.viewAll}
           <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
@@ -237,9 +256,11 @@ export function ActivityTimeline({
           <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/5 mb-3">
             <Zap className="h-5 w-5 text-zinc-600" />
           </div>
-          <p className="text-[12px] text-zinc-400 font-medium">No activity yet</p>
+          <p className="text-[12px] text-zinc-400 font-medium">
+            {messages.dashboard.noActivityYet}
+          </p>
           <p className="text-[11px] text-zinc-600 mt-0.5 max-w-[220px] leading-relaxed">
-            Payouts appear when disruptions trigger in your zone
+            {messages.dashboard.payoutsAppear}
           </p>
         </div>
       ) : (
@@ -248,9 +269,7 @@ export function ActivityTimeline({
             {list.map((c) => {
               const eventType = c.live_disruption_events?.event_type ?? 'payout';
               const type =
-                eventType in eventTypeLabel
-                  ? eventTypeLabel[eventType]
-                  : (eventType as string);
+                eventType in eventTypeLabel ? eventTypeLabel[eventType] : (eventType as string);
               const Icon = eventTypeIcon(eventType);
               const iconBg = eventTypeIconBg[eventType] ?? 'bg-white/10 text-zinc-400';
               const borderLeft = eventTypeBorderColor[eventType] ?? 'border-l-zinc-700/40';
@@ -271,22 +290,20 @@ export function ActivityTimeline({
                     className={`flex items-center gap-3 rounded-xl bg-black/40 border border-white/10 border-l-2 ${borderLeft} px-3 py-3 active:bg-white/5 transition-colors`}
                   >
                     {/* Icon with event-type color */}
-                    <div className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${iconBg}`}>
+                    <div
+                      className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${iconBg}`}
+                    >
                       <Icon className="h-4 w-4" />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-medium text-zinc-200 truncate">
-                          {type}
-                        </p>
+                        <p className="text-[13px] font-medium text-zinc-200 truncate">{type}</p>
                         <StepTracker step={status.step} total={status.total} />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[11px] font-semibold ${color}`}>
-                          {status.label}
-                        </span>
+                        <span className={`text-[11px] font-semibold ${color}`}>{status.label}</span>
                         <span className="text-[10px] text-zinc-600">·</span>
                         <span className="text-[10px] text-zinc-500 tabular-nums">
                           {formatTimeAgo(c.created_at)}
@@ -301,7 +318,8 @@ export function ActivityTimeline({
                           c.status === 'paid' ? 'text-uber-green' : 'text-zinc-400'
                         }`}
                       >
-                        {c.status === 'paid' ? '+' : ''}₹{Number(c.payout_amount_inr).toLocaleString('en-IN')}
+                        {c.status === 'paid' ? '+' : ''}₹
+                        {Number(c.payout_amount_inr).toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>

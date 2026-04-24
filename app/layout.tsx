@@ -14,9 +14,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://oasis-app.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://oasis-murex-omega.vercel.app/'),
   title: {
-    default: 'Oasis — AI-Powered Income Protection for Delivery Partners',
+    default: 'Oasis',
     template: '%s | Oasis',
   },
   description:
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_IN',
     siteName: 'Oasis',
-    title: 'Oasis — AI-Powered Income Protection for Delivery Partners',
+    title: 'Oasis',
     description:
       "Weekly parametric wage protection for India's Q-commerce delivery partners. Automated payouts when disruptions strike.",
     images: [

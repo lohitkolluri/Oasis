@@ -1,30 +1,38 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { ShieldAlert } from "lucide-react";
-import { useMemo } from "react";
+import { createClient } from '@/lib/supabase/client';
+import { ShieldAlert } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRiderI18n } from './RiderI18nProvider';
 
 export function PredictiveAlert() {
   const [alert, setAlert] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
+  const { messages } = useRiderI18n();
 
   useEffect(() => {
+    function eventLabel(eventType: string | undefined): string {
+      if (eventType === 'weather') return messages.dashboard.weatherEvent;
+      if (eventType === 'traffic') return messages.dashboard.trafficEvent;
+      if (eventType === 'social') return messages.dashboard.socialEvent;
+      return eventType ?? messages.dashboard.weatherEvent;
+    }
+
     const twoHoursAgo = new Date();
     twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
 
     const fetchRecent = async () => {
       const { data } = await supabase
-        .from("live_disruption_events")
-        .select("event_type, severity_score")
-        .gte("created_at", twoHoursAgo.toISOString())
-        .gte("severity_score", 7)
+        .from('live_disruption_events')
+        .select('event_type, severity_score')
+        .gte('created_at', twoHoursAgo.toISOString())
+        .gte('severity_score', 7)
         .limit(1);
 
       if (data && data.length > 0) {
         const e = data[0];
         setAlert(
-          `High disruption risk in your area (${e.event_type}, severity ${e.severity_score}/10). Consider logging off to qualify for automatic payout.`
+          `${messages.dashboard.highDisruptionRisk} (${eventLabel(e.event_type)}, ${messages.dashboard.severity} ${e.severity_score}/10). ${messages.dashboard.autoPayoutAdvice}`,
         );
       }
     };
@@ -32,29 +40,29 @@ export function PredictiveAlert() {
     fetchRecent();
 
     const channel = supabase
-      .channel("predictive_alerts")
+      .channel('predictive_alerts')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "live_disruption_events",
+          event: 'INSERT',
+          schema: 'public',
+          table: 'live_disruption_events',
         },
         (payload) => {
           const newEvent = payload.new as { event_type?: string; severity_score?: number };
           if ((newEvent.severity_score ?? 0) >= 7) {
             setAlert(
-              `High disruption risk: ${newEvent.event_type} (severity ${newEvent.severity_score}/10). Log off to qualify for automatic payout.`
+              `${messages.dashboard.highDisruptionRiskShort}: ${eventLabel(newEvent.event_type)} (${messages.dashboard.severity} ${newEvent.severity_score}/10). ${messages.dashboard.autoPayoutAdviceShort}`,
             );
           }
-        }
+        },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [messages, supabase]);
 
   if (!alert) return null;
 
@@ -67,7 +75,7 @@ export function PredictiveAlert() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold text-uber-orange/80 uppercase tracking-wider mb-0.5">
-            Risk alert
+            {messages.dashboard.riskAlert}
           </p>
           <p className="text-[13px] text-uber-orange/90 leading-snug">{alert}</p>
         </div>

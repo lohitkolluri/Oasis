@@ -3,17 +3,19 @@
 import { Banknote, FileCheck, LayoutDashboard, UserRound, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useRiderI18n } from './RiderI18nProvider';
 
 const navItems = [
-  { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/dashboard/claims', label: 'Payouts', icon: FileCheck },
-  { href: '/dashboard/policy', label: 'Policy', icon: Wallet },
-  { href: '/dashboard/wallet', label: 'Wallet', icon: Banknote },
-  { href: '/dashboard/profile', label: 'Profile', icon: UserRound },
+  { href: '/dashboard', labelKey: 'home', icon: LayoutDashboard },
+  { href: '/dashboard/claims', labelKey: 'payouts', icon: FileCheck },
+  { href: '/dashboard/policy', labelKey: 'policy', icon: Wallet },
+  { href: '/dashboard/wallet', labelKey: 'wallet', icon: Banknote },
+  { href: '/dashboard/profile', labelKey: 'profile', icon: UserRound },
 ] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { messages } = useRiderI18n();
 
   return (
     <nav
@@ -21,7 +23,8 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-2xl border-t border-white/[0.06] safe-area-pb"
     >
       <div className="max-w-xl mx-auto flex items-stretch justify-between sm:justify-around h-16 px-0.5 sm:px-1 gap-0">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, labelKey, icon: Icon }) => {
+          const label = messages.nav[labelKey];
           const isActive =
             href === '/dashboard'
               ? pathname === '/dashboard'

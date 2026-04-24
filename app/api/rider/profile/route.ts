@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { RIDER_LOCALE_COOKIE, isRiderLocale } from '@/lib/i18n/rider';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { NextResponse } from 'next/server';
 
@@ -60,6 +61,13 @@ export async function PATCH(request: Request) {
     updates.platform = body.platform;
   }
 
+  if ('preferred_language' in body) {
+    if (!isRiderLocale(body.preferred_language)) {
+      return NextResponse.json({ error: 'Invalid language' }, { status: 400 });
+    }
+    updates.preferred_language = body.preferred_language;
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No changes' }, { status: 400 });
   }
@@ -68,12 +76,20 @@ export async function PATCH(request: Request) {
     .from('profiles')
     .update(updates)
     .eq('id', user.id)
-    .select('full_name, phone_number, platform')
+    .select('full_name, phone_number, platform, preferred_language')
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ profile: data });
+  const response = NextResponse.json({ profile: data });
+  if (typeof updates.preferred_language === 'string') {
+    response.cookies.set(RIDER_LOCALE_COOKIE, updates.preferred_language, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    });
+  }
+  return response;
 }

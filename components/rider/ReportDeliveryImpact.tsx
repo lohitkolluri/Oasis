@@ -6,6 +6,7 @@ import { Camera, Flag, ImageIcon, Loader2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
+import { useRiderI18n } from './RiderI18nProvider';
 
 export interface ReportDeliveryImpactProps {
   open?: boolean;
@@ -23,6 +24,7 @@ export function ReportDeliveryImpact({
   triggerClassName,
   triggerTone = 'accent',
 }: ReportDeliveryImpactProps = {}) {
+  const { messages } = useRiderI18n();
   const [internalOpen, setInternalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -207,7 +209,7 @@ export function ReportDeliveryImpact({
           <Flag
             className={`h-4 w-4 shrink-0 ${triggerTone === 'neutral' ? 'text-zinc-500' : ''}`}
           />
-          Report delivery issue
+          {messages.dashboard.reportDeliveryIssue}
         </button>
       )}
 
@@ -238,7 +240,9 @@ export function ReportDeliveryImpact({
                   </div>
 
                   <div className="flex items-center justify-between px-5 pt-3 pb-3 sm:pt-5 shrink-0">
-                    <h3 className="text-lg font-semibold text-zinc-100">Report delivery issue</h3>
+                    <h3 className="text-lg font-semibold text-zinc-100">
+                      {messages.dashboard.reportDeliveryIssue}
+                    </h3>
                     <button
                       type="button"
                       onClick={() => !loading && setOpen(false)}

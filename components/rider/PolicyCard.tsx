@@ -4,6 +4,7 @@ import { formatPolicyDateShort } from '@/lib/datetime/oasis-time';
 import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import { ChevronRight, FileCheck, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { useRiderI18n } from './RiderI18nProvider';
 
 interface PolicyCardProps {
   policy: WeeklyPolicy | null;
@@ -25,6 +26,12 @@ export function PolicyCard({
   planName,
   compact = false,
 }: PolicyCardProps) {
+  const { messages } = useRiderI18n();
+  const displayPlanName =
+    planName === 'Standard'
+      ? messages.dashboard.standardPlan
+      : (planName ?? messages.dashboard.policy);
+
   if (!policy) {
     if (compact) {
       return (
@@ -36,8 +43,10 @@ export function PolicyCard({
             <FileCheck className="h-4 w-4 text-zinc-500" />
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-[13px] font-semibold text-zinc-300">Get coverage</p>
-            <p className="text-[11px] text-zinc-600">Tap to subscribe</p>
+            <p className="text-[13px] font-semibold text-zinc-300">
+              {messages.dashboard.getCoverage}
+            </p>
+            <p className="text-[11px] text-zinc-600">{messages.dashboard.subscribeWeekly}</p>
           </div>
           <ChevronRight className="h-4 w-4 text-zinc-600 shrink-0" />
         </Link>
@@ -50,10 +59,10 @@ export function PolicyCard({
             <FileCheck className="h-4 w-4 text-zinc-500" />
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-zinc-400">No active coverage</p>
-            <p className="text-[11px] text-zinc-500 mt-0.5">
-              Get a weekly policy to enable automatic payouts
+            <p className="text-[13px] font-semibold text-zinc-400">
+              {messages.dashboard.noActiveCoverage}
             </p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">{messages.dashboard.subscribeWeekly}</p>
           </div>
         </div>
         <ButtonLink
@@ -62,7 +71,7 @@ export function PolicyCard({
           size="sm"
           className="w-full justify-center"
         >
-          Get coverage
+          {messages.dashboard.getCoverage}
         </ButtonLink>
       </Card>
     );
@@ -78,9 +87,10 @@ export function PolicyCard({
           <Shield className="h-4 w-4 text-uber-green" />
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <p className="text-[13px] font-semibold text-white truncate">{planName ?? 'Policy'}</p>
+          <p className="text-[13px] font-semibold text-white truncate">{displayPlanName}</p>
           <p className="text-[11px] text-zinc-500 tabular-nums">
-            ₹{Number(policy.weekly_premium_inr).toLocaleString('en-IN')}/week · Details
+            ₹{Number(policy.weekly_premium_inr).toLocaleString('en-IN')}/
+            {messages.dashboard.perWeek} · {messages.dashboard.details}
           </p>
         </div>
         <ChevronRight className="h-4 w-4 text-zinc-600 shrink-0" />
@@ -100,7 +110,7 @@ export function PolicyCard({
             <Shield className="h-4 w-4 text-uber-green" />
           </div>
           <div>
-            <p className="text-[13px] font-semibold text-white">{planName ?? 'Current policy'}</p>
+            <p className="text-[13px] font-semibold text-white">{displayPlanName}</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">Coverage & premium</p>
           </div>
         </div>
@@ -108,7 +118,7 @@ export function PolicyCard({
           href="/dashboard/policy"
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-medium text-zinc-300 hover:bg-white/10 hover:text-white transition-colors min-h-[36px]"
         >
-          Manage
+          {messages.dashboard.details}
           <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
