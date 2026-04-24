@@ -107,13 +107,15 @@ export async function checkRateLimit(
   if (result.allowed) return null;
 
   const retryAfter = result.retryAfterSec ?? 60;
+  const waitUnit = retryAfter === 1 ? 'second' : 'seconds';
+  const waitMessage = `Please wait ${retryAfter} ${waitUnit} before trying again.`;
   const request = options?.request;
   const requestId = request ? getOrCreateRequestId(request) : null;
   const headers = new Headers({ 'Retry-After': String(retryAfter) });
   if (requestId) headers.set('x-request-id', requestId);
   return NextResponse.json(
     {
-      error: 'Too many requests',
+      error: waitMessage,
       retryAfter,
       ...(requestId ? { requestId } : {}),
     },
