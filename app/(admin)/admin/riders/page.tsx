@@ -10,10 +10,11 @@ const MAX_RIDERS_ROWS = 500;
 export default async function AdminRidersPage() {
   const supabase = createAdminClient();
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select(
-      `
+  const [profilesRes, policiesRes] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select(
+        `
       id,
       full_name,
       phone_number,
@@ -24,19 +25,26 @@ export default async function AdminRidersPage() {
       zone_longitude,
       created_at
     `,
-    )
-    .order('created_at', { ascending: false })
-    .limit(MAX_RIDERS_ROWS);
+      )
+      .order('created_at', { ascending: false })
+      .limit(MAX_RIDERS_ROWS),
+    supabase
+      .from('weekly_policies')
+      .select('profile_id, weekly_premium_inr, plan_id')
+      .eq('is_active', true)
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
+      .limit(5_000),
+  ]);
 
-  const { data: activePolicies } = await supabase
-    .from('weekly_policies')
-    .select('profile_id, weekly_premium_inr, plan_id')
-    .eq('is_active', true)
-    .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]);
+  const profiles = profilesRes.data;
+  const activePolicies = policiesRes.data;
 
   const uniqueRidersWithPolicy = new Set<string>();
   let modeledPremium = 0;
-  for (const row of (activePolicies ?? []) as { profile_id: string; weekly_premium_inr: number }[]) {
+  for (const row of (activePolicies ?? []) as {
+    profile_id: string;
+    weekly_premium_inr: number;
+  }[]) {
     uniqueRidersWithPolicy.add(row.profile_id);
     modeledPremium += Number(row.weekly_premium_inr);
   }

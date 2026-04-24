@@ -50,26 +50,35 @@ export default async function RevenuePage() {
   const sinceClaimsIso = sinceInstant.toISOString();
   const sincePolicyWeekStart = policySinceYmd(90);
 
+  // Bound the scan: for a zone/plan rollup over 90 days a few thousand rows is ample; large
+  // portfolios should graduate to a SQL aggregate RPC / materialized view.
+  const POLICY_ROW_CAP = 5_000;
+  const CLAIM_ROW_CAP = 10_000;
+
   const [policiesRes, claimsRes] = await Promise.all([
     supabase
       .from('weekly_policies')
       .select('id, weekly_premium_inr, plan_packages(slug,name), profiles(primary_zone_geofence)')
       // Use policy week, not row creation time; include inactive (expired) policies in the window.
       .gte('week_start_date', sincePolicyWeekStart)
-      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES]),
+      .in('payment_status', [...WEEKLY_POLICY_EARNED_PREMIUM_STATUSES])
+      .order('week_start_date', { ascending: false })
+      .limit(POLICY_ROW_CAP),
     supabase
       .from('parametric_claims')
       .select('policy_id, payout_amount_inr')
-      .gte('created_at', sinceClaimsIso),
+      .gte('created_at', sinceClaimsIso)
+      .order('created_at', { ascending: false })
+      .limit(CLAIM_ROW_CAP),
   ]);
 
   const policies = (policiesRes.data ?? []) as unknown as PolicyRow[];
   const claims = (claimsRes.data ?? []) as unknown as ClaimRow[];
 
-  const policyIds = policies.map((p) => p.id);
+  const policyIdSet = new Set(policies.map((p) => p.id));
   const claimsByPolicy = new Map<string, number>();
   for (const c of claims) {
-    if (!policyIds.includes(c.policy_id)) continue;
+    if (!policyIdSet.has(c.policy_id)) continue;
     claimsByPolicy.set(
       c.policy_id,
       (claimsByPolicy.get(c.policy_id) ?? 0) + Number(c.payout_amount_inr),

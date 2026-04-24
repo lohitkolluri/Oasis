@@ -45,7 +45,28 @@ export default async function AdminRiderDetailPage({
   const { id } = await params;
   const supabase = createAdminClient();
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
+  // Explicit column list: avoids over-fetching every profile column (incl. sensitive paths)
+  // on each admin rider detail render.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select(
+      `
+      id,
+      full_name,
+      phone_number,
+      platform,
+      role,
+      primary_zone_geofence,
+      zone_latitude,
+      zone_longitude,
+      created_at,
+      government_id_url,
+      government_id_verified,
+      deprovisioned_at
+    `,
+    )
+    .eq('id', id)
+    .single();
   if (!profile) notFound();
 
   const [policiesRes, plansRes] = await Promise.all([

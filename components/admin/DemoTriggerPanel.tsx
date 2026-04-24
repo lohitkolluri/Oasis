@@ -287,6 +287,7 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
   );
 
   const selectedRider = riders.find((r) => r.id === selectedRiderId);
+  const isRiderScopedSingleEvent = Boolean(selectedRiderId);
 
   function parseOptionalCoord(s: string): number | null {
     const n = parseFloat(s.trim());
@@ -310,22 +311,25 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
     setResult(null);
     const latRaw = parseOptionalCoord(customLat);
     const lngRaw = parseOptionalCoord(customLng);
-    const lat = latRaw ?? selected.lat;
-    const lng = lngRaw ?? selected.lng;
 
     try {
+      const payload: Record<string, unknown> = {
+        eventSubtype: selected.subtype,
+        radiusKm,
+        severity,
+        ...(selectedRiderId && { riderId: selectedRiderId }),
+        ...(runLabel.trim() && { runLabel: runLabel.trim() }),
+      };
+
+      if (!selectedRiderId) {
+        payload.lat = latRaw ?? selected.lat;
+        payload.lng = lngRaw ?? selected.lng;
+      }
+
       const res = await fetch('/api/admin/demo-trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventSubtype: selected.subtype,
-          lat,
-          lng,
-          radiusKm,
-          severity,
-          ...(selectedRiderId && { riderId: selectedRiderId }),
-          ...(runLabel.trim() && { runLabel: runLabel.trim() }),
-        }),
+        body: JSON.stringify(payload),
       });
       const data = (await res.json()) as DemoResult;
       if (!res.ok) {
@@ -625,8 +629,8 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
             </div>
           </div>
           <p className="text-[11px] text-[#6b7280] leading-relaxed">
-            One synthetic disruption — uses the preset location unless you override coordinates
-            under Advanced.
+            One synthetic disruption — location comes from the selected rider zone when rider scope
+            is set; otherwise it uses the event preset (or Advanced coordinate override).
           </p>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[#9ca3af]">Event preset</label>
@@ -641,7 +645,6 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
                   <span className="truncate flex items-center gap-2">
                     <span>{selected.emoji}</span>
                     <span className="font-medium text-white">{selected.label}</span>
-                    <span className="text-[#555] hidden sm:inline">· {selected.city}</span>
                   </span>
                   <ChevronDown
                     className={cn(
@@ -668,9 +671,7 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
                         <span className="text-base shrink-0">{p.emoji}</span>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-white">{p.label}</p>
-                          <p className="text-xs text-[#555]">
-                            {p.desc} · {p.city}
-                          </p>
+                          <p className="text-xs text-[#555]">{p.desc}</p>
                         </div>
                         {selected.label === p.label && selected.city === p.city && (
                           <span
@@ -751,34 +752,41 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
                   />
                 </label>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="block space-y-1">
-                  <span className="text-[10px] uppercase tracking-wider text-[#6b7280]">
-                    Latitude (optional override)
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder={`Default ${selected.lat}`}
-                    value={customLat}
-                    onChange={(e) => setCustomLat(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] px-3 text-sm text-white placeholder:text-[#444]"
-                  />
-                </label>
-                <label className="block space-y-1">
-                  <span className="text-[10px] uppercase tracking-wider text-[#6b7280]">
-                    Longitude (optional override)
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder={`Default ${selected.lng}`}
-                    value={customLng}
-                    onChange={(e) => setCustomLng(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] px-3 text-sm text-white placeholder:text-[#444]"
-                  />
-                </label>
-              </div>
+              {isRiderScopedSingleEvent ? (
+                <div className="rounded-lg border border-[#2d2d2d] bg-[#111111] px-3 py-2 text-[11px] text-[#9ca3af]">
+                  Using rider zone coordinates for single-event trigger
+                  {selectedRider?.zone_label ? ` · ${selectedRider.zone_label}` : ''}.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block space-y-1">
+                    <span className="text-[10px] uppercase tracking-wider text-[#6b7280]">
+                      Latitude (optional override)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder={`Default ${selected.lat}`}
+                      value={customLat}
+                      onChange={(e) => setCustomLat(e.target.value)}
+                      className="w-full h-9 rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] px-3 text-sm text-white placeholder:text-[#444]"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[10px] uppercase tracking-wider text-[#6b7280]">
+                      Longitude (optional override)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder={`Default ${selected.lng}`}
+                      value={customLng}
+                      onChange={(e) => setCustomLng(e.target.value)}
+                      className="w-full h-9 rounded-lg border border-[#2d2d2d] bg-[#1a1a1a] px-3 text-sm text-white placeholder:text-[#444]"
+                    />
+                  </label>
+                </div>
+              )}
               <label className="block space-y-1">
                 <span className="text-[10px] uppercase tracking-wider text-[#6b7280]">
                   Run label (logged)

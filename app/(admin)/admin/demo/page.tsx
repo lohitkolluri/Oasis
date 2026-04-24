@@ -23,6 +23,8 @@ export default async function AdminDemoPage() {
       .eq('event_type', 'adjudicator_demo')
       .order('created_at', { ascending: false })
       .limit(20),
+    // Only riders with configured delivery zones are usable for single-event demos;
+    // cap to a reasonable size — DemoTriggerPanel adds typeahead for selection.
     supabase
       .from('profiles')
       .select(
@@ -30,7 +32,10 @@ export default async function AdminDemoPage() {
       )
       .or('role.eq.rider,role.is.null')
       .is('deprovisioned_at', null)
-      .order('full_name'),
+      .not('zone_latitude', 'is', null)
+      .not('zone_longitude', 'is', null)
+      .order('full_name')
+      .limit(200),
   ]);
 
   const riderList = (riders ?? []).map((r) => {

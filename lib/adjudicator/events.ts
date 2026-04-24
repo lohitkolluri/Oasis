@@ -3,14 +3,10 @@
  */
 
 import { triggersFromContext } from '@/lib/adjudicator/rule-context';
-import type {
-  GeofenceCircle,
-  SupabaseAdmin,
-  TriggerCandidate,
-} from '@/lib/adjudicator/types';
+import type { GeofenceCircle, SupabaseAdmin, TriggerCandidate } from '@/lib/adjudicator/types';
 import { isWithinCircle } from '@/lib/utils/geo';
 
-/** True if a same-type event in same area was created in the last hour. */
+/** True if a same-type (and same-subtype if set) event in same area was created in the last hour. */
 export async function isDuplicateEvent(
   supabase: SupabaseAdmin,
   candidate: TriggerCandidate,
@@ -18,11 +14,21 @@ export async function isDuplicateEvent(
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const geofence = candidate.geofence;
 
-  const { data: recentEvents } = await supabase
+  let query = supabase
     .from('live_disruption_events')
-    .select('id, geofence_polygon')
+    .select('id, geofence_polygon, event_subtype')
     .eq('event_type', candidate.type)
     .gte('created_at', oneHourAgo);
+
+  // Only treat events as duplicates when their subtype matches; otherwise e.g. `heavy_rain`
+  // and `extreme_heat` in the same zone within 1h would incorrectly cancel each other out.
+  if (candidate.subtype) {
+    query = query.eq('event_subtype', candidate.subtype);
+  } else {
+    query = query.is('event_subtype', null);
+  }
+
+  const { data: recentEvents } = await query;
 
   if (!recentEvents || recentEvents.length === 0) return false;
 
@@ -35,13 +41,7 @@ export async function isDuplicateEvent(
       existingGf?.lng != null &&
       geofence?.lat != null &&
       geofence?.lng != null &&
-      isWithinCircle(
-        existingGf.lat,
-        existingGf.lng,
-        geofence.lat,
-        geofence.lng,
-        radiusKm,
-      )
+      isWithinCircle(existingGf.lat, existingGf.lng, geofence.lat, geofence.lng, radiusKm)
     ) {
       return true;
     }
@@ -63,8 +63,7 @@ export async function insertDisruptionEvent(
       event_subtype: candidate.subtype ?? null,
       severity_score: candidate.severity,
       geofence_polygon: candidate.geofence ?? {},
-      verified_by_llm:
-        candidate.type === 'social' || candidate.type === 'traffic',
+      verified_by_llm: candidate.type === 'social' || candidate.type === 'traffic',
       raw_api_data: candidate.raw,
       rule_set_id: ruleSetId ?? null,
     })

@@ -2,27 +2,20 @@
  * Policy matching, fraud checks, claim creation and payouts for a single disruption event.
  */
 
-import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
-import { payoutForSeverity } from '@/lib/parametric-rules/payout-ladder';
-import {
-  payoutLadderFromContext,
-  triggersFromContext,
-} from '@/lib/adjudicator/rule-context';
-import {
-  preloadFraudData,
-  runAllFraudChecks,
-  runExtendedFraudChecks,
-} from '@/lib/fraud/detector';
-import { createAutomatedHold } from '@/lib/fraud/holds';
-import { isWithinCircle } from '@/lib/utils/geo';
+import { payoutLadderFromContext, triggersFromContext } from '@/lib/adjudicator/rule-context';
 import type {
   ProcessTriggerResult,
   SupabaseAdmin,
   TriggerCandidate,
 } from '@/lib/adjudicator/types';
-import { addDays, toDateString } from '@/lib/utils/date';
 import { createClaimFromTrigger, getWeeklyClaimCounts } from '@/lib/claims/engine';
+import { DEFAULT_ZONE, FRAUD, PAYOUT_FALLBACK_INR } from '@/lib/config/constants';
+import { preloadFraudData, runAllFraudChecks, runExtendedFraudChecks } from '@/lib/fraud/detector';
+import { createAutomatedHold } from '@/lib/fraud/holds';
 import { dispatchWebPushForRiderNotifications } from '@/lib/notifications/web-push-dispatch';
+import { payoutForSeverity } from '@/lib/parametric-rules/payout-ladder';
+import { addDays, toDateString } from '@/lib/utils/date';
+import { isWithinCircle } from '@/lib/utils/geo';
 
 export interface ProcessClaimsOptions {
   /** When set (demo), only this profile gets the claim/payout; zone check is skipped for them. */
@@ -54,9 +47,7 @@ export async function processClaimsForEvent(
 
   let query = supabase
     .from('weekly_policies')
-    .select(
-      'id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)',
-    )
+    .select('id, profile_id, plan_id, plan_packages(payout_per_claim_inr, max_claims_per_week)')
     .eq('is_active', true)
     .lte('week_start_date', weekStartUpper)
     .gte('week_end_date', today);
@@ -91,11 +82,7 @@ export async function processClaimsForEvent(
   const policyIds = policies.map((p) => p.id);
   const claimCountMap = await getWeeklyClaimCounts(supabase, policyIds);
 
-  const preloadedFraud = await preloadFraudData(
-    supabase,
-    policyIds,
-    eventId,
-  );
+  const preloadedFraud = await preloadFraudData(supabase, policyIds, eventId);
 
   let claimsCreated = 0;
   let payoutsInitiated = 0;
@@ -129,27 +116,19 @@ export async function processClaimsForEvent(
       max_claims_per_week?: number;
     } | null;
     const basePayout =
-      plan?.payout_per_claim_inr != null
-        ? Number(plan.payout_per_claim_inr)
-        : PAYOUT_FALLBACK_INR;
-    const payoutAmount = payoutForSeverity(
-      basePayout,
-      candidate.severity,
-      ladder,
-    );
+      plan?.payout_per_claim_inr != null ? Number(plan.payout_per_claim_inr) : PAYOUT_FALLBACK_INR;
+    const payoutAmount = payoutForSeverity(basePayout, candidate.severity, ladder);
     const maxClaimsPerWeek = plan?.max_claims_per_week ?? 3;
 
     const profile = profileMap.get(policyRow.profile_id);
-    if (!restrictToProfileId && profile?.lat != null && profile?.lng != null) {
-      if (
-        !isWithinCircle(
-          profile.lat,
-          profile.lng,
-          eventLat,
-          eventLng,
-          radiusKm,
-        )
-      ) {
+    if (!restrictToProfileId) {
+      // A rider must have a configured delivery zone to be eligible for geofenced payouts.
+      // Without this guard, riders missing lat/lng silently fall through the geofence check
+      // and receive claims for events anywhere in the country.
+      if (profile?.lat == null || profile?.lng == null) {
+        continue;
+      }
+      if (!isWithinCircle(profile.lat, profile.lng, eventLat, eventLng, radiusKm)) {
         continue;
       }
     }
@@ -170,9 +149,7 @@ export async function processClaimsForEvent(
         profileId: policyRow.profile_id,
         policyId: policyRow.id,
         disruptionEventId: eventId,
-        reason:
-          preClaimCheck.reason ??
-          'Automated hold: claim creation blocked by abuse signals',
+        reason: preClaimCheck.reason ?? 'Automated hold: claim creation blocked by abuse signals',
         checkName: preClaimCheck.checkName ?? 'pre_claim_abuse',
         facts: {
           policy_id: policyRow.id,
@@ -246,13 +223,25 @@ export async function processClaimsForEvent(
           ? `${eventLabel} (demo). Payout recorded to your wallet.`
           : `${eventLabel} in your zone. Verify your location within ${FRAUD.VERIFY_WINDOW_HOURS}h to receive ₹${payoutAmount}.`,
         type: 'payout',
-        metadata: { claim_id: created?.claim.id, amount_inr: payoutAmount, subtype: candidate.subtype },
+        metadata: {
+          claim_id: created?.claim.id,
+          amount_inr: payoutAmount,
+          subtype: candidate.subtype,
+        },
       });
 
       if (!isDemo) {
         const reminders = [
-          { hours: 12, title: 'Reminder: verify your location', body: `You have ${FRAUD.VERIFY_WINDOW_HOURS - 12}h left to verify your location for ₹${payoutAmount} payout.` },
-          { hours: 20, title: 'Urgent: verify location soon', body: `Only ${FRAUD.VERIFY_WINDOW_HOURS - 20}h remaining to verify your location and claim ₹${payoutAmount}.` },
+          {
+            hours: 12,
+            title: 'Reminder: verify your location',
+            body: `You have ${FRAUD.VERIFY_WINDOW_HOURS - 12}h left to verify your location for ₹${payoutAmount} payout.`,
+          },
+          {
+            hours: 20,
+            title: 'Urgent: verify location soon',
+            body: `Only ${FRAUD.VERIFY_WINDOW_HOURS - 20}h remaining to verify your location and claim ₹${payoutAmount}.`,
+          },
         ];
         for (const reminder of reminders) {
           pendingNotifications.push({
@@ -273,17 +262,25 @@ export async function processClaimsForEvent(
   }
 
   if (pendingNotifications.length > 0) {
-    const { error: notifErr } = await supabase.from('rider_notifications').insert(pendingNotifications);
+    const { error: notifErr } = await supabase
+      .from('rider_notifications')
+      .insert(pendingNotifications);
     if (notifErr) {
-      await supabase.from('system_logs').insert({
-        event_type: 'notification_insert_failed',
-        severity: 'warning',
-        metadata: {
-          event_id: eventId,
-          count: pendingNotifications.length,
-          error: notifErr.message,
-        },
-      }).then(() => {}, () => {});
+      await supabase
+        .from('system_logs')
+        .insert({
+          event_type: 'notification_insert_failed',
+          severity: 'warning',
+          metadata: {
+            event_id: eventId,
+            count: pendingNotifications.length,
+            error: notifErr.message,
+          },
+        })
+        .then(
+          () => {},
+          () => {},
+        );
     } else {
       await dispatchWebPushForRiderNotifications(supabase, pendingNotifications);
     }

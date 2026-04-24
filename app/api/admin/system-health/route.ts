@@ -4,20 +4,26 @@
  * Returns 503 when critical dependencies (Supabase) are unreachable.
  */
 
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { withAdminAuth } from "@/lib/utils/admin-guard";
-import { mergeSourceHealth } from "@/lib/adjudicator/ledger";
-import { getExpectedParametricSourceIds, getPinnedParametricSourceIds, shouldKeepSourceHealthRow } from "@/lib/adjudicator/source-health-registry";
-export const dynamic = "force-dynamic";
+import { mergeSourceHealth } from '@/lib/adjudicator/ledger';
+import {
+  getExpectedParametricSourceIds,
+  getPinnedParametricSourceIds,
+  shouldKeepSourceHealthRow,
+} from '@/lib/adjudicator/source-health-registry';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { withAdminAuth } from '@/lib/utils/admin-guard';
+import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
-async function checkSupabase(admin: ReturnType<typeof createAdminClient>): Promise<{ ok: boolean; error?: string }> {
+async function checkSupabase(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { error } = await admin.from("system_logs").select("id").limit(1).maybeSingle();
+    const { error } = await admin.from('system_logs').select('id').limit(1).maybeSingle();
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Database unreachable" };
+    return { ok: false, error: e instanceof Error ? e.message : 'Database unreachable' };
   }
 }
 
@@ -25,17 +31,17 @@ async function checkRazorpay(): Promise<{ ok: boolean; error?: string }> {
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
   const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
   if (!keyId && !secret) return { ok: true };
-  if (!keyId?.startsWith("rzp_test_")) {
-    return { ok: false, error: "NEXT_PUBLIC_RAZORPAY_KEY_ID must be a test key (rzp_test_...)" };
+  if (!keyId?.startsWith('rzp_test_')) {
+    return { ok: false, error: 'NEXT_PUBLIC_RAZORPAY_KEY_ID must be a test key (rzp_test_...)' };
   }
-  if (!secret) return { ok: false, error: "RAZORPAY_KEY_SECRET not set" };
+  if (!secret) return { ok: false, error: 'RAZORPAY_KEY_SECRET not set' };
   try {
-    const { getRazorpayInstance } = await import("@/lib/clients/razorpay");
+    const { getRazorpayInstance } = await import('@/lib/clients/razorpay');
     const rzp = getRazorpayInstance();
     await rzp.orders.all({ count: 1 });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Razorpay unreachable" };
+    return { ok: false, error: e instanceof Error ? e.message : 'Razorpay unreachable' };
   }
 }
 
@@ -49,7 +55,7 @@ export const GET = withAdminAuth(async () => {
     try {
       const r = await fetch(url, {
         headers: {
-          Accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+          Accept: 'application/rss+xml, application/xml;q=0.9, */*;q=0.8',
         },
         signal: AbortSignal.timeout(5000),
       });
@@ -69,16 +75,19 @@ export const GET = withAdminAuth(async () => {
     }
   }
 
-  const [dbCheck, razorpayCheck] = await Promise.all([
-    checkSupabase(admin),
-    checkRazorpay(),
-  ]);
+  const [dbCheck, razorpayCheck] = await Promise.all([checkSupabase(admin), checkRazorpay()]);
 
   // IMPORTANT: touch TOI rows first, then read `parametric_source_health`.
   // Otherwise the SELECT can race ahead and the UI won't show TOI rows until the next refresh.
   await Promise.all([
-    touchHttpSource("toi_rss_top_stories", "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"),
-    touchHttpSource("toi_rss_india", "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"),
+    touchHttpSource(
+      'toi_rss_top_stories',
+      'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+    ),
+    touchHttpSource(
+      'toi_rss_india',
+      'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms',
+    ),
   ]);
 
   const [
@@ -91,44 +100,46 @@ export const GET = withAdminAuth(async () => {
     parametricLedgerRes,
   ] = await Promise.all([
     admin
-      .from("system_logs")
-      .select("created_at, metadata, severity")
-      .in("event_type", ["adjudicator_run", "adjudicator_demo"])
-      .order("created_at", { ascending: false })
+      .from('system_logs')
+      .select('created_at, metadata, severity')
+      .in('event_type', ['adjudicator_run', 'adjudicator_demo'])
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
     admin
-      .from("system_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("severity", "error")
-      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+      .from('system_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('severity', 'error')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
     admin
-      .from("system_logs")
-      .select("event_type, severity, metadata, created_at")
-      .order("created_at", { ascending: false })
+      .from('system_logs')
+      .select('event_type, severity, metadata, created_at')
+      .order('created_at', { ascending: false })
       .limit(10),
     admin
-      .from("system_logs")
-      .select("created_at, metadata")
-      .eq("event_type", "log_rotation")
-      .order("created_at", { ascending: false })
+      .from('system_logs')
+      .select('created_at, metadata')
+      .eq('event_type', 'log_rotation')
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Bound the count to the active retention window: a full-table exact count on
+    // `system_logs` is run on every health poll and gets expensive at volume; 30d is
+    // the rotation window per LOG_ROTATION.SYSTEM_LOGS_DAYS.
     admin
-      .from("system_logs")
-      .select("id", { count: "exact", head: true }),
+      .from('system_logs')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     admin
-      .from("parametric_source_health")
+      .from('parametric_source_health')
       .select(
-        "source_id,last_success_at,last_error_at,last_error_detail,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of",
+        'source_id,last_success_at,last_error_at,last_error_detail,last_observed_at,error_streak,success_streak,avg_latency_ms,last_latency_ms,is_fallback,fallback_of',
       )
-      .order("source_id", { ascending: true }),
+      .order('source_id', { ascending: true }),
     admin
-      .from("parametric_trigger_ledger")
-      .select(
-        "id,created_at,source,outcome,rule_version,trigger_subtype,is_dry_run,claims_created",
-      )
-      .order("created_at", { ascending: false })
+      .from('parametric_trigger_ledger')
+      .select('id,created_at,source,outcome,rule_version,trigger_subtype,is_dry_run,claims_created')
+      .order('created_at', { ascending: false })
       .limit(8),
   ]);
 
@@ -156,15 +167,18 @@ export const GET = withAdminAuth(async () => {
   if (!dbOk) {
     return NextResponse.json(
       {
-        status: "unhealthy",
-        error: "Database unreachable",
+        status: 'unhealthy',
+        error: 'Database unreachable',
         details: dbCheck.error,
       },
       { status: 503 },
     );
   }
 
-  async function probe(name: string, url: string): Promise<{ name: string; ok: boolean; status: number }> {
+  async function probe(
+    name: string,
+    url: string,
+  ): Promise<{ name: string; ok: boolean; status: number }> {
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
       return { name, ok: r.ok, status: r.status };
@@ -175,57 +189,57 @@ export const GET = withAdminAuth(async () => {
 
   const apis = await Promise.all([
     probe(
-      "Open-Meteo forecast",
-      "https://api.open-meteo.com/v1/forecast?latitude=12.97&longitude=77.59&hourly=temperature_2m&forecast_days=1",
+      'Open-Meteo forecast',
+      'https://api.open-meteo.com/v1/forecast?latitude=12.97&longitude=77.59&hourly=temperature_2m&forecast_days=1',
     ),
     probe(
-      "Open-Meteo AQI",
-      "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.52&longitude=13.41&hourly=pm10,pm2_5",
+      'Open-Meteo AQI',
+      'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.52&longitude=13.41&hourly=pm10,pm2_5',
     ),
   ]);
 
-  if (expectedIds.has("tomorrow_io")) {
+  if (expectedIds.has('tomorrow_io')) {
     apis.push({
-      name: "Tomorrow.io",
+      name: 'Tomorrow.io',
       ok: !!process.env.TOMORROW_IO_API_KEY,
       status: process.env.TOMORROW_IO_API_KEY ? 200 : 0,
     });
   }
-  if (expectedIds.has("newsdata_io_traffic") || expectedIds.has("newsdata_io_curfew")) {
+  if (expectedIds.has('newsdata_io_traffic') || expectedIds.has('newsdata_io_curfew')) {
     apis.push({
-      name: "NewsData.io",
+      name: 'NewsData.io',
       ok: !!process.env.NEWSDATA_IO_API_KEY,
       status: process.env.NEWSDATA_IO_API_KEY ? 200 : 0,
     });
   }
   if (
-    expectedIds.has("openrouter_toi_traffic") ||
-    expectedIds.has("openrouter_toi_curfew") ||
-    expectedIds.has("openrouter_news_traffic") ||
-    expectedIds.has("openrouter_news_curfew")
+    expectedIds.has('openrouter_toi_traffic') ||
+    expectedIds.has('openrouter_toi_curfew') ||
+    expectedIds.has('openrouter_news_traffic') ||
+    expectedIds.has('openrouter_news_curfew')
   ) {
     apis.push({
-      name: "OpenRouter LLM",
+      name: 'OpenRouter LLM',
       ok: !!process.env.OPENROUTER_API_KEY,
       status: process.env.OPENROUTER_API_KEY ? 200 : 0,
     });
   }
-  if (expectedIds.has("tomtom_traffic")) {
+  if (expectedIds.has('tomtom_traffic')) {
     apis.push({
-      name: "TomTom traffic",
+      name: 'TomTom traffic',
       ok: !!process.env.TOMTOM_API_KEY,
       status: process.env.TOMTOM_API_KEY ? 200 : 0,
     });
   }
-  if (expectedIds.has("waqi_ground_station")) {
+  if (expectedIds.has('waqi_ground_station')) {
     apis.push({
-      name: "WAQI ground station",
+      name: 'WAQI ground station',
       ok: !!process.env.WAQI_API_KEY,
       status: process.env.WAQI_API_KEY ? 200 : 0,
     });
   }
   apis.push({
-    name: "Razorpay",
+    name: 'Razorpay',
     ok: razorpayOk,
     status: razorpayOk ? 200 : process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ? 0 : 200,
   });
@@ -234,7 +248,7 @@ export const GET = withAdminAuth(async () => {
   const overallHealthy = apis.every((a) => a.ok) && errorCount === 0;
 
   return NextResponse.json({
-    status: overallHealthy ? "healthy" : errorCount > 0 ? "degraded" : "warning",
+    status: overallHealthy ? 'healthy' : errorCount > 0 ? 'degraded' : 'warning',
     lastAdjudicatorRun: lastRun
       ? {
           runId: m?.run_id ?? null,

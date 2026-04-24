@@ -5,13 +5,18 @@
 import { getRazorpayInstance } from '@/lib/clients/razorpay';
 import { PAYMENTS, RATE_LIMITS } from '@/lib/config/constants';
 import { getRazorpayKeyId } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
 import { resolveWeeklyPremiumInrForPlan } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import { expireStalePendingWeeklyPolicies } from '@/lib/payments/expire-stale-pending-checkout';
 import { resolvePendingOrderCheckout } from '@/lib/payments/resolve-pending-order-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, errorResponse, rateLimitKey } from '@/lib/utils/api';
-import { getCoverageWeekRange } from '@/lib/utils/policy-week';
+import {
+  getCoverageWeekRange,
+  getRemainingCoverageDaysInWeek,
+  prorateWeeklyPremium,
+} from '@/lib/utils/policy-week';
 import { parseWithSchema } from '@/lib/validations/parse';
 import { createCheckoutSchema } from '@/lib/validations/schemas';
 import { NextResponse } from 'next/server';
@@ -59,6 +64,9 @@ export async function POST(request: Request) {
     } else {
       amountInr = await resolveWeeklyPremiumInrForPlan(admin, user.id, 'standard', weekStart);
     }
+
+    const coveredDays = getRemainingCoverageDaysInWeek(weekEnd);
+    amountInr = prorateWeeklyPremium(amountInr, coveredDays);
 
     if (!amountInr || amountInr <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
@@ -315,13 +323,28 @@ export async function POST(request: Request) {
       },
     });
 
-    await supabase
+    // Persist the Razorpay order id on the weekly policy before returning — verify/webhook
+    // paths look up the policy by `razorpay_order_id`, so a failure here leaves the user
+    // unable to complete payment and Razorpay would return "Policy not found".
+    const { error: linkErr } = await supabase
       .from('weekly_policies')
       .update({
         razorpay_order_id: order.id,
         updated_at: new Date().toISOString(),
       })
       .eq('id', policyId);
+
+    if (linkErr) {
+      logger.error('create-checkout: failed to link Razorpay order id', {
+        policy_id: policyId,
+        order_id: order.id,
+        error: linkErr.message,
+      });
+      return NextResponse.json(
+        { error: 'Failed to link payment order. Please retry.' },
+        { status: 500 },
+      );
+    }
 
     await supabase.from('payment_transactions').insert({
       profile_id: user.id,

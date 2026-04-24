@@ -37,6 +37,22 @@ export async function expireStalePendingWeeklyPolicies(
       } catch {
         /* already cancelled or invalid */
       }
+
+      // Keep profile.razorpay_subscription_id in sync with Razorpay: if the stale row
+      // references the same subscription recorded on the profile, clear it so the next
+      // `create-subscription` call doesn't short-circuit onto an already-cancelled mandate.
+      const { error: profErr } = await admin
+        .from('profiles')
+        .update({ razorpay_subscription_id: null, auto_renew_enabled: false })
+        .eq('id', profileId)
+        .eq('razorpay_subscription_id', row.razorpay_subscription_id);
+      if (profErr) {
+        logger.warn('expireStalePendingWeeklyPolicies: failed to clear profile subscription id', {
+          profileId,
+          subscriptionId: row.razorpay_subscription_id,
+          message: profErr.message,
+        });
+      }
     }
 
     const { error: wpErr } = await admin

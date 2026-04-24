@@ -1,4 +1,4 @@
-import { createClaimFromTrigger } from '@/lib/claims/engine';
+import { createClaimFromTrigger, getWeeklyClaimCounts } from '@/lib/claims/engine';
 import { DEFAULT_ZONE, PAYOUT_FALLBACK_INR, RATE_LIMITS } from '@/lib/config/constants';
 import { getCronSecret, isCronSecretRequired } from '@/lib/config/env';
 import { logger } from '@/lib/logger';
@@ -173,12 +173,10 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const { count: weekClaimCount } = await admin
-        .from('parametric_claims')
-        .select('id', { count: 'exact', head: true })
-        .eq('policy_id', policyRow.id);
+      const weekCounts = await getWeeklyClaimCounts(admin, [policyRow.id]);
+      const weekClaimCount = weekCounts.get(policyRow.id) ?? 0;
 
-      if ((weekClaimCount ?? 0) >= maxClaims) {
+      if (weekClaimCount >= maxClaims) {
         await admin
           .from('rider_delivery_reports')
           .update({ verification_status: 'failed' })

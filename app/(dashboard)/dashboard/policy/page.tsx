@@ -1,12 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { PolicySubscribeForm } from "@/components/rider/PolicySubscribeForm";
-import { ArrowLeft, FileText } from "lucide-react";
-import { computeDynamicPlanQuotesForProfile } from "@/lib/ml/resolve-dynamic-plan-quotes";
-import { getCoverageWeekRange } from "@/lib/utils/policy-week";
-import { addCalendarDaysIST } from "@/lib/datetime/ist";
-import type { WeeklyPolicy } from "@/lib/types/database";
+import { PolicySubscribeForm } from '@/components/rider/PolicySubscribeForm';
+import { WEEKLY_POLICY_EARNED_PREMIUM_STATUSES } from '@/lib/config/constants';
+import { addCalendarDaysIST } from '@/lib/datetime/ist';
+import { computeDynamicPlanQuotesForProfile } from '@/lib/ml/resolve-dynamic-plan-quotes';
+import { createClient } from '@/lib/supabase/server';
+import type { WeeklyPolicy } from '@/lib/types/database';
+import { getCoverageWeekRange } from '@/lib/utils/policy-week';
+import { ArrowLeft, FileText } from 'lucide-react';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export default async function PolicyPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function PolicyPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect('/login');
 
   const { start: weekStart } = getCoverageWeekRange();
   // Pull a small window so we don't miss the current week even if there are many future/pending rows.
@@ -28,43 +29,46 @@ export default async function PolicyPage({
   const [{ data: policies }, { data: profile }, { data: plans }, dynamicQuotesBySlug] =
     await Promise.all([
       supabase
-        .from("weekly_policies")
-        .select("*, plan_packages(name)")
-        .eq("profile_id", user.id)
-        .gte("week_start_date", policySince)
-        .order("week_start_date", { ascending: false })
+        .from('weekly_policies')
+        .select('*, plan_packages(name)')
+        .eq('profile_id', user.id)
+        .gte('week_start_date', policySince)
+        .order('week_start_date', { ascending: false })
         .limit(30),
       supabase
-        .from("profiles")
+        .from('profiles')
         .select(
-          "primary_zone_geofence, zone_latitude, zone_longitude, platform, auto_renew_enabled, razorpay_subscription_id",
+          'primary_zone_geofence, zone_latitude, zone_longitude, platform, auto_renew_enabled, razorpay_subscription_id',
         )
-        .eq("id", user.id)
+        .eq('id', user.id)
         .single(),
       supabase
-        .from("plan_packages")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true }),
+        .from('plan_packages')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true }),
       computeDynamicPlanQuotesForProfile(supabase, user.id, weekStart),
     ]);
 
   const premium = dynamicQuotesBySlug.standard?.weekly_premium_inr ?? 99;
 
-  // Treat the current week as active if we have a paid/demo policy for this week,
-  // even if `is_active` lags briefly right after verification.
-  const earnedStatuses = new Set(['paid', 'demo']);
+  // Treat only this coverage week as active/purchased.
+  // Past rows can remain `is_active=true` briefly after transitions, but should not block checkout.
+  // Use the shared constant so analytics and UI never drift from the same "earned" definition.
+  const earnedStatuses = new Set<string>(WEEKLY_POLICY_EARNED_PREMIUM_STATUSES);
   const activePolicy: (WeeklyPolicy & { plan_packages?: unknown }) | null =
-    policies?.find((p) => p.is_active) ??
     policies?.find(
-      (p) => p.week_start_date === weekStart && earnedStatuses.has(String(p.payment_status ?? '')),
-    ) ??
-    null;
+      (p) =>
+        p.week_start_date === weekStart &&
+        (p.is_active || earnedStatuses.has(String(p.payment_status ?? ''))),
+    ) ?? null;
 
   const planName =
-    activePolicy?.plan_packages && typeof activePolicy.plan_packages === "object" && activePolicy.plan_packages !== null
-      ? (activePolicy.plan_packages as { name?: string }).name ?? "Weekly plan"
-      : "Weekly plan";
+    activePolicy?.plan_packages &&
+    typeof activePolicy.plan_packages === 'object' &&
+    activePolicy.plan_packages !== null
+      ? ((activePolicy.plan_packages as { name?: string }).name ?? 'Weekly plan')
+      : 'Weekly plan';
 
   const autoRenewEnabled = Boolean(profile?.auto_renew_enabled);
 
@@ -80,9 +84,7 @@ export default async function PolicyPage({
       {activePolicy ? (
         <>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
-              Subscription details
-            </h1>
+            <h1 className="text-xl font-bold tracking-tight text-white">Subscription details</h1>
             <p className="text-sm text-zinc-500 mt-0.5">
               Your current coverage and payment details
             </p>
@@ -104,9 +106,7 @@ export default async function PolicyPage({
         <>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">
-                Weekly Policy
-              </h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">Weekly Policy</h1>
               <p className="text-sm text-zinc-500 mt-0.5">
                 Subscribe for weekly parametric coverage
               </p>

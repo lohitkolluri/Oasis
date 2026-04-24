@@ -24,10 +24,25 @@ type RazorpayWebhookPayload = {
         amount?: number;
         status?: string;
         method?: string;
+        error_code?: string | null;
+        error_description?: string | null;
+      };
+    };
+    subscription?: {
+      entity?: {
+        id?: string;
+        status?: string;
       };
     };
   };
 };
+
+const HANDLED_EVENTS = new Set([
+  'payment.captured',
+  'payment.failed',
+  'subscription.halted',
+  'subscription.cancelled',
+]);
 
 export async function POST(request: Request) {
   const webhookSecret = getRazorpayWebhookSecret();
@@ -50,22 +65,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (parsed.event !== 'payment.captured') {
+  if (!parsed.event || !HANDLED_EVENTS.has(parsed.event)) {
     return NextResponse.json({ ok: true, message: 'Ignored event type' });
-  }
-
-  const entity = parsed.payload?.payment?.entity;
-  const paymentId = entity?.id;
-  const orderId = entity?.order_id;
-  const subscriptionId = entity?.subscription_id;
-  const method = entity?.method != null ? String(entity.method) : undefined;
-
-  if (!paymentId) {
-    return NextResponse.json({ ok: true, message: 'Missing payment id' });
-  }
-
-  if (entity?.status && entity.status !== 'captured') {
-    return NextResponse.json({ ok: true, message: 'Payment not captured' });
   }
 
   let admin: ReturnType<typeof createAdminClient>;
@@ -79,6 +80,90 @@ export async function POST(request: Request) {
       { error: isProd ? 'Service unavailable' : 'Supabase not configured' },
       { status: 503 },
     );
+  }
+
+  // subscription.halted / subscription.cancelled: reconcile profile state
+  if (parsed.event === 'subscription.halted' || parsed.event === 'subscription.cancelled') {
+    const sub = parsed.payload?.subscription?.entity;
+    const subId = sub?.id;
+    if (!subId) {
+      return NextResponse.json({ ok: true, message: 'Missing subscription id' });
+    }
+    const { error: profErr } = await admin
+      .from('profiles')
+      .update({ razorpay_subscription_id: null, auto_renew_enabled: false })
+      .eq('razorpay_subscription_id', subId);
+    if (profErr) {
+      logger.warn('Razorpay webhook: profile reconcile failed', {
+        event: parsed.event,
+        subscriptionId: subId,
+        error: profErr.message,
+      });
+    }
+    // Also clear subscription id off any pending weekly_policies so retries don't attach to the dead mandate.
+    await admin
+      .from('weekly_policies')
+      .update({ razorpay_subscription_id: null, updated_at: new Date().toISOString() })
+      .eq('razorpay_subscription_id', subId)
+      .eq('payment_status', 'pending');
+    await admin.from('system_logs').insert({
+      event_type: `razorpay_${parsed.event.replace('.', '_')}`,
+      severity: 'info',
+      metadata: { subscription_id: subId, status: sub?.status ?? null },
+    });
+    return NextResponse.json({ ok: true, message: 'Subscription reconciled' });
+  }
+
+  const entity = parsed.payload?.payment?.entity;
+  const paymentId = entity?.id;
+  const orderId = entity?.order_id;
+  const subscriptionId = entity?.subscription_id;
+  const method = entity?.method != null ? String(entity.method) : undefined;
+
+  if (!paymentId) {
+    return NextResponse.json({ ok: true, message: 'Missing payment id' });
+  }
+
+  // payment.failed: mark associated pending weekly_policy / payment_transaction as failed
+  if (parsed.event === 'payment.failed') {
+    if (!orderId) {
+      return NextResponse.json({ ok: true, message: 'Missing order id' });
+    }
+    const { data: policy } = await admin
+      .from('weekly_policies')
+      .select('id')
+      .eq('razorpay_order_id', orderId)
+      .maybeSingle();
+    if (policy?.id) {
+      await admin
+        .from('weekly_policies')
+        .update({
+          payment_status: 'failed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', policy.id)
+        .eq('payment_status', 'pending');
+      await admin
+        .from('payment_transactions')
+        .update({ status: 'failed' })
+        .eq('weekly_policy_id', policy.id)
+        .eq('status', 'pending');
+    }
+    await admin.from('system_logs').insert({
+      event_type: 'razorpay_payment_failed',
+      severity: 'warning',
+      metadata: {
+        order_id: orderId,
+        payment_id: paymentId,
+        error_code: entity?.error_code ?? null,
+        error_description: entity?.error_description ?? null,
+      },
+    });
+    return NextResponse.json({ ok: true, message: 'Payment failure recorded' });
+  }
+
+  if (entity?.status && entity.status !== 'captured') {
+    return NextResponse.json({ ok: true, message: 'Payment not captured' });
   }
 
   if (subscriptionId) {

@@ -5,7 +5,11 @@ import { Card } from '@/components/ui/Card';
 import type { DynamicPlanQuote } from '@/lib/ml/resolve-dynamic-plan-quotes';
 import type { PlanPackage, WeeklyPolicy } from '@/lib/types/database';
 import { cn } from '@/lib/utils';
-import { getCoverageWeekRange } from '@/lib/utils/policy-week';
+import {
+  getCoverageWeekRange,
+  getRemainingCoverageDaysInWeek,
+  prorateWeeklyPremium,
+} from '@/lib/utils/policy-week';
 import { Check, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -166,6 +170,11 @@ export function PolicySubscribeForm({
   const activePlan = selectedPlan ?? defaultPlan;
   const activeQuote = activePlan ? quoteForPlan(activePlan, dynamicQuotesBySlug) : null;
   const defaultPremium = activeQuote?.weekly_premium_inr ?? suggestedPremium ?? 99;
+  const coveredDays = getRemainingCoverageDaysInWeek(end);
+  const premiumDueNow =
+    weeklyAutoRenew && !autoRenewEnabled
+      ? defaultPremium
+      : prorateWeeklyPremium(defaultPremium, coveredDays);
 
   const hasPlans = plans.length > 0;
 
@@ -195,7 +204,6 @@ export function PolicySubscribeForm({
       return;
     }
 
-    const premiumToPay = activeQuote?.weekly_premium_inr ?? defaultPremium;
     const planIdToUse = activePlan?.id ?? undefined;
 
     try {
@@ -476,7 +484,12 @@ export function PolicySubscribeForm({
           </div>
           <div className="text-right shrink-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Due</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-white">₹{defaultPremium}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-white">₹{premiumDueNow}</p>
+            {coveredDays < 7 && !(weeklyAutoRenew && !autoRenewEnabled) ? (
+              <p className="text-[11px] mt-0.5 text-zinc-500">
+                {coveredDays} day{coveredDays === 1 ? '' : 's'} left this week
+              </p>
+            ) : null}
           </div>
         </div>
 

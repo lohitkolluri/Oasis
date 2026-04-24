@@ -13,6 +13,8 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [showResend, setShowResend] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
@@ -49,6 +51,8 @@ function LoginForm() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      const unverified = /email not confirmed|email.*confirm/i.test(error.message);
+      setShowResend(unverified);
       gooeyToast.error(error.message);
       setLoading(false);
       return;
@@ -56,6 +60,30 @@ function LoginForm() {
 
     gooeyToast.success('Signed in successfully!');
     window.location.href = '/dashboard';
+  }
+
+  async function handleResendVerification() {
+    if (!email) {
+      gooeyToast.error('Enter your email first to resend verification.');
+      return;
+    }
+    setResendLoading(true);
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${baseUrl}/auth/callback?next=/dashboard`,
+      },
+    });
+    setResendLoading(false);
+    if (error) {
+      gooeyToast.error(error.message);
+      return;
+    }
+    gooeyToast.success('Verification email sent. Open it to complete sign-in.');
   }
 
   if (checkingSession) {
@@ -108,6 +136,18 @@ function LoginForm() {
           <Button type="submit" disabled={loading} fullWidth size="lg">
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>
+          {showResend ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={resendLoading}
+              onClick={handleResendVerification}
+              fullWidth
+              size="lg"
+            >
+              {resendLoading ? 'Sending verification…' : 'Resend verification email'}
+            </Button>
+          ) : null}
         </form>
         <p className="mt-6 text-sm text-zinc-400 text-center">
           Don&apos;t have an account?{' '}

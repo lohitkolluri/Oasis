@@ -124,7 +124,13 @@ export const RATE_LIMITS = {
  * are marked `failed` after this TTL so the rider can start a new payment attempt.
  */
 export const PAYMENTS = {
-  PENDING_CHECKOUT_TTL_MS: 30_000,
+  /**
+   * Abandoned checkouts are marked `failed` after this TTL so the rider can start a new
+   * payment attempt. Sized for realistic UPI/mandate flows (OTP, bank redirects, PIN entry).
+   * Too low → legitimate users see "pending" row that blocks retry; too high → users wait
+   * for next slot. 10 min is a balance for production Razorpay flows.
+   */
+  PENDING_CHECKOUT_TTL_MS: 10 * 60_000,
 } as const;
 
 /**

@@ -39,14 +39,16 @@ export function RegisterClient() {
     e.preventDefault();
     setLoading(true);
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${baseUrl}/login`,
+        emailRedirectTo: `${baseUrl}/auth/callback?next=/dashboard`,
       },
     });
 

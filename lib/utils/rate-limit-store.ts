@@ -1,11 +1,15 @@
 /**
  * Rate limit store: in-memory (single instance) or Supabase (shared across instances).
  * When SUPABASE_SERVICE_ROLE_KEY is set, uses Supabase for distributed rate limiting.
- * On RPC failure we fail open (allow request) and log a warning.
+ *
+ * Failure mode: for sensitive keys (`payments:`, `auth:`, `cron:`, `webhook:`) we fail
+ * CLOSED on RPC errors to avoid an accidental outage exposing expensive or abusable paths.
+ * For informational/UX keys (reads, geo search) we fail OPEN so transient DB blips don't
+ * break the dashboard.
  */
 
-import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -13,17 +17,25 @@ export interface RateLimitResult {
 }
 
 export interface RateLimitStore {
-  check(
-    key: string,
-    windowMs: number,
-    maxRequests: number,
-  ): Promise<RateLimitResult>;
+  check(key: string, windowMs: number, maxRequests: number): Promise<RateLimitResult>;
 }
 
-const inMemory = new Map<
-  string,
-  { count: number; resetAt: number }
->();
+/** Keys whose failure mode should be "deny" when the rate-limit backing store is unavailable. */
+const SENSITIVE_KEY_PREFIXES = [
+  'payments:',
+  'auth:',
+  'cron:',
+  'webhook:',
+  'admin:demo-trigger',
+  'admin:review-claim',
+  'claim:',
+];
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY_PREFIXES.some((p) => key.startsWith(p));
+}
+
+const inMemory = new Map<string, { count: number; resetAt: number }>();
 
 function cleanupInMemory(): void {
   const now = Date.now();
@@ -65,9 +77,15 @@ function createSupabaseRateLimitStore(): RateLimitStore {
         p_max_req: maxRequests,
       });
       if (error) {
-        logger.warn('Rate limit store: RPC failed, allowing request (fail-open)', {
+        const sensitive = isSensitiveKey(key);
+        logger.warn('Rate limit store: RPC failed', {
           error: error.message,
+          key,
+          mode: sensitive ? 'fail-closed' : 'fail-open',
         });
+        if (sensitive) {
+          return { allowed: false, retryAfterSec: 5 };
+        }
         return { allowed: true };
       }
       const result = data as { allowed?: boolean; retry_after_sec?: number };

@@ -10,6 +10,14 @@ import { ShieldAlert } from 'lucide-react';
 export default async function FraudPage() {
   const supabase = createAdminClient();
 
+  // Only surface flagged or recently-reviewed claims in a bounded window to avoid
+  // pulling every historical row on each page load.
+  const FRAUD_QUEUE_WINDOW_DAYS = 90;
+  const FRAUD_QUEUE_ROW_LIMIT = 500;
+  const fraudSince = new Date(
+    Date.now() - FRAUD_QUEUE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
   const { data: claims } = await supabase
     .from('parametric_claims')
     .select(
@@ -31,7 +39,9 @@ export default async function FraudPage() {
     `,
     )
     .or('is_flagged.eq.true,admin_review_status.in.(approved,rejected)')
-    .order('created_at', { ascending: false });
+    .gte('created_at', fraudSince)
+    .order('created_at', { ascending: false })
+    .limit(FRAUD_QUEUE_ROW_LIMIT);
 
   const queueRows = (claims ?? []) as Array<{ admin_review_status?: string | null }>;
   const pendingCount = queueRows.filter((c) => !c.admin_review_status).length;
@@ -40,7 +50,9 @@ export default async function FraudPage() {
   let sharedPayoutRows: Awaited<ReturnType<typeof listSharedPayoutDestinations>> = [];
   try {
     sharedPayoutRows = await listSharedPayoutDestinations(supabase);
-  } catch {
+  } catch (err) {
+    // Surface to server logs rather than silently hiding potential fraud signals.
+    console.error('[admin/fraud] listSharedPayoutDestinations failed', err);
     sharedPayoutRows = [];
   }
 

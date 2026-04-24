@@ -48,16 +48,27 @@ const demoSubtypes = [
   'zone_curfew',
 ] as const;
 
-export const demoTriggerSchema = z.object({
-  eventSubtype: z.enum(demoSubtypes),
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  radiusKm: z.number().min(0.1).max(100).optional(),
-  severity: z.number().min(1).max(10).optional(),
-  riderId: z.string().uuid().optional(),
-  /** Optional label shown in admin demo run logs. */
-  runLabel: z.string().max(120).optional(),
-});
+export const demoTriggerSchema = z
+  .object({
+    eventSubtype: z.enum(demoSubtypes),
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+    radiusKm: z.number().min(0.1).max(100).optional(),
+    severity: z.number().min(1).max(10).optional(),
+    riderId: z.string().uuid().optional(),
+    /** Optional label shown in admin demo run logs. */
+    runLabel: z.string().max(120).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.riderId) return;
+    if (value.lat == null || value.lng == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'lat and lng are required when riderId is not provided',
+        path: ['lat'],
+      });
+    }
+  });
 
 /** Multi-step demo: runs triggers in order (e.g. rain → traffic) with optional pause. */
 export const demoBatchSchema = z.object({
