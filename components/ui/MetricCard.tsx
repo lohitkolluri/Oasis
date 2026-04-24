@@ -76,11 +76,6 @@ export function MetricCard({
       whileHover={{ scale: 1.01, boxShadow: '0 0 25px rgba(125, 211, 252, 0.12)' }}
       className="relative cursor-default rounded-2xl border border-[#2d2d2d] bg-[#161616]/80 p-5 shadow-[0_0_20px_rgba(255,255,255,0.03)] backdrop-blur transition-all hover:border-[#3a3a3a] overflow-visible"
     >
-      {/* Top accent line */}
-      {accent !== 'default' && (
-        <div className={`absolute top-0 left-0 right-0 h-px ${styles.bar}`} />
-      )}
-
       <div className="mb-4 flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1">
           <span className="text-[11px] font-medium tracking-wide text-[#666666] uppercase">{label}</span>

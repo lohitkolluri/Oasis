@@ -12,6 +12,31 @@ import { toDateString } from '@/lib/utils/date';
 import { clusterKey } from '@/lib/utils/geo';
 import { fetchWithRetry } from '@/lib/utils/retry';
 
+type TomorrowRealtimeResponse = {
+  data?: {
+    values?: {
+      temperature?: number;
+      precipitationIntensity?: number;
+    };
+  };
+};
+
+type TomorrowForecastResponse = {
+  timelines?: {
+    hourly?: Array<{
+      time?: string;
+      values?: {
+        temperature?: number;
+      };
+    }>;
+  };
+};
+
+function buildTomorrowUrl(path: '/realtime' | '/forecast', params: Record<string, string>): string {
+  const search = new URLSearchParams(params);
+  return `https://api.tomorrow.io/v4/weather${path}?${search.toString()}`;
+}
+
 async function fetchCurrentAqi(
   lat: number,
   lng: number,
@@ -134,26 +159,23 @@ export async function checkWeatherTriggers(
     try {
       const [data, forecastData] = await probeSource(ctx, 'tomorrow_io', () =>
         Promise.all([
-          fetchWithRetry<{
-            data?: {
-              values?: { temperature?: number; precipitationIntensity?: number };
-            };
-          }>(
-            `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lng}`,
-            {
-              headers: { 'X-API-Key': tomorrowKey },
-            },
+          fetchWithRetry<TomorrowRealtimeResponse>(
+            buildTomorrowUrl('/realtime', {
+              location: `${lat},${lng}`,
+              units: 'metric',
+              apikey: tomorrowKey,
+            }),
+            undefined,
             { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
           ),
-          fetchWithRetry<{
-            timelines?: {
-              hourly?: Array<{ values?: { temperature?: number } }>;
-            };
-          }>(
-            `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lng}&timesteps=1h`,
-            {
-              headers: { 'X-API-Key': tomorrowKey },
-            },
+          fetchWithRetry<TomorrowForecastResponse>(
+            buildTomorrowUrl('/forecast', {
+              location: `${lat},${lng}`,
+              timesteps: '1h',
+              units: 'metric',
+              apikey: tomorrowKey,
+            }),
+            undefined,
             { cacheTtlMs: EXTERNAL_APIS.CACHE_WEATHER_TTL_MS },
           ),
         ]),
@@ -174,6 +196,11 @@ export async function checkWeatherTriggers(
           if (streak >= T.HEAT_SUSTAINED_HOURS) break;
         }
         heatSustained3h = streak >= T.HEAT_SUSTAINED_HOURS;
+        heatRawData = {
+          ...data,
+          hourly,
+          source: 'tomorrow_io',
+        };
       }
     } catch {
       /* skip zone */

@@ -1,16 +1,8 @@
 'use client';
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import { ChartCard } from '@/components/ui/ChartCard';
 import { BarChart2 } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type ZoneBucket = {
   zone: string;
@@ -39,6 +31,7 @@ const TOOLTIP_STYLE = {
   fontSize: 11,
   color: '#9ca3af',
 };
+const TOOLTIP_CURSOR = { fill: 'transparent' };
 
 export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
   const zoneData = zones.slice(0, 6).map((z) => ({
@@ -71,15 +64,8 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
         ) : (
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart
-                data={zoneData}
-                margin={{ top: 8, right: 8, left: 0, bottom: 24 }}
-              >
-                <CartesianGrid
-                  stroke="#1f2937"
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
+              <BarChart data={zoneData} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
+                <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="zone"
                   tick={{ fill: '#6b7280', fontSize: 11 }}
@@ -100,12 +86,14 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   formatter={(value) => [`${value}%`, 'Loss ratio']}
+                  cursor={TOOLTIP_CURSOR}
                 />
                 <Bar
                   dataKey="lossRatio"
                   radius={[4, 4, 0, 0]}
                   fill="#f97316"
                   maxBarSize={40}
+                  activeBar={false}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -113,11 +101,7 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
         )}
       </ChartCard>
 
-      <ChartCard
-        title="Plan mix"
-        subtitle="Premium vs. payouts by tier"
-        icon={BarChart2}
-      >
+      <ChartCard title="Plan mix" subtitle="Premium vs. payouts by tier" icon={BarChart2}>
         {planData.length === 0 ? (
           <p className="text-[11px] text-[#555]">
             No active plans yet. Configure Basic, Standard, and Premium tiers to see plan mix.
@@ -125,15 +109,8 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
         ) : (
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart
-                data={planData}
-                margin={{ top: 8, right: 8, left: 0, bottom: 24 }}
-              >
-                <CartesianGrid
-                  stroke="#1f2937"
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
+              <BarChart data={planData} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
+                <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="name"
                   tick={{ fill: '#6b7280', fontSize: 11 }}
@@ -152,6 +129,7 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
                     `₹${Number(value as number).toLocaleString('en-IN')}`,
                     key === 'premium' ? 'Premium' : 'Payouts',
                   ]}
+                  cursor={TOOLTIP_CURSOR}
                 />
                 <Bar
                   dataKey="premium"
@@ -159,6 +137,7 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
                   radius={[4, 4, 0, 0]}
                   fill="#22c55e"
                   maxBarSize={40}
+                  activeBar={false}
                 />
                 <Bar
                   dataKey="payouts"
@@ -166,6 +145,7 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
                   radius={[4, 4, 0, 0]}
                   fill="#ef4444"
                   maxBarSize={40}
+                  activeBar={false}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -175,4 +155,3 @@ export function RevenueCharts({ zones, plans }: RevenueChartsProps) {
     </div>
   );
 }
-

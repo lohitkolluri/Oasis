@@ -466,7 +466,7 @@ export function DemoTriggerPanel({ riders = [] }: DemoTriggerPanelProps) {
     let msg = `${result.claims_created ?? 0} claim(s), ${payouts} payout(s)${forRider}.`;
     if (result.claims_created === 0) {
       msg += selectedRiderId
-        ? ' Selected rider has no active policy this week (or payment not confirmed).'
+        ? ' No claim created for selected rider. Check policy week/status, weekly claim cap, or fraud hold rules.'
         : ' No riders with active policies in the preset zone.';
     } else if (payouts === 0) {
       msg += ' Payouts not recorded (check payout_ledger / migrations).';

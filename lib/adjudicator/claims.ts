@@ -74,9 +74,11 @@ export async function processClaimsForEvent(
   let query = supabase
     .from('weekly_policies')
     .select(
-      'id, profile_id, plan_id, weekly_premium_inr, plan_packages(payout_per_claim_inr, max_claims_per_week)',
+      'id, profile_id, plan_id, weekly_premium_inr, payment_status, plan_packages(payout_per_claim_inr, max_claims_per_week)',
     )
-    .eq('is_active', true)
+    // Treat paid/demo rows within the current week as eligible even if `is_active`
+    // lags briefly after payment verification transitions.
+    .or('is_active.eq.true,payment_status.in.(paid,demo)')
     .lte('week_start_date', weekStartUpper)
     .gte('week_end_date', today);
 
