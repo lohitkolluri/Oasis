@@ -134,7 +134,7 @@ export default function OnboardingPage() {
   }, [step]);
 
   async function prefillZoneFromCurrentLocation() {
-    if (zoneLat != null || zoneLng != null || zone.trim().length > 0) return;
+    if (zone.trim().length > 0) return;
     if (typeof window === 'undefined' || !navigator.geolocation) return;
     if (!isMobileForGps(navigator.userAgent)) {
       gooeyToast.info('Use a mobile device to set your zone from current location.');
@@ -146,6 +146,13 @@ export default function OnboardingPage() {
         const { latitude, longitude } = pos.coords;
         setZoneLat(latitude);
         setZoneLng(longitude);
+        // Always populate the input immediately so users see a value even if reverse
+        // geocoding fails due to rate limits / network / CORS issues.
+        setZone((prev) =>
+          prev.trim().length > 0
+            ? prev
+            : `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+        );
 
         try {
           const res = await fetch(
@@ -170,7 +177,8 @@ export default function OnboardingPage() {
                 : null;
 
           if (display) {
-            setZone((prev) => (prev.trim().length > 0 ? prev : display));
+            // Replace the temporary coordinate placeholder with a human-readable area.
+            setZone(display);
           }
         } catch {
           // Ignore geocoding failures; user can search manually
