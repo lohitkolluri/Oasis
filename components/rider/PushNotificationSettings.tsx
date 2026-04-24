@@ -96,7 +96,9 @@ export function PushNotificationSettings({ className }: { className?: string }) 
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(typeof errBody.error === 'string' ? errBody.error : 'Failed to save subscription');
+        throw new Error(
+          typeof errBody.error === 'string' ? errBody.error : 'Failed to save subscription',
+        );
       }
       setSubscribed(true);
       toast.success('Push alerts enabled for this device.');
@@ -146,8 +148,8 @@ export function PushNotificationSettings({ className }: { className?: string }) 
       >
         <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts</h2>
         <p className="text-[12px] text-zinc-600 mt-1 leading-relaxed">
-          Use a supported mobile browser and install Oasis (Add to Home Screen) for background notifications. In-app
-          alerts still work while the app is open.
+          Use a supported mobile browser and install Oasis (Add to Home Screen) for background
+          notifications. In-app alerts still work while the app is open.
         </p>
       </section>
     );
@@ -163,7 +165,8 @@ export function PushNotificationSettings({ className }: { className?: string }) 
       >
         <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts</h2>
         <p className="text-[12px] text-zinc-600 mt-1 leading-relaxed">
-          Server push is not configured. You will still get instant in-app toasts when Oasis is open.
+          Server push is not configured. You will still get instant in-app toasts when Oasis is
+          open.
         </p>
       </section>
     );
@@ -200,37 +203,56 @@ export function PushNotificationSettings({ className }: { className?: string }) 
           {subscribed ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts (PWA)</h2>
+          <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">
+            Push alerts (PWA)
+          </h2>
           <p className="text-[12px] text-zinc-600 mt-1 leading-relaxed">
-            Get notified when you have a claim or need to verify location—even if the app is in the background. On
-            iPhone, add Oasis to your Home Screen first (iOS 16.4+).
+            Get notified when you have a claim or need to verify location—even if the app is in the
+            background. On iPhone, add Oasis to your Home Screen first (iOS 16.4+).
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {subscribed ? (
-              <button
-                type="button"
-                onClick={unsubscribe}
-                disabled={loading}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[12px] font-medium text-zinc-200 min-h-[44px] hover:bg-white/[0.07] active:bg-white/[0.1] transition-colors disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-                Turn off push
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={subscribe}
-                disabled={loading || permission === 'denied'}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-uber-green px-4 py-2.5 text-[12px] font-semibold text-black min-h-[44px] hover:bg-uber-green/90 active:scale-[0.98] transition-all disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-black" aria-hidden /> : null}
-                Enable push alerts
-              </button>
-            )}
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-zinc-200">
+                {subscribed ? 'Push alerts enabled' : 'Push alerts disabled'}
+              </p>
+              <p className="text-[11px] text-zinc-500">
+                {subscribed
+                  ? 'You will receive background notifications.'
+                  : 'Turn on to get alerts in background.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={subscribed}
+              aria-label="Toggle push alerts"
+              onClick={subscribed ? unsubscribe : subscribe}
+              disabled={loading || permission === 'denied'}
+              className={cn(
+                'relative h-7 w-12 shrink-0 rounded-full border transition-colors disabled:opacity-50',
+                subscribed
+                  ? 'border-uber-green/70 bg-uber-green/80'
+                  : 'border-white/15 bg-white/[0.08]',
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 h-5.5 w-5.5 rounded-full bg-white shadow transition-transform',
+                  subscribed ? 'translate-x-[22px]' : 'translate-x-0.5',
+                )}
+              />
+              {loading ? (
+                <Loader2
+                  className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-black/70"
+                  aria-hidden
+                />
+              ) : null}
+            </button>
           </div>
           {permission === 'denied' ? (
             <p className="text-[11px] text-amber-500/90 mt-2 leading-snug">
-              Notifications are blocked in your browser settings. Enable them for this site to use push.
+              Notifications are blocked in your browser settings. Enable them for this site to use
+              push.
             </p>
           ) : null}
         </div>
