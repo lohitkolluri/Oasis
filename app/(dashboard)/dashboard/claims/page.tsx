@@ -18,7 +18,8 @@ export default async function ClaimsHistoryPage() {
     .from('weekly_policies')
     .select('id, week_start_date, week_end_date, plan_packages(name)')
     .eq('profile_id', user.id)
-    .order('week_start_date', { ascending: false });
+    .order('week_start_date', { ascending: false })
+    .limit(52);
 
   const policyIds = (policies ?? []).map((p) => p.id);
 

@@ -39,6 +39,8 @@ const RealtimeContext = createContext<RealtimeContextValue>({
   subscribeToClaimStatus: () => {},
 });
 
+const MAX_CLAIM_REALTIME_POLICY_IDS = 6;
+
 export function useRealtime() {
   return useContext(RealtimeContext);
 }
@@ -64,7 +66,7 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
   });
 
   const supabase = useMemo(() => createClient(), []);
-  const policyIdsKey = useMemo(() => [...policyIds].sort().join(','), [policyIds]);
+  const policyIdsKey = useMemo(() => Array.from(new Set(policyIds)).join(','), [policyIds]);
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current != null) {
@@ -85,7 +87,9 @@ export function RealtimeProvider({ profileId, policyIds, children }: RealtimePro
   }, []);
 
   useEffect(() => {
-    const activePolicyIds = policyIdsKey ? policyIdsKey.split(',') : [];
+    const activePolicyIds = policyIdsKey
+      ? policyIdsKey.split(',').slice(0, MAX_CLAIM_REALTIME_POLICY_IDS)
+      : [];
     let channel = supabase
       .channel(`rider_${profileId}`)
       .on(
