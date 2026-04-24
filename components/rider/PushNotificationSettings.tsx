@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Bell, BellOff, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -138,53 +138,8 @@ export function PushNotificationSettings({ className }: { className?: string }) 
     }
   }, []);
 
-  if (!canUsePush) {
-    return (
-      <section
-        className={cn(
-          'rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]',
-          className,
-        )}
-      >
-        <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts</h2>
-        <p className="text-[12px] text-zinc-600 mt-1 leading-relaxed">
-          Use a supported mobile browser and install Oasis (Add to Home Screen) for background
-          notifications. In-app alerts still work while the app is open.
-        </p>
-      </section>
-    );
-  }
-
-  if (serverReady === false) {
-    return (
-      <section
-        className={cn(
-          'rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]',
-          className,
-        )}
-      >
-        <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts</h2>
-        <p className="text-[12px] text-zinc-600 mt-1 leading-relaxed">
-          Server push is not configured. You will still get instant in-app toasts when Oasis is
-          open.
-        </p>
-      </section>
-    );
-  }
-
-  if (serverReady === null) {
-    return (
-      <section
-        className={cn(
-          'rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 flex items-center gap-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]',
-          className,
-        )}
-      >
-        <Loader2 className="h-4 w-4 animate-spin text-zinc-500 shrink-0" />
-        <p className="text-[12px] text-zinc-500">Checking push support…</p>
-      </section>
-    );
-  }
+  const pushEnabled = canUsePush && serverReady === true && subscribed;
+  const toggleDisabled = loading || permission === 'denied' || !canUsePush || serverReady !== true;
 
   return (
     <section
@@ -193,69 +148,35 @@ export function PushNotificationSettings({ className }: { className?: string }) 
         className,
       )}
     >
-      <div className="flex items-start gap-3">
-        <div
+      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
+        <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts</h2>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={pushEnabled}
+          aria-label="Toggle push alerts"
+          onClick={pushEnabled ? unsubscribe : subscribe}
+          disabled={toggleDisabled}
           className={cn(
-            'mt-0.5 rounded-xl p-2 shrink-0',
-            subscribed ? 'bg-uber-green/15 text-uber-green' : 'bg-white/[0.04] text-zinc-500',
+            'relative h-7 w-12 shrink-0 rounded-full border transition-colors disabled:opacity-50',
+            pushEnabled
+              ? 'border-uber-green/70 bg-uber-green/80'
+              : 'border-white/15 bg-white/[0.08]',
           )}
         >
-          {subscribed ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">
-            Push alerts (PWA)
-          </h2>
-          <p className="text-[12px] text-zinc-600 mt-1 leading-relaxed">
-            Get notified when you have a claim or need to verify location—even if the app is in the
-            background. On iPhone, add Oasis to your Home Screen first (iOS 16.4+).
-          </p>
-          <div className="mt-3 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="text-[12px] font-medium text-zinc-200">
-                {subscribed ? 'Push alerts enabled' : 'Push alerts disabled'}
-              </p>
-              <p className="text-[11px] text-zinc-500">
-                {subscribed
-                  ? 'You will receive background notifications.'
-                  : 'Turn on to get alerts in background.'}
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={subscribed}
-              aria-label="Toggle push alerts"
-              onClick={subscribed ? unsubscribe : subscribe}
-              disabled={loading || permission === 'denied'}
-              className={cn(
-                'relative h-7 w-12 shrink-0 rounded-full border transition-colors disabled:opacity-50',
-                subscribed
-                  ? 'border-uber-green/70 bg-uber-green/80'
-                  : 'border-white/15 bg-white/[0.08]',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 h-5.5 w-5.5 rounded-full bg-white shadow transition-transform',
-                  subscribed ? 'translate-x-[22px]' : 'translate-x-0.5',
-                )}
-              />
-              {loading ? (
-                <Loader2
-                  className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-black/70"
-                  aria-hidden
-                />
-              ) : null}
-            </button>
-          </div>
-          {permission === 'denied' ? (
-            <p className="text-[11px] text-amber-500/90 mt-2 leading-snug">
-              Notifications are blocked in your browser settings. Enable them for this site to use
-              push.
-            </p>
+          <span
+            className={cn(
+              'absolute top-0.5 h-5.5 w-5.5 rounded-full bg-white shadow transition-transform',
+              pushEnabled ? 'translate-x-[22px]' : 'translate-x-0.5',
+            )}
+          />
+          {loading || serverReady === null ? (
+            <Loader2
+              className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-black/70"
+              aria-hidden
+            />
           ) : null}
-        </div>
+        </button>
       </div>
     </section>
   );
