@@ -144,40 +144,35 @@ export function PushNotificationSettings({ className }: { className?: string }) 
   return (
     <section
       className={cn(
-        'rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]',
+        'rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] flex items-center justify-between',
         className,
       )}
     >
-      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
-        <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">Push alerts</h2>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={pushEnabled}
-          aria-label="Toggle push alerts"
-          onClick={pushEnabled ? unsubscribe : subscribe}
-          disabled={toggleDisabled}
+      <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight inline-flex items-center gap-2">
+        Push alerts
+        {loading || serverReady === null ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" aria-hidden />
+        ) : null}
+      </h2>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={pushEnabled}
+        aria-label="Toggle push alerts"
+        onClick={pushEnabled ? unsubscribe : subscribe}
+        disabled={toggleDisabled}
+        className={cn(
+          'relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:opacity-50',
+          pushEnabled ? 'bg-uber-green border-uber-green' : 'bg-zinc-700 border-zinc-600',
+        )}
+      >
+        <span
           className={cn(
-            'relative h-7 w-12 shrink-0 rounded-full border transition-colors disabled:opacity-50',
-            pushEnabled
-              ? 'border-uber-green/70 bg-uber-green/80'
-              : 'border-white/15 bg-white/[0.08]',
+            'pointer-events-none absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200 ease-out',
+            pushEnabled ? 'left-[22px]' : 'left-0.5',
           )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.5 h-5.5 w-5.5 rounded-full bg-white shadow transition-transform',
-              pushEnabled ? 'translate-x-[22px]' : 'translate-x-0.5',
-            )}
-          />
-          {loading || serverReady === null ? (
-            <Loader2
-              className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-black/70"
-              aria-hidden
-            />
-          ) : null}
-        </button>
-      </div>
+        />
+      </button>
     </section>
   );
 }
