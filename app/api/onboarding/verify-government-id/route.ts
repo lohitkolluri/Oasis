@@ -15,9 +15,9 @@ import {
 import { parseLlmJsonWithSchema } from '@/lib/llm/strict-json';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
 import { z } from 'zod';
 
 const BUCKET = 'government-ids';
@@ -69,6 +69,29 @@ function isValidAadhaarNumber(num: string): boolean {
     c = verhoeffD[c][verhoeffP[i % 8][digits[i]]];
   }
   return c === 0;
+}
+
+/**
+ * OCR on Aadhaar cards frequently confuses similar glyphs (e.g. O↔0, I/l↔1, S↔5).
+ * Normalize those first so genuine IDs are not rejected before checksum validation.
+ */
+function normalizeAadhaarFromOcr(raw: string): string {
+  const map: Record<string, string> = {
+    O: '0',
+    Q: '0',
+    D: '0',
+    I: '1',
+    L: '1',
+    Z: '2',
+    S: '5',
+    G: '6',
+    B: '8',
+  };
+
+  return raw
+    .toUpperCase()
+    .replace(/[OQDILZSGB]/g, (ch) => map[ch] ?? ch)
+    .replace(/\D/g, '');
 }
 
 function isValidPanNumber(raw: string): boolean {
@@ -278,7 +301,7 @@ export async function POST(request: Request) {
       let finalReason =
         parsed.reason ?? 'Image or OCR unclear, unable to confidently read Aadhaar number';
 
-      const rawNum = (parsed.aadhaar_number ?? '').replace(/\D/g, '');
+      const rawNum = normalizeAadhaarFromOcr(parsed.aadhaar_number ?? '');
       const cardName = (parsed.card_name ?? '').trim();
 
       // Enforce Aadhaar checksum ourselves; do not trust LLM blindly.
