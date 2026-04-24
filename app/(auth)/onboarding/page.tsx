@@ -18,7 +18,6 @@ import {
   User,
   X,
 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -57,6 +56,7 @@ export default function OnboardingPage() {
   const [govIdVerificationPath, setGovIdVerificationPath] = useState<string | null>(null);
   const [govIdVerificationReason, setGovIdVerificationReason] = useState<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapFallback, setMapFallback] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<unknown>(null);
   const markerRef = useRef<unknown>(null);
@@ -69,8 +69,12 @@ export default function OnboardingPage() {
   const faceStreamRef = useRef<MediaStream | null>(null);
 
   const [step, setStep] = useState<0 | 1 | 2>(0);
-  const [locationStatus, setLocationStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>('idle');
-  const [cameraStatus, setCameraStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>('idle');
+  const [locationStatus, setLocationStatus] = useState<
+    'idle' | 'granted' | 'denied' | 'unavailable'
+  >('idle');
+  const [cameraStatus, setCameraStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable'>(
+    'idle',
+  );
   const [locationRequesting, setLocationRequesting] = useState(false);
   const [cameraRequesting, setCameraRequesting] = useState(false);
   const [isSecureContext, setIsSecureContext] = useState(true);
@@ -111,7 +115,9 @@ export default function OnboardingPage() {
   // Optional: pre-check permission state when Permissions API is available (e.g. desktop)
   useEffect(() => {
     if (step !== 0 || typeof window === 'undefined') return;
-    const query = (navigator as { permissions?: { query: (o: { name: string }) => Promise<{ state: string }> } }).permissions?.query;
+    const query = (
+      navigator as { permissions?: { query: (o: { name: string }) => Promise<{ state: string }> } }
+    ).permissions?.query;
     if (!query) return;
     query({ name: 'geolocation' })
       .then((r) => {
@@ -184,7 +190,9 @@ export default function OnboardingPage() {
     }
     if (!isMobileForGps(navigator.userAgent)) {
       setLocationStatus('unavailable');
-      gooeyToast.info('Location is only used on mobile for precise zone. Use a phone to set your zone.');
+      gooeyToast.info(
+        'Location is only used on mobile for precise zone. Use a phone to set your zone.',
+      );
       return;
     }
     setLocationRequesting(true);
@@ -218,9 +226,24 @@ export default function OnboardingPage() {
     }
   }
 
+  function getOsmEmbedHref(lat: number, lng: number): string {
+    const delta = 0.03;
+    const minLat = lat - delta;
+    const maxLat = lat + delta;
+    const minLng = lng - delta;
+    const maxLng = lng + delta;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
+      minLng,
+    )}%2C${encodeURIComponent(minLat)}%2C${encodeURIComponent(
+      maxLng,
+    )}%2C${encodeURIComponent(maxLat)}&layer=mapnik&marker=${encodeURIComponent(
+      lat,
+    )}%2C${encodeURIComponent(lng)}`;
+  }
+
   // Initialize map when coordinates are set
   useEffect(() => {
-    if (!mapRef.current || !zoneLat || !zoneLng) return;
+    if (!mapRef.current || zoneLat == null || zoneLng == null || mapFallback) return;
     if (mapLoaded && mapInstance.current) {
       // Update existing map
       const map = mapInstance.current as {
@@ -234,86 +257,108 @@ export default function OnboardingPage() {
 
     let cancelled = false;
 
-    import('maplibre-gl').then((maplibre) => {
-      if (cancelled || !mapRef.current) return;
-      const map = new maplibre.Map({
-        container: mapRef.current,
-        // Locked hybrid basemap (satellite + labels) for a richer preview.
-        // Uses public Esri raster tiles (no key) to avoid vendor setup in demo mode.
-        style: {
-          version: 8,
-          sources: {
-            esri: {
-              type: 'raster',
-              tiles: [
-                'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-              ],
-              tileSize: 256,
-              attribution:
-                'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
-            },
-            esriLabels: {
-              type: 'raster',
-              tiles: [
-                'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-              ],
-              tileSize: 256,
-            },
-          },
-          layers: [
-            {
-              id: 'imagery',
-              type: 'raster',
-              source: 'esri',
-              paint: {
-                // Tone down the satellite so it doesn't feel visually "too alive"
-                'raster-saturation': -0.55,
-                'raster-brightness-min': 0.22,
-                'raster-brightness-max': 0.85,
-                'raster-contrast': -0.1,
-                'raster-opacity': 0.9,
+    import('maplibre-gl')
+      .then((maplibre) => {
+        if (cancelled || !mapRef.current) return;
+        const map = new maplibre.Map({
+          container: mapRef.current,
+          // Locked hybrid basemap (satellite + labels) for a richer preview.
+          // Uses public Esri raster tiles (no key) to avoid vendor setup in demo mode.
+          style: {
+            version: 8,
+            sources: {
+              esri: {
+                type: 'raster',
+                tiles: [
+                  'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                ],
+                tileSize: 256,
+                attribution:
+                  'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+              },
+              esriLabels: {
+                type: 'raster',
+                tiles: [
+                  'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+                ],
+                tileSize: 256,
               },
             },
-            {
-              id: 'labels',
-              type: 'raster',
-              source: 'esriLabels',
-              paint: { 'raster-opacity': 0.55 },
-            },
-          ],
-        } as any,
-        center: [zoneLng, zoneLat],
-        zoom: 13,
-        attributionControl: false,
-        interactive: false,
+            layers: [
+              {
+                id: 'imagery',
+                type: 'raster',
+                source: 'esri',
+                paint: {
+                  // Tone down the satellite so it doesn't feel visually "too alive"
+                  'raster-saturation': -0.55,
+                  'raster-brightness-min': 0.22,
+                  'raster-brightness-max': 0.85,
+                  'raster-contrast': -0.1,
+                  'raster-opacity': 0.9,
+                },
+              },
+              {
+                id: 'labels',
+                type: 'raster',
+                source: 'esriLabels',
+                paint: { 'raster-opacity': 0.55 },
+              },
+            ],
+          } as any,
+          center: [zoneLng, zoneLat],
+          zoom: 13,
+          attributionControl: false,
+          interactive: false,
+        });
+
+        map.on('error', () => {
+          // Tile/style/WebGL failures on some mobile networks/devices should not leave
+          // a blank preview. Fall back to a lightweight embedded OSM frame.
+          setMapFallback(true);
+        });
+
+        const marker = new maplibre.Marker({ color: '#10b981' })
+          .setLngLat([zoneLng, zoneLat])
+          .addTo(map);
+
+        // Lock the map completely (no pan/zoom/rotate) so it behaves like a static preview.
+        try {
+          map.scrollZoom.disable();
+          map.boxZoom.disable();
+          map.dragRotate.disable();
+          map.dragPan.disable();
+          map.keyboard.disable();
+          map.doubleClickZoom.disable();
+          map.touchZoomRotate.disable();
+        } catch {
+          // ignore
+        }
+
+        mapInstance.current = map;
+        markerRef.current = marker;
+        map.once('load', () => {
+          try {
+            map.resize();
+          } catch {
+            // ignore
+          }
+          setMapLoaded(true);
+        });
+      })
+      .catch(() => {
+        setMapFallback(true);
       });
-
-      const marker = new maplibre.Marker({ color: '#10b981' })
-        .setLngLat([zoneLng, zoneLat])
-        .addTo(map);
-
-      // Lock the map completely (no pan/zoom/rotate) so it behaves like a static preview.
-      try {
-        map.scrollZoom.disable();
-        map.boxZoom.disable();
-        map.dragRotate.disable();
-        map.dragPan.disable();
-        map.keyboard.disable();
-        map.doubleClickZoom.disable();
-        map.touchZoomRotate.disable();
-      } catch {
-        // ignore
-      }
-
-      mapInstance.current = map;
-      markerRef.current = marker;
-      setMapLoaded(true);
-    });
 
     return () => {
       cancelled = true;
     };
-  }, [zoneLat, zoneLng, mapLoaded]);
+  }, [zoneLat, zoneLng, mapLoaded, mapFallback]);
+
+  useEffect(() => {
+    // New coordinates should get a fresh attempt before using fallback.
+    setMapFallback(false);
+  }, [zoneLat, zoneLng]);
 
   // Resize map when container size changes (e.g. Aadhaar section expands)
   useEffect(() => {
@@ -817,10 +862,9 @@ export default function OnboardingPage() {
       try {
         const controller = new AbortController();
         zoneSearchAbortRef.current = controller;
-        const res = await fetch(
-          `/api/geo/search?q=${encodeURIComponent(value.trim())}&limit=5`,
-          { signal: controller.signal },
-        );
+        const res = await fetch(`/api/geo/search?q=${encodeURIComponent(value.trim())}&limit=5`, {
+          signal: controller.signal,
+        });
         if (res.ok) {
           const geo = (await res.json()) as { results?: GeoResult[] };
           setSearchResults(geo.results ?? []);
@@ -1003,9 +1047,7 @@ export default function OnboardingPage() {
                         type="button"
                         onClick={requestLocationPermission}
                         disabled={
-                          !isSecureContext ||
-                          locationStatus === 'granted' ||
-                          locationRequesting
+                          !isSecureContext || locationStatus === 'granted' || locationRequesting
                         }
                         className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-800/80 disabled:opacity-60"
                       >
@@ -1040,9 +1082,7 @@ export default function OnboardingPage() {
                         type="button"
                         onClick={requestCameraPermission}
                         disabled={
-                          !isSecureContext ||
-                          cameraStatus === 'granted' ||
-                          cameraRequesting
+                          !isSecureContext || cameraStatus === 'granted' || cameraRequesting
                         }
                         className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-uber-green-500 hover:bg-zinc-800/80 disabled:opacity-60"
                       >
@@ -1065,7 +1105,8 @@ export default function OnboardingPage() {
               </div>
               {isMounted && !isMobileForGps(navigator.userAgent) && (
                 <p className="text-xs text-amber-400/90 text-center rounded-lg bg-amber-500/10 border border-amber-500/30 p-2">
-                  Zone and location work best on a mobile device. You can continue and set your zone manually (e.g. search).
+                  Zone and location work best on a mobile device. You can continue and set your zone
+                  manually (e.g. search).
                 </p>
               )}
               <Button type="submit" fullWidth size="lg">
@@ -1110,7 +1151,12 @@ export default function OnboardingPage() {
                         ].join(' ')}
                       >
                         <span className="flex items-center gap-3">
-                          <PlatformLogo platform={p} size={22} className="rounded-lg bg-white/[0.04]" showName={false} />
+                          <PlatformLogo
+                            platform={p}
+                            size={22}
+                            className="rounded-lg bg-white/[0.04]"
+                            showName={false}
+                          />
                           <span className="min-w-0 flex-1">
                             <span
                               className={[
@@ -1124,7 +1170,9 @@ export default function OnboardingPage() {
                           <span
                             className={[
                               'shrink-0 inline-flex items-center justify-center rounded-full border transition-all',
-                              selected ? 'border-uber-green-500/60 bg-uber-green-500/15' : 'border-white/10 bg-white/[0.03] opacity-60 group-hover:opacity-90',
+                              selected
+                                ? 'border-uber-green-500/60 bg-uber-green-500/15'
+                                : 'border-white/10 bg-white/[0.03] opacity-60 group-hover:opacity-90',
                             ].join(' ')}
                             style={{ width: 26, height: 26 }}
                             aria-hidden
@@ -1262,10 +1310,20 @@ export default function OnboardingPage() {
                 </div>
 
                 {/* Map preview */}
-                {zoneLat && zoneLng && (
+                {zoneLat != null && zoneLng != null && (
                   <div className="mt-3 rounded-[16px] overflow-hidden border border-white/10">
                     <div className="relative w-full h-[200px]">
-                      <div ref={mapRef} className="absolute inset-0" />
+                      {mapFallback ? (
+                        <iframe
+                          title="Delivery zone map preview"
+                          src={getOsmEmbedHref(zoneLat, zoneLng)}
+                          className="absolute inset-0 h-full w-full border-0"
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      ) : (
+                        <div ref={mapRef} className="absolute inset-0" />
+                      )}
                       <div
                         aria-hidden
                         className="pointer-events-none absolute inset-0"
@@ -1440,7 +1498,7 @@ export default function OnboardingPage() {
                             <span className="text-xs text-zinc-400">
                               {captureReady
                                 ? 'Hold steady. Capturing…'
-                                : 'Point your camera at the Aadhaar card (not your face). Fill the frame as much as possible; tap Capture if auto-capture doesn\'t trigger.'}
+                                : "Point your camera at the Aadhaar card (not your face). Fill the frame as much as possible; tap Capture if auto-capture doesn't trigger."}
                             </span>
                             <button
                               type="button"
@@ -1486,7 +1544,8 @@ export default function OnboardingPage() {
                     <div className="space-y-3">
                       {gesture && (
                         <p className="text-sm text-zinc-200 bg-zinc-800/80 rounded-lg px-3 py-2.5 border border-zinc-700/60">
-                          <span className="text-uber-green-400 font-semibold">Do this:</span> {gesture}
+                          <span className="text-uber-green-400 font-semibold">Do this:</span>{' '}
+                          {gesture}
                         </p>
                       )}
                       {!showFaceCamera ? (
@@ -1520,7 +1579,8 @@ export default function OnboardingPage() {
                               className="absolute inset-0 pointer-events-none"
                               aria-hidden
                               style={{
-                                background: 'radial-gradient(circle at center, transparent 28%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0.08) 48%, transparent 58%)',
+                                background:
+                                  'radial-gradient(circle at center, transparent 28%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0.08) 48%, transparent 58%)',
                               }}
                             />
                             {/* Face alignment guide: circular, with subtle glow */}
@@ -1530,12 +1590,17 @@ export default function OnboardingPage() {
                             >
                               <div
                                 className="w-[72%] max-w-[200px] aspect-square rounded-full border-2 border-uber-green-400/80 border-dashed"
-                                style={{ boxShadow: '0 0 0 1px rgba(16,185,129,0.2), 0 0 28px rgba(16,185,129,0.25)' }}
+                                style={{
+                                  boxShadow:
+                                    '0 0 0 1px rgba(16,185,129,0.2), 0 0 28px rgba(16,185,129,0.25)',
+                                }}
                               />
                             </div>
                           </div>
                           {faceCameraError && (
-                            <p className="text-xs text-red-400 px-3 py-2 bg-red-950/30">{faceCameraError}</p>
+                            <p className="text-xs text-red-400 px-3 py-2 bg-red-950/30">
+                              {faceCameraError}
+                            </p>
                           )}
                           <div className="px-3 py-2.5 bg-zinc-800/90 flex items-center justify-between border-t border-zinc-700/80">
                             <span className="text-xs text-zinc-300">
