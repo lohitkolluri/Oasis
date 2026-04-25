@@ -14,6 +14,17 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return out;
 }
 
+async function showPushEnabledConfirmation(registration: ServiceWorkerRegistration) {
+  if (Notification.permission !== 'granted') return;
+  await registration.showNotification('Push Notification is Enabled', {
+    body: 'You will now receive Oasis alerts on this device.',
+    icon: '/pwa-icon-192.png',
+    badge: '/pwa-icon-192.png',
+    tag: 'oasis-push-enabled',
+    data: { url: '/dashboard' },
+  });
+}
+
 export function PushNotificationSettings({ className }: { className?: string }) {
   const [serverReady, setServerReady] = useState<boolean | null>(null);
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -101,6 +112,7 @@ export function PushNotificationSettings({ className }: { className?: string }) 
         );
       }
       setSubscribed(true);
+      await showPushEnabledConfirmation(reg).catch(() => {});
       toast.success('Push alerts enabled for this device.');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not enable push');
