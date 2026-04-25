@@ -231,9 +231,7 @@ export default async function PlansPage() {
   try {
     const { data } = await supabase
       .from('plan_packages')
-      .select(
-        'id, slug, name, label, tier, sort_order, weekly_premium_inr, weekly_price_inr, price_inr',
-      )
+      .select('id, slug, name, sort_order, weekly_premium_inr')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
     plans = (data ?? []) as PlanPackage[];
