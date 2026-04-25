@@ -30,6 +30,8 @@ const riderMessages = {
       pending: 'Pending',
       notSet: 'Not set',
       support: 'support',
+      clearAlertsBadge:
+        'Mark payout and disruption alerts as read and refresh the home screen app badge',
     },
     nav: {
       home: 'Home',
@@ -134,6 +136,7 @@ const riderMessages = {
       pending: 'बाकी',
       notSet: 'सेट नहीं',
       support: 'सपोर्ट',
+      clearAlertsBadge: 'भुगतान और बाधा अलर्ट पढ़े गए मानें और होम स्क्रीन ऐप बैज रीफ़्रेश करें',
     },
     nav: {
       home: 'होम',
@@ -238,6 +241,8 @@ const riderMessages = {
       pending: 'மீதம்',
       notSet: 'அமைக்கவில்லை',
       support: 'உதவி',
+      clearAlertsBadge:
+        'செலுத்தல் மற்றும் இடையூறு எச்சரிக்கைகளை படித்ததாக குறித்து முகப்புத் திரை பேட்ஜை புதுப்பிக்கவும்',
     },
     nav: {
       home: 'முகப்பு',
@@ -342,6 +347,8 @@ const riderMessages = {
       pending: 'మిగిలింది',
       notSet: 'సెట్ కాలేదు',
       support: 'సపోర్ట్',
+      clearAlertsBadge:
+        'చెల్లింపు మరియు అంతరాయ అలర్ట్‌లను చదివినట్లు గుర్తించి హోమ్ స్క్రీన్ యాప్ బ్యాడ్జ్‌ను రిఫ్రెష్ చేయండి',
     },
     nav: {
       home: 'హోమ్',

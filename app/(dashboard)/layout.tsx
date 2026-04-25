@@ -1,3 +1,4 @@
+import { ClearAlertsHeaderButton } from '@/components/pwa/ClearAlertsHeaderButton';
 import { PwaBackgroundSync } from '@/components/pwa/PwaBackgroundSync';
 import { RiderAppBadgeSync } from '@/components/pwa/RiderAppBadgeSync';
 import { BottomNav } from '@/components/rider/BottomNav';
@@ -82,6 +83,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               >
                 <HelpCircle className="h-[18px] w-[18px]" />
               </a>
+              <ClearAlertsHeaderButton />
               <Link
                 href="/dashboard/profile"
                 className="rounded-full shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uber-green/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
