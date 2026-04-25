@@ -22,6 +22,7 @@ import {
 import { checkRapidClaims } from '@/lib/fraud/detector';
 import { parseLlmJsonWithSchema } from '@/lib/llm/strict-json';
 import { logger } from '@/lib/logger';
+import { enqueueSelfReportVerificationCelery } from '@/lib/queues/celery-self-report';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitKey } from '@/lib/utils/api';
@@ -437,6 +438,18 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
       await admin.rpc('pgmq_send_self_report_verification', {
         msg: payload,
       });
+
+      // Demo Celery queue stub (disabled by default). This call is intentionally
+      // best-effort and does not affect the canonical pgmq path.
+      await enqueueSelfReportVerificationCelery({
+        report_id: payload.report_id,
+        profile_id: payload.profile_id,
+        photo_path: payload.photo_path ?? null,
+        zone_lat: payload.zone_lat ?? null,
+        zone_lng: payload.zone_lng ?? null,
+        category: payload.category ?? null,
+        message: payload.message ?? null,
+      });
     } catch (err) {
       logger.error('Failed to enqueue self-report verification job', {
         error: err instanceof Error ? err.message : String(err),
@@ -581,9 +594,8 @@ Rules: Set verified true ONLY if (1) the image clearly shows an OUTDOOR scene on
                 },
               };
               await admin.from('rider_notifications').insert(notifRow);
-              const { dispatchWebPushForRiderNotifications } = await import(
-                '@/lib/notifications/web-push-dispatch'
-              );
+              const { dispatchWebPushForRiderNotifications } =
+                await import('@/lib/notifications/web-push-dispatch');
               await dispatchWebPushForRiderNotifications(admin, [notifRow]);
             } catch {
               // optional

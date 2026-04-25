@@ -135,6 +135,25 @@ export function getNewsDataApiKey(): string | null {
   return optional('NEWSDATA_IO_API_KEY', process.env.NEWSDATA_IO_API_KEY);
 }
 
+/**
+ * Demo Celery "enqueue API" config (server-only).
+ * Intentionally optional; the queue is disabled unless explicitly enabled.
+ */
+export function isCelerySelfReportQueueEnabled(): boolean {
+  return (
+    String(process.env.OASIS_CELERY_SELF_REPORT_ENABLED ?? '')
+      .trim()
+      .toLowerCase() === 'true'
+  );
+}
+
+export function getCeleryApiConfig(): { url: string | null; apiKey: string | null } {
+  return {
+    url: optional('CELERY_API_URL', process.env.CELERY_API_URL),
+    apiKey: optional('CELERY_API_KEY', process.env.CELERY_API_KEY),
+  };
+}
+
 /** Optional encryption keys for KYC media. Must be 32-byte base64 in production. */
 export function getFacePhotoEncryptionKey(): string | null {
   return optional('FACE_PHOTO_ENCRYPTION_KEY', process.env.FACE_PHOTO_ENCRYPTION_KEY);
