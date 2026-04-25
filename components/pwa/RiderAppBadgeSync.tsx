@@ -1,6 +1,7 @@
 'use client';
 
 import { setAppBadgeFromCount } from '@/lib/pwa/app-badge';
+import { OASIS_BADGE_REFRESH_EVENT } from '@/lib/pwa/badge-refresh';
 import { createClient } from '@/lib/supabase/client';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
@@ -91,6 +92,12 @@ export function RiderAppBadgeSync({ profileId }: RiderAppBadgeSyncProps) {
     window.addEventListener('oasis:pwa-bg-sync', onBg);
     return () => window.removeEventListener('oasis:pwa-bg-sync', onBg);
   }, [scheduleRefresh]);
+
+  useEffect(() => {
+    const onManual = () => void refreshBadge();
+    window.addEventListener(OASIS_BADGE_REFRESH_EVENT, onManual);
+    return () => window.removeEventListener(OASIS_BADGE_REFRESH_EVENT, onManual);
+  }, [refreshBadge]);
 
   useEffect(() => {
     const onVis = () => {

@@ -1,3 +1,4 @@
+import { MarkAlertsReadButton } from '@/components/pwa/MarkAlertsReadButton';
 import { ProfileSettingsForm } from '@/components/rider/ProfileSettingsForm';
 import { PushNotificationSettings } from '@/components/rider/PushNotificationSettings';
 import { DEFAULT_RIDER_LOCALE, normalizeRiderLocale } from '@/lib/i18n/rider';
@@ -45,6 +46,8 @@ export default async function RiderProfilePage() {
       </Link>
 
       <PushNotificationSettings />
+
+      <MarkAlertsReadButton />
 
       <ProfileSettingsForm
         key={profile.updated_at}
