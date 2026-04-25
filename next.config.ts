@@ -16,6 +16,23 @@ const withPWA = withPWAInit({
         urlPattern: ({ url }) => {
           const p = url.pathname;
           return (
+            p === '/dashboard' ||
+            p.startsWith('/dashboard/policy') ||
+            p.startsWith('/dashboard/claims') ||
+            p.startsWith('/dashboard/wallet')
+          );
+        },
+        handler: 'StaleWhileRevalidate',
+        method: 'GET',
+        options: {
+          cacheName: 'rider-shell-pages',
+          expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 7 },
+        },
+      },
+      {
+        urlPattern: ({ url }) => {
+          const p = url.pathname;
+          return (
             p === '/' ||
             p.startsWith('/dashboard') ||
             p.startsWith('/login') ||

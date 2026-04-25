@@ -1,3 +1,5 @@
+import { PwaBackgroundSync } from '@/components/pwa/PwaBackgroundSync';
+import { RiderAppBadgeSync } from '@/components/pwa/RiderAppBadgeSync';
 import { BottomNav } from '@/components/rider/BottomNav';
 import { RealtimeNotifications } from '@/components/rider/RealtimeNotifications';
 import { RiderI18nProvider } from '@/components/rider/RiderI18nProvider';
@@ -51,6 +53,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <RiderI18nProvider locale={riderLocale}>
       <div className="min-h-[100dvh] bg-black">
         <RiderToaster />
+        <RiderAppBadgeSync profileId={user.id} />
+        <PwaBackgroundSync />
         <RealtimeNotifications profileId={user.id} />
         {/* Top App Bar — Uber black, safe-area aware */}
         <header className="sticky top-0 z-10 bg-black/95 backdrop-blur-2xl safe-area-top will-change-transform">

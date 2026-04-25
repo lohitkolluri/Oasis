@@ -66,3 +66,27 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     })(),
   );
 });
+
+function notifyClients(message: Record<string, string>) {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+    for (const client of clients) {
+      client.postMessage(message);
+    }
+  });
+}
+
+/** Background Sync (Chrome/Android): client registers `oasis-client-refresh`. */
+self.addEventListener('sync', (event: ExtendableEvent) => {
+  const tag = (event as SyncEvent).tag;
+  if (tag === 'oasis-client-refresh') {
+    event.waitUntil(notifyClients({ type: 'OASIS_BG_SYNC', tag }));
+  }
+});
+
+/** Periodic Background Sync when permission + browser support exist. */
+self.addEventListener('periodicsync', (event: ExtendableEvent) => {
+  const tag = (event as PeriodicSyncEvent).tag;
+  if (tag === 'oasis-periodic-refresh') {
+    event.waitUntil(notifyClients({ type: 'OASIS_PERIODIC_SYNC', tag }));
+  }
+});

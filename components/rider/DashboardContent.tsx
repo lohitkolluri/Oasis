@@ -1,20 +1,22 @@
 'use client';
 
-import { domAnimation, LazyMotion, m } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
 import type { ParametricClaim, WeeklyPolicy } from '@/lib/types/database';
 import type { User } from '@supabase/supabase-js';
+import { domAnimation, LazyMotion, m } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
 import { CoverageStatusBanner } from './CoverageStatusBanner';
-import { PredictiveAlert } from './PredictiveAlert';
 import { PolicyCard } from './PolicyCard';
+import { PredictiveAlert } from './PredictiveAlert';
 import { QuickLinks } from './QuickLinks';
 import { ReportDeliveryImpact } from './ReportDeliveryImpact';
+import { useRiderI18n } from './RiderI18nProvider';
 import { RiderInsightCard } from './RiderInsightCard';
 import { RiderSk } from './RiderSkeleton';
 import { WalletBalanceCard } from './WalletBalanceCard';
-import { useRiderI18n } from './RiderI18nProvider';
 
 type ClaimWithType = ParametricClaim & {
   live_disruption_events?: { event_type?: string } | null;
@@ -100,16 +102,22 @@ export function DashboardContent({
   claimIdsNeedingVerification,
 }: DashboardContentProps) {
   const { messages } = useRiderI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [reportOpen, setReportOpen] = useState(false);
   const firstName = profile?.full_name?.split(' ')[0] ?? '';
+
+  useEffect(() => {
+    const v = searchParams.get('report');
+    if (v === '1' || v === 'true') {
+      setReportOpen(true);
+      router.replace('/dashboard', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   return (
     <LazyMotion features={domAnimation}>
-      <m.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="space-y-6 pb-4"
-      >
+      <m.div variants={container} initial="hidden" animate="show" className="space-y-6 pb-4">
         {/* Hero: greeting + coverage */}
         <m.section variants={item} className="space-y-3">
           <div className="pt-0.5">
@@ -129,11 +137,7 @@ export function DashboardContent({
             weeklyChange={thisWeekEarned}
             policyIds={policyIds}
             showAction
-            sparklineData={
-              weeklyDailyEarnings.some((n) => n > 0)
-                ? weeklyDailyEarnings
-                : undefined
-            }
+            sparklineData={weeklyDailyEarnings.some((n) => n > 0) ? weeklyDailyEarnings : undefined}
           />
         </m.section>
 
@@ -160,6 +164,8 @@ export function DashboardContent({
             compact
           />
           <ReportDeliveryImpact
+            open={reportOpen}
+            onOpenChange={setReportOpen}
             renderTrigger
             triggerTone="neutral"
             triggerClassName="w-full"
@@ -174,9 +180,7 @@ export function DashboardContent({
                 <span className="text-[13px] font-semibold text-zinc-200">
                   {messages.dashboard.chartTitle}
                 </span>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  {messages.dashboard.chartHint}
-                </p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">{messages.dashboard.chartHint}</p>
               </div>
               <ChevronDown
                 className="h-5 w-5 shrink-0 text-zinc-400 group-open:text-uber-green transition-[transform,color] duration-200 group-open:rotate-180"
