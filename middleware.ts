@@ -1,5 +1,5 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { updateSession } from '@/lib/supabase/middleware';
+import { type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   return await updateSession(request);
@@ -8,6 +8,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // API routes perform their own auth/rate-limit checks; keep middleware for pages only.
-    "/((?!api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|workbox-.*\\.js|~offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    '/((?!api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|workbox-.*\\.js|~offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

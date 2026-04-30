@@ -94,7 +94,7 @@ export function getOpenRouterApiKey(): string | null {
  */
 export function getPricingForecastModel(): string {
   const raw = process.env.PRICING_FORECAST_MODEL?.trim();
-  return raw || 'meta-llama/llama-3.1-8b-instruct';
+  return raw || 'meta-llama/llama-3.3-70b-instruct:free';
 }
 
 /**
@@ -103,7 +103,7 @@ export function getPricingForecastModel(): string {
  */
 export function getKycVisionModel(): string {
   const raw = process.env.KYC_VISION_MODEL?.trim();
-  return raw || 'google/gemma-4-26b-a4b-it';
+  return raw || 'google/gemma-4-31b-it:free';
 }
 
 /**
@@ -112,7 +112,7 @@ export function getKycVisionModel(): string {
  */
 export function getSelfReportVisionModel(): string {
   const raw = process.env.SELF_REPORT_VISION_MODEL?.trim();
-  return raw || 'google/gemma-4-26b-a4b-it';
+  return raw || 'google/gemma-4-31b-it:free';
 }
 
 /** Tomorrow.io API key for weather and forecast data. */

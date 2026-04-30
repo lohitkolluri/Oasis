@@ -141,7 +141,7 @@ async function calculatePremiumWithLlm(
         Authorization: `Bearer ${openRouterKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
+        model: 'openai/gpt-oss-20b:free',
         messages: [
           {
             role: 'system',
